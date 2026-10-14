@@ -1,0 +1,494 @@
+[
+  {
+    "name": "manual",
+    "input": {
+      "mode": "manual",
+      "prefs": {
+        "preferWebsiteImages": true,
+        "useUploadedMedia": true,
+        "selectedImageUrls": [],
+        "includeLogo": true,
+        "includeQr": true,
+        "qrUrl": "  https://sharmasweets.example/order?src=taxi ",
+        "keepAudio": true
+      },
+      "options": {
+        "goal": "awareness",
+        "platform": "taxi_screen",
+        "duration_seconds": 5,
+        "style": "cinematic_premium",
+        "tone": "friendly",
+        "special_instructions": "",
+        "add_overlays": true
+      },
+      "business": {
+        "name": "Night Owl Cafe",
+        "website_url": "",
+        "category": "",
+        "description": "",
+        "phone": "",
+        "address": "",
+        "offer": "2 for 1 coffee",
+        "cta": "Scan to order",
+        "services": [],
+        "omit": []
+      },
+      "jobId": "cccccccccccccccccccccccccccccccc",
+      "hero": {
+        "source": "scraped",
+        "url": "https://sharmasweets.example/img/a.jpg"
+      },
+      "logoAssetId": "ffffffffffffffffffffffffffffffff",
+      "mediaAssetIds": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      ]
+    },
+    "request": {
+      "job_id": null,
+      "business": {
+        "name": "Night Owl Cafe",
+        "website_url": "",
+        "category": "",
+        "description": "",
+        "phone": "",
+        "address": "",
+        "offer": "2 for 1 coffee",
+        "cta": "Scan to order",
+        "services": [],
+        "omit": []
+      },
+      "options": {
+        "goal": "awareness",
+        "platform": "taxi_screen",
+        "duration_seconds": 5,
+        "style": "cinematic_premium",
+        "tone": "friendly",
+        "special_instructions": "",
+        "add_overlays": true
+      },
+      "hero": null,
+      "logo_asset_id": "ffffffffffffffffffffffffffffffff",
+      "photo_asset_ids": [],
+      "wait_for_prompt": false,
+      "creative": {
+        "creation_mode": "manual",
+        "creative_mode": null,
+        "use_website_images": false,
+        "use_ai_video": false,
+        "use_uploaded_media": true,
+        "prefer_website_images": true,
+        "include_logo": true,
+        "include_qr": true,
+        "qr_url": "https://sharmasweets.example/order?src=taxi",
+        "selected_image_urls": [],
+        "media_asset_ids": [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        ],
+        "keep_audio": true
+      }
+    },
+    "expect": {
+      "creation_mode": "manual",
+      "creative_mode": null,
+      "calls_ai_video": false,
+      "include_qr": true,
+      "qr_url": "https://sharmasweets.example/order?src=taxi"
+    }
+  },
+  {
+    "name": "website",
+    "input": {
+      "mode": "website",
+      "prefs": {
+        "preferWebsiteImages": true,
+        "useUploadedMedia": false,
+        "selectedImageUrls": [
+          "https://sharmasweets.example/img/a.jpg",
+          "https://sharmasweets.example/img/b.jpg"
+        ],
+        "includeLogo": true,
+        "includeQr": true,
+        "qrUrl": "https://sharmasweets.example/order?src=taxi",
+        "keepAudio": true
+      },
+      "options": {
+        "goal": "awareness",
+        "platform": "taxi_screen",
+        "duration_seconds": 5,
+        "style": "cinematic_premium",
+        "tone": "friendly",
+        "special_instructions": "",
+        "add_overlays": true
+      },
+      "business": {
+        "name": "",
+        "website_url": "https://sharmasweets.example/",
+        "category": "",
+        "description": "",
+        "phone": "",
+        "address": "",
+        "offer": "",
+        "cta": "",
+        "services": [],
+        "omit": []
+      },
+      "jobId": "cccccccccccccccccccccccccccccccc",
+      "hero": {
+        "source": "scraped",
+        "url": "https://sharmasweets.example/img/a.jpg"
+      },
+      "logoAssetId": null,
+      "mediaAssetIds": [
+        "dddddddddddddddddddddddddddddddd"
+      ]
+    },
+    "request": {
+      "job_id": "cccccccccccccccccccccccccccccccc",
+      "business": {
+        "name": "",
+        "website_url": "https://sharmasweets.example/",
+        "category": "",
+        "description": "",
+        "phone": "",
+        "address": "",
+        "offer": "",
+        "cta": "",
+        "services": [],
+        "omit": []
+      },
+      "options": {
+        "goal": "awareness",
+        "platform": "taxi_screen",
+        "duration_seconds": 5,
+        "style": "cinematic_premium",
+        "tone": "friendly",
+        "special_instructions": "",
+        "add_overlays": true
+      },
+      "hero": null,
+      "logo_asset_id": null,
+      "photo_asset_ids": [],
+      "wait_for_prompt": false,
+      "creative": {
+        "creation_mode": "auto",
+        "creative_mode": "website",
+        "use_website_images": true,
+        "use_ai_video": false,
+        "use_uploaded_media": false,
+        "prefer_website_images": true,
+        "include_logo": true,
+        "include_qr": true,
+        "qr_url": "https://sharmasweets.example/order?src=taxi",
+        "selected_image_urls": [
+          "https://sharmasweets.example/img/a.jpg",
+          "https://sharmasweets.example/img/b.jpg"
+        ],
+        "media_asset_ids": [],
+        "keep_audio": true
+      }
+    },
+    "expect": {
+      "creation_mode": "auto",
+      "creative_mode": "website",
+      "calls_ai_video": false,
+      "include_qr": true,
+      "qr_url": "https://sharmasweets.example/order?src=taxi"
+    }
+  },
+  {
+    "name": "website_no_qr",
+    "input": {
+      "mode": "website",
+      "prefs": {
+        "preferWebsiteImages": false,
+        "useUploadedMedia": true,
+        "selectedImageUrls": [],
+        "includeLogo": true,
+        "includeQr": false,
+        "qrUrl": "https://sharmasweets.example/order?src=taxi",
+        "keepAudio": true
+      },
+      "options": {
+        "goal": "awareness",
+        "platform": "taxi_screen",
+        "duration_seconds": 5,
+        "style": "cinematic_premium",
+        "tone": "friendly",
+        "special_instructions": "",
+        "add_overlays": true
+      },
+      "business": {
+        "name": "",
+        "website_url": "https://sharmasweets.example/",
+        "category": "",
+        "description": "",
+        "phone": "",
+        "address": "",
+        "offer": "",
+        "cta": "",
+        "services": [],
+        "omit": []
+      },
+      "jobId": "cccccccccccccccccccccccccccccccc",
+      "hero": null,
+      "logoAssetId": null,
+      "mediaAssetIds": [
+        "dddddddddddddddddddddddddddddddd"
+      ]
+    },
+    "request": {
+      "job_id": "cccccccccccccccccccccccccccccccc",
+      "business": {
+        "name": "",
+        "website_url": "https://sharmasweets.example/",
+        "category": "",
+        "description": "",
+        "phone": "",
+        "address": "",
+        "offer": "",
+        "cta": "",
+        "services": [],
+        "omit": []
+      },
+      "options": {
+        "goal": "awareness",
+        "platform": "taxi_screen",
+        "duration_seconds": 5,
+        "style": "cinematic_premium",
+        "tone": "friendly",
+        "special_instructions": "",
+        "add_overlays": true
+      },
+      "hero": null,
+      "logo_asset_id": null,
+      "photo_asset_ids": [],
+      "wait_for_prompt": false,
+      "creative": {
+        "creation_mode": "auto",
+        "creative_mode": "website",
+        "use_website_images": true,
+        "use_ai_video": false,
+        "use_uploaded_media": true,
+        "prefer_website_images": false,
+        "include_logo": true,
+        "include_qr": false,
+        "qr_url": "",
+        "selected_image_urls": [],
+        "media_asset_ids": [
+          "dddddddddddddddddddddddddddddddd"
+        ],
+        "keep_audio": true
+      }
+    },
+    "expect": {
+      "creation_mode": "auto",
+      "creative_mode": "website",
+      "calls_ai_video": false,
+      "include_qr": false,
+      "qr_url": ""
+    }
+  },
+  {
+    "name": "ai",
+    "input": {
+      "mode": "ai",
+      "prefs": {
+        "preferWebsiteImages": true,
+        "useUploadedMedia": true,
+        "selectedImageUrls": [
+          "https://sharmasweets.example/img/a.jpg"
+        ],
+        "includeLogo": false,
+        "includeQr": true,
+        "qrUrl": "https://sharmasweets.example/order?src=taxi",
+        "keepAudio": true
+      },
+      "options": {
+        "goal": "awareness",
+        "platform": "taxi_screen",
+        "duration_seconds": 5,
+        "style": "cinematic_premium",
+        "tone": "friendly",
+        "special_instructions": "",
+        "add_overlays": true
+      },
+      "business": {
+        "name": "",
+        "website_url": "https://sharmasweets.example/",
+        "category": "",
+        "description": "",
+        "phone": "",
+        "address": "",
+        "offer": "",
+        "cta": "",
+        "services": [],
+        "omit": []
+      },
+      "jobId": "cccccccccccccccccccccccccccccccc",
+      "hero": {
+        "source": "scraped",
+        "url": "https://sharmasweets.example/img/a.jpg"
+      },
+      "logoAssetId": null,
+      "mediaAssetIds": [
+        "dddddddddddddddddddddddddddddddd"
+      ]
+    },
+    "request": {
+      "job_id": "cccccccccccccccccccccccccccccccc",
+      "business": {
+        "name": "",
+        "website_url": "https://sharmasweets.example/",
+        "category": "",
+        "description": "",
+        "phone": "",
+        "address": "",
+        "offer": "",
+        "cta": "",
+        "services": [],
+        "omit": []
+      },
+      "options": {
+        "goal": "awareness",
+        "platform": "taxi_screen",
+        "duration_seconds": 5,
+        "style": "cinematic_premium",
+        "tone": "friendly",
+        "special_instructions": "",
+        "add_overlays": true
+      },
+      "hero": null,
+      "logo_asset_id": null,
+      "photo_asset_ids": [],
+      "wait_for_prompt": false,
+      "creative": {
+        "creation_mode": "auto",
+        "creative_mode": "ai",
+        "use_website_images": false,
+        "use_ai_video": true,
+        "use_uploaded_media": false,
+        "prefer_website_images": true,
+        "include_logo": false,
+        "include_qr": true,
+        "qr_url": "https://sharmasweets.example/order?src=taxi",
+        "selected_image_urls": [],
+        "media_asset_ids": [],
+        "keep_audio": true
+      }
+    },
+    "expect": {
+      "creation_mode": "auto",
+      "creative_mode": "ai",
+      "calls_ai_video": true,
+      "include_qr": true,
+      "qr_url": "https://sharmasweets.example/order?src=taxi"
+    }
+  },
+  {
+    "name": "mixed",
+    "input": {
+      "mode": "mixed",
+      "prefs": {
+        "preferWebsiteImages": true,
+        "useUploadedMedia": true,
+        "selectedImageUrls": [
+          "https://sharmasweets.example/img/a.jpg",
+          "https://sharmasweets.example/img/b.jpg"
+        ],
+        "includeLogo": true,
+        "includeQr": true,
+        "qrUrl": "https://sharmasweets.example/order?src=taxi",
+        "keepAudio": false
+      },
+      "options": {
+        "goal": "awareness",
+        "platform": "taxi_screen",
+        "duration_seconds": 5,
+        "style": "cinematic_premium",
+        "tone": "friendly",
+        "special_instructions": "",
+        "add_overlays": true
+      },
+      "business": {
+        "name": "",
+        "website_url": "https://sharmasweets.example/",
+        "category": "",
+        "description": "",
+        "phone": "",
+        "address": "",
+        "offer": "",
+        "cta": "",
+        "services": [],
+        "omit": []
+      },
+      "jobId": "cccccccccccccccccccccccccccccccc",
+      "hero": {
+        "source": "scraped",
+        "url": "https://sharmasweets.example/img/a.jpg"
+      },
+      "logoAssetId": "ffffffffffffffffffffffffffffffff",
+      "mediaAssetIds": [
+        "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      ]
+    },
+    "request": {
+      "job_id": "cccccccccccccccccccccccccccccccc",
+      "business": {
+        "name": "",
+        "website_url": "https://sharmasweets.example/",
+        "category": "",
+        "description": "",
+        "phone": "",
+        "address": "",
+        "offer": "",
+        "cta": "",
+        "services": [],
+        "omit": []
+      },
+      "options": {
+        "goal": "awareness",
+        "platform": "taxi_screen",
+        "duration_seconds": 5,
+        "style": "cinematic_premium",
+        "tone": "friendly",
+        "special_instructions": "",
+        "add_overlays": true
+      },
+      "hero": {
+        "source": "scraped",
+        "url": "https://sharmasweets.example/img/a.jpg"
+      },
+      "logo_asset_id": "ffffffffffffffffffffffffffffffff",
+      "photo_asset_ids": [],
+      "wait_for_prompt": false,
+      "creative": {
+        "creation_mode": "auto",
+        "creative_mode": "mixed",
+        "use_website_images": true,
+        "use_ai_video": true,
+        "use_uploaded_media": true,
+        "prefer_website_images": true,
+        "include_logo": true,
+        "include_qr": true,
+        "qr_url": "https://sharmasweets.example/order?src=taxi",
+        "selected_image_urls": [
+          "https://sharmasweets.example/img/a.jpg",
+          "https://sharmasweets.example/img/b.jpg"
+        ],
+        "media_asset_ids": [
+          "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        ],
+        "keep_audio": false
+      }
+    },
+    "expect": {
+      "creation_mode": "auto",
+      "creative_mode": "mixed",
+      "calls_ai_video": true,
+      "include_qr": true,
+      "qr_url": "https://sharmasweets.example/order?src=taxi"
+    }
+  }
+]

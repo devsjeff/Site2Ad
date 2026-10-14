@@ -1,0 +1,28 @@
+# secrets and local data
+.env
+.env.*
+!.env.example
+backend/data/
+backend/data-test/
+data/
+*.db
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# node / next
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

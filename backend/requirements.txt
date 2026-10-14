@@ -1,0 +1,16 @@
+# Runtime dependencies. Python 3.11 or newer.
+# Versions are lower bounds that are known to work; the major version is capped so a surprise release cannot break the install.
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.30,<1.0
+pydantic>=2.7,<3.0
+python-multipart>=0.0.9          # file uploads
+httpx>=0.27,<1.0                 # scanner HTTP client
+beautifulsoup4>=4.12,<5.0
+lxml>=5.0                        # fast HTML parser (the scanner falls back to html.parser without it)
+playwright>=1.47,<2.0            # headless browser for JavaScript sites; run: python -m playwright install firefox
+pillow>=10.4                     # image checks, hero crop, text overlay
+python-dotenv>=1.0               # loads backend/.env
+magic-hour>=0.40                 # Magic Hour video SDK (only used when VIDEO_MODEL_API_KEY is set)
+qrcode>=7.4                      # optional QR code on the video
+phonenumbers>=8.13               # optional: better phone number detection
+redis>=5.0                       # optional: shared scan cache when REDIS_URL is set

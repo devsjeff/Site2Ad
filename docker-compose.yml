@@ -1,0 +1,63 @@
+# Whole app:  cp backend/.env.example backend/.env   (optional, add your keys)   then   docker compose up --build
+# Frontend: http://localhost:3000     Backend API docs: http://localhost:8000/docs (when APP_ENV is not production)
+services:
+  backend:
+    build: ./backend
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      DATA_DIR: /data
+      DATABASE_URL: sqlite:////data/adsify.db
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    ports:
+      - "8000:8000"
+    volumes:
+      - adsify-data:/data
+    depends_on:
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # The address the BROWSER uses to reach the backend (not a Docker-internal name).
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+        # direct | nginx  (nginx = same origin; start with: docker compose --profile nginx up --build)
+        NEXT_PUBLIC_API_TARGET: ${NEXT_PUBLIC_API_TARGET:-direct}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # Optional: one address for everything (http://localhost:${NGINX_PORT:-8080}). Enable with --profile nginx and build the
+  # frontend with NEXT_PUBLIC_API_TARGET=nginx. Routing lives in deploy/nginx/adsify-locations.conf.
+  nginx:
+    image: nginx:1.27-alpine
+    profiles: ["nginx"]
+    environment:
+      ADSIFY_BACKEND: backend:8000
+      ADSIFY_FRONTEND: frontend:3000
+    volumes:
+      - ./deploy/nginx/adsify.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./deploy/nginx/adsify-locations.conf:/etc/nginx/adsify-locations.conf:ro
+    ports:
+      - "${NGINX_PORT:-8080}:80"
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+
+  # Optional: shared scan cache. Remove this service and the REDIS_URL line to use the built-in memory cache.
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    restart: unless-stopped
+
+volumes:
+  adsify-data:
