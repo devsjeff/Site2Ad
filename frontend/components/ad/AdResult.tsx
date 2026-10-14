@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { adVideoUrl, api, errorMessage } from "@/lib/api";
 import { usePolling } from "@/lib/usePolling";
-import { isAdFinished, type AdResponse, type SegmentKind } from "@/lib/types";
+import { isAdFinished, type AdBrief, type AdResponse, type SegmentKind } from "@/lib/types";
 import { Alert } from "../ui/Alert";
 import { AdProgress } from "./AdProgress";
 import { PromptView } from "./PromptView";
@@ -19,6 +19,32 @@ const SEGMENT_LABELS: Record<SegmentKind, string> = {
   ai_video: "AI-generated video",
   fallback_video: "Simple clip made from your details (not AI footage)",
 };
+
+// The ad brief the AI video was planned from: concept, message, facts (with where they came from), what was left out.
+function BriefView({ brief }: { brief: AdBrief }) {
+  const concept = brief.concepts[brief.chosen_concept];
+  return (
+    <details className="rounded-xl border border-line bg-surface p-4 text-sm">
+      <summary className="cursor-pointer font-medium text-ink">
+        Ad brief
+        <span className="ml-2 text-xs font-normal text-muted">{concept?.title} · written by {brief.builder === "llm" ? "AI" : "the built-in writer"}</span>
+      </summary>
+      <dl className="mt-3 space-y-2 text-xs">
+        {brief.main_message && <div><dt className="font-medium text-ink">Message</dt><dd className="text-muted">{brief.main_message}</dd></div>}
+        {concept && <div><dt className="font-medium text-ink">Scene</dt><dd className="text-muted">{concept.visual}</dd></div>}
+        {brief.concepts.length > 1 && <div><dt className="font-medium text-ink">Other ideas</dt><dd className="text-muted">{brief.concepts.filter((_, i) => i !== brief.chosen_concept).map((c) => c.title).join(" · ")}</dd></div>}
+        {brief.supporting_facts.length > 0 && (
+          <div>
+            <dt className="font-medium text-ink">Facts used</dt>
+            <dd><ul className="list-disc pl-5 text-muted">{brief.supporting_facts.map((fact) => <li key={fact.field}>{fact.field}: {fact.text} <span className="opacity-70">({fact.origin === "user" ? "you typed it" : "from your website"})</span></li>)}</ul></dd>
+          </div>
+        )}
+        {brief.rejected_claims.length > 0 && <div><dt className="font-medium text-ink">Left out</dt><dd><ul className="list-disc pl-5 text-muted">{brief.rejected_claims.map((c) => <li key={c}>{c}</li>)}</ul></dd></div>}
+        {brief.missing.length > 0 && <div><dt className="font-medium text-ink">Not found (add it for a better ad)</dt><dd className="text-muted">{brief.missing.join(" · ")}</dd></div>}
+      </dl>
+    </details>
+  );
+}
 
 // What the finished video is made of, in order, and whether the QR code really made it in.
 function MadeOf({ ad }: { ad: AdResponse }) {
@@ -74,7 +100,7 @@ export function AdResult() {
       {ad.status === "failed" && <Alert tone="error" title="Something went wrong">{ad.error || "Please try again."}</Alert>}
 
       {ad.status === "completed_with_fallback" && (
-        <Alert tone="warn" title="Not AI footage">The AI video provider could not finish, so the video part is a simple clip, not AI-generated video. You can try again.</Alert>
+        <Alert tone="warn" title="Not AI footage">The AI video provider could not finish, so the video part is a simple clip, not AI-generated video. You can try again.{ad.provider_error ? ` Reason: ${ad.provider_error}` : ""}</Alert>
       )}
       {ad.provider === "mock" && ad.status === "completed" && (
         <Alert tone="info" title="Demo mode">This server has no video model key, so the video is a simple zoom clip made from your image. Add VIDEO_MODEL_API_KEY on the server for real AI video.</Alert>
@@ -108,6 +134,7 @@ export function AdResult() {
         </Alert>
       )}
 
+      {ad.brief && <BriefView brief={ad.brief} />}
       {ad.prompt && <PromptView prompt={ad.prompt} />}
     </div>
   );

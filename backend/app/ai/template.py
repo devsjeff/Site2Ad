@@ -13,7 +13,7 @@ import re
 from .. import catalog
 from ..schemas import AdOptions
 from .facts import FactSheet
-from .guard import MAX_SHOTS, MIN_SHOTS, PROMPT_MAX_CHARS
+from .guard import MAX_SHOTS, MIN_SHOTS, PROMPT_MAX_CHARS, shot_range
 
 # Camera / motion / lighting for each shot position, per visual style. Index = shot position (0 is the opening).
 STYLE_SHOTS: dict[str, list[tuple[str, str, str]]] = {
@@ -105,16 +105,17 @@ MIDDLE_ROLES: dict[str, list[str]] = {
 
 
 def shot_count_for(duration_seconds: int) -> int:
-    """How many shots fit a duration (about 2 seconds a shot): 3 up to 5 s, then 4, 5 and at most 6."""
+    """How many shots fit a duration: one continuous shot up to 5 s, two up to 10 s, three up to 20 s, then four."""
     if duration_seconds <= 5:
+        count = 1
+    elif duration_seconds <= 10:
+        count = 2
+    elif duration_seconds <= 20:
         count = 3
-    elif duration_seconds <= 9:
-        count = 4
-    elif duration_seconds <= 14:
-        count = 5
     else:
-        count = 6
-    return max(MIN_SHOTS, min(MAX_SHOTS, count))
+        count = 4
+    low, high = shot_range(duration_seconds)
+    return max(MIN_SHOTS, min(MAX_SHOTS, max(low, min(high, count))))
 
 
 def sanitize(text: str, limit: int = 400) -> str:
@@ -244,7 +245,9 @@ def _reference_line(has_reference: bool) -> str:
 
 
 def _roles(goal: str, shots: int) -> list[str]:
-    """Role of each shot: an opening, goal-specific middle shots and a closing shot."""
+    """Role of each shot: an opening, goal-specific middle shots and a closing shot (one shot does both)."""
+    if shots <= 1:
+        return ["single"]
     middle = MIDDLE_ROLES.get(goal, MIDDLE_ROLES["awareness"])
     return ["opening"] + middle[: shots - 2] + ["closing"]
 
@@ -256,6 +259,9 @@ def _shot_action(role: str, repeat: int, facts: FactSheet, has_reference: bool, 
         if has_reference:
             return f"The reference image of {name} fills the frame as the opening; bring it to life with a gentle, natural motion."
         return f"Open on an inviting, realistic scene that introduces {name} and {subject}."
+    if role == "single":
+        start = _shot_action("opening", 0, facts, has_reference, subject)
+        return f"{start} {_shot_action('closing', 0, facts, has_reference, subject, looping)}"
     if role == "closing":
         if looping:
             return f"Ease back toward the opening framing of {name} with the same light and colours, so the clip can start again without a visible jump. Leave empty space for text."
@@ -343,7 +349,7 @@ def build_template_prompt(
     shot_lines: list[str] = []
     seen: dict[str, int] = {}
     for index, role in enumerate(roles):
-        camera, motion, lighting = tech[-1] if role == "closing" else tech[min(index, len(tech) - 1)]
+        camera, motion, lighting = tech[0] if role == "single" else tech[-1] if role == "closing" else tech[min(index, len(tech) - 1)]
         shot_subject = subjects[(index - 1) % len(subjects)] if 0 < index < shots - 1 else subject
         action = _shot_action(role, seen.get(role, 0), clean, has_reference, shot_subject, looping)
         seen[role] = seen.get(role, 0) + 1

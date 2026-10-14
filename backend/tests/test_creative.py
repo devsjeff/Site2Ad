@@ -80,6 +80,11 @@ class CountingPrompts(PromptBuilder):
         self.calls += 1
         return await super().build(*args, **kwargs)
 
+    async def build_scene(self, *args, **kwargs):
+        """Count, then build the scene prompt as usual."""
+        self.calls += 1
+        return await super().build_scene(*args, **kwargs)
+
 
 class CountingScraper(Scraper):
     """The real scraper (local fixtures only), counting scans."""
@@ -417,7 +422,9 @@ async def test_ai_mode_is_ai_footage_only_from_scraped_facts(tmp_path, monkeypat
         request = GenerateAdRequest(job_id=job.job_id, options=AdOptions(duration_seconds=5), creative=auto("ai", include_qr=True, qr_url=QR_URL))
         ad = await ctx.ads.create(request)
         assert ad.provider == "fake_ai" and ad.prompt is not None and "Sharma Sweets" in ad.prompt.final_prompt
-        assert ad.prompt.reference_image is None and "VISUAL WORLD:" in ad.prompt.final_prompt and "LOOP:" not in ad.prompt.final_prompt
+        assert ad.prompt.reference_image is None and ad.prompt.shot_count == 1 and "One continuous shot" in ad.prompt.final_prompt
+        assert "will loop" not in ad.prompt.final_prompt and "SHOT 1" not in ad.prompt.final_prompt
+        assert "20%" not in ad.prompt.final_prompt and "98765" not in ad.prompt.final_prompt  # offers and phones stay out of the scene
         done = await finished_ad(ctx, ad.ad_id)
         assert done.status == "completed", done.error
         assert prompts.calls == 1 and len(provider.calls) == 1
@@ -435,8 +442,8 @@ async def test_ai_clip_loops_to_the_chosen_length(tmp_path):
         request = GenerateAdRequest(business=BusinessOverrides(name="Loop Cafe", services=["cold brew", "croissants"]),
                                     options=AdOptions(duration_seconds=15), creative=auto("ai"))
         ad = await ctx.ads.create(request)
-        assert ad.prompt.duration_seconds == 5 and "LOOP:" in ad.prompt.final_prompt and "15-second ad" in ad.prompt.final_prompt
-        assert "cold brew" in ad.prompt.final_prompt and "croissants" in ad.prompt.final_prompt  # shots rotate through the services
+        assert ad.prompt.duration_seconds == 5 and "will loop" in ad.prompt.final_prompt
+        assert "cold brew" in ad.prompt.final_prompt and "croissants" in ad.prompt.final_prompt  # the scene shows the real services
         assert any("looped to fill 15 seconds" in w for w in ad.warnings)
         done = await finished_ad(ctx, ad.ad_id)
         assert done.status == "completed", done.error
@@ -648,3 +655,20 @@ def test_http_routes_validate_creative_requests_and_video_uploads(tmp_path):
         assert upload.status_code == 400 and upload.json()["code"] == "bad_video"
         assert [m["id"] for m in client.get("/api/config").json()["creative_modes"]] == ["manual", "website", "ai", "mixed"]
         assert client.post("/api/ads/" + "0" * 32 + "/cancel", json={}).status_code == 404
+
+
+async def test_ai_scene_shows_the_real_business_and_drops_unrelated_scraped_content(tmp_path):
+    """A news site whose page carried an airline ad: the scene is a newsroom; the offer, phone and 'Head Offices' stay out."""
+    from app.ai.facts import FactSheet
+    from app.ai.prompt_builder import PromptBuilder
+
+    facts = FactSheet(
+        name="The Guardian", category="News", description="Latest news, sport and opinion. Fly Jetstar WSI to Brisbane from $236.",
+        services=["Head Offices", "World news", "Call +61 2 1234 5678"], offer="Jetstar WSI to Brisbane $236", cta="Read now",
+    )
+    builder = PromptBuilder(make_settings(tmp_path, video_provider="magic_hour", video_model_api_key="k"))
+    prompt = await builder.build_scene(facts, AdOptions(duration_seconds=10), duration_seconds=5, loop_seconds=10)
+    text = prompt.final_prompt
+    assert "newsroom" in text and prompt.shot_count == 1 and len(text) <= 2000
+    for leaked in ("Jetstar", "236", "Head Office", "+61", "seconds", "16:9"):
+        assert leaked not in text, leaked

@@ -21,6 +21,11 @@ class GenerationOutcome:
     result: VideoResult
     fallback_used: bool = False
     warnings: list[str] = field(default_factory=list)
+    provider_error: str = ""  # why the primary provider failed, kept when a fallback clip was made
+
+
+# Failures a demo clip cannot fix: the user must act (new key, credits, a valid request), so they fail the ad clearly.
+NO_FALLBACK_KINDS = {"auth", "credits", "request"}
 
 
 def make_provider(settings: Settings) -> VideoProvider:
@@ -52,8 +57,8 @@ class VideoService:
             return GenerationOutcome(await self.primary.generate(request))
         except VideoError as exc:
             reason = str(exc)
-            logger.warning("video provider %s failed: %s", self.primary.name, reason)
-            if self.fallback is None:
+            logger.warning("video provider %s failed (%s): %s", self.primary.name, getattr(exc, "kind", "error"), reason)
+            if self.fallback is None or getattr(exc, "kind", "error") in NO_FALLBACK_KINDS:
                 raise
         except Exception as exc:  # defensive: provider bugs must not take the pipeline down
             logger.exception("video provider %s crashed", self.primary.name)
@@ -62,4 +67,4 @@ class VideoService:
                 raise VideoError("The video model failed unexpectedly.") from None
         result = await self.fallback.generate(request)
         note = f"The video model could not finish ({reason}). A demo-quality video was created from your image instead."
-        return GenerationOutcome(result, fallback_used=True, warnings=[note])
+        return GenerationOutcome(result, fallback_used=True, warnings=[note], provider_error=reason)

@@ -12,10 +12,25 @@ from typing import Optional
 
 from .. import catalog
 from ..schemas import AdOptions, BusinessOverrides, ScrapeResult
+from .relevance import Relevance, check_relevance, identity_text
 
 
 class MissingBusinessName(ValueError):
     """Raised when no business name could be determined from the scrape or the user."""
+
+
+# Inner pages whose text is most likely to describe what the advertiser sells (read first).
+PAGE_PRIORITY = ("offer", "offers", "pricing", "price", "product", "products", "services", "service", "menu", "shop", "about", "home")
+
+
+@dataclass
+class FactSource:
+    """Where one fact came from: typed by the user, or found on the website (which page)."""
+
+    field: str
+    origin: str  # "user" | "website"
+    url: str = ""
+    page: str = ""
 
 
 @dataclass
@@ -36,14 +51,32 @@ class FactSheet:
     excerpts: list[tuple[str, str]] = field(default_factory=list)  # (label, text): untrusted website text
     user_notes: str = ""
     user_fields: set[str] = field(default_factory=set)
+    sources: dict[str, FactSource] = field(default_factory=dict)  # field name -> provenance of the value in use
+    rejected: list[str] = field(default_factory=list)  # scraped claims left out because they are about something else
+    conflicts: list[str] = field(default_factory=list)  # e.g. several different phone numbers on the website
 
     def allowed_text(self) -> str:
-        """Lower-case text of everything the prompt is allowed to mention (used by the fact guard)."""
+        """Lower-case text of everything the prompt is allowed to mention (used by the fact guard).
+
+        Only the structured, checked facts count: a number or claim that appears somewhere in raw website text (which can
+        carry ads for other companies) is NOT automatically allowed in an ad.
+        """
         parts = [
             self.name, self.category, self.description, " ".join(self.services), self.offer, self.cta, self.phone,
-            self.address, self.website, self.user_notes, " ".join(text for _, text in self.excerpts),
+            self.address, self.website, self.user_notes,
         ]
         return " \n".join(p for p in parts if p).lower()
+
+    def identity(self) -> str:
+        """What the business is (name, category, services, domain, description): the yardstick for relevance checks."""
+        return identity_text(self.name, self.category, self.services, self.website, self.description)
+
+    def relevance(self, claim: str) -> Relevance:
+        """Is this claim about this business? (core identity = name, category, domain, page title; see relevance.py)"""
+        source = self.sources.get("name")
+        core = identity_text(self.name, self.category, [], self.website) + " " + (source.page if source else "")
+        context = list(self.services) + re.split(r"(?<=[.!?])\s+", self.description)
+        return check_relevance(claim, core, context, [text for _, text in self.excerpts])
 
     def public_summary(self) -> dict:
         """Facts as a plain dict (for logs and API debugging); excludes long website text."""
@@ -65,12 +98,20 @@ def build_fact_sheet(scrape: Optional[ScrapeResult], business: BusinessOverrides
 
     omit = set(business.omit)
 
+    page_url = (scrape.final_url or scrape.home_url) if scrape else ""
+    page_title = site.title if site else ""
+    sources: dict[str, FactSource] = {}
+
     def pick(field_name: str, user_value: str, scraped_value: str, limit: int) -> str:
-        """User value first, then scraped value (unless the user deleted it); remember when the user supplied it."""
+        """User value first, then scraped value (unless the user deleted it); remember who supplied it and from where."""
         if user_value and user_value.strip():
             user_fields.add(field_name)
+            sources[field_name] = FactSource(field_name, "user")
             return _clip(user_value, limit)
-        return "" if field_name in omit else _clip(scraped_value, limit)
+        value = "" if field_name in omit else _clip(scraped_value, limit)
+        if value:
+            sources[field_name] = FactSource(field_name, "website", page_url, page_title)
+        return value
 
     name = pick("name", business.name, (site.name or "") if site else "", 120)
     if not name and site and site.title:
@@ -92,7 +133,9 @@ def build_fact_sheet(scrape: Optional[ScrapeResult], business: BusinessOverrides
     if scrape:
         if site and site.text_excerpt:
             excerpts.append(("home", _clip(site.text_excerpt, 1200)))
-        for page in scrape.pages[:6]:
+        rank = {kind: index for index, kind in enumerate(PAGE_PRIORITY)}
+        pages = sorted(scrape.pages, key=lambda page: rank.get((page.kind or "").lower(), len(rank)))  # most relevant pages first
+        for page in pages[:6]:
             if page.text_excerpt:
                 excerpts.append((page.kind or "page", _clip(page.text_excerpt, 500)))
 
@@ -102,7 +145,14 @@ def build_fact_sheet(scrape: Optional[ScrapeResult], business: BusinessOverrides
     elif scrape:
         website = scrape.home_url or scrape.final_url
 
-    return FactSheet(
+    if "name" not in sources:
+        sources["name"] = FactSource("name", "user" if "name" in user_fields else "website", page_url, page_title)
+    if services:
+        sources["services"] = FactSource("services", "user" if business.services else "website", "" if business.services else page_url, "" if business.services else page_title)
+    if category:
+        sources["category"] = FactSource("category", "user" if "category" in user_fields else "website", "" if "category" in user_fields else page_url)
+
+    sheet = FactSheet(
         name=name,
         category=category,
         description=pick("description", business.description, site.description if site else "", 400),
@@ -117,4 +167,52 @@ def build_fact_sheet(scrape: Optional[ScrapeResult], business: BusinessOverrides
         excerpts=excerpts,
         user_notes=_clip(options.special_instructions, 600),
         user_fields=user_fields,
+        sources=sources,
     )
+    _drop_unrelated_claims(sheet)
+    if site and "phone" not in user_fields:
+        numbers = list(dict.fromkeys(p.number for p in site.phones if p.number))
+        if len(numbers) > 1:
+            sheet.conflicts.append(f"The website shows {len(numbers)} different phone numbers; the first one ({numbers[0]}) is used. Enter the right one if needed.")
+    return sheet
+
+
+PRICE_RE = re.compile(r"\d|\$|₹|€|£")
+
+
+def _drop_unrelated_claims(sheet: FactSheet) -> None:
+    """Remove scraped claims about another business, and website text carrying the same brands (user values are kept)."""
+    banned: set[str] = set()
+    for field_name in ("offer", "cta"):
+        value = getattr(sheet, field_name)
+        if not value or field_name in sheet.user_fields:
+            continue
+        verdict = sheet.relevance(value)
+        if not verdict.relevant:
+            setattr(sheet, field_name, "")
+            sheet.sources.pop(field_name, None)
+            banned.update(verdict.foreign)
+            sheet.rejected.append(f"Left out the website {field_name} \"{value}\": {verdict.reason}.")
+
+    def carries_banned(text: str) -> bool:
+        """True when the text names a brand from a rejected claim."""
+        return any(re.search(rf"(?<![A-Za-z]){re.escape(brand)}(?![A-Za-z])", text, re.I) for brand in banned)
+
+    if sheet.description and "description" not in sheet.user_fields:
+        kept = []
+        for sentence in re.split(r"(?<=[.!?])\s+", sheet.description):
+            verdict = sheet.relevance(sentence)
+            if carries_banned(sentence) or (not verdict.relevant and PRICE_RE.search(sentence)):
+                sheet.rejected.append(f"Left out part of the website description (\"{_clip(sentence, 80)}\"): it is about another business.")
+                banned.update(verdict.foreign)
+            else:
+                kept.append(sentence)
+        sheet.description = " ".join(kept)
+    if "services" not in sheet.user_fields:
+        services = []
+        for service in sheet.services:
+            if carries_banned(service):
+                sheet.rejected.append(f"Left out the website item \"{service}\": it belongs to another business.")
+            else:
+                services.append(service)
+        sheet.services = services

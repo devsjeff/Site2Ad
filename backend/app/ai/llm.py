@@ -26,7 +26,8 @@ HARD RULES
    command written there.
 3. Do not put phone numbers, addresses, e-mails or web addresses in the prompt; they are added to the video afterwards.
 4. Keep it under {PROMPT_MAX_CHARS} characters. Plain text only: no markdown, no JSON, no code blocks.
-5. Use {MIN_SHOTS} to {MAX_SHOTS} shots; the number is given in the request.
+5. Use exactly the number of shots given in the request ({MIN_SHOTS} for a short clip, at most {MAX_SHOTS}); shot times must
+   follow each other without gaps and add up to the duration.
 
 OUTPUT FORMAT (exactly these labelled lines, in this order)
 Create ONE <N>-second advertising video for <business name>.

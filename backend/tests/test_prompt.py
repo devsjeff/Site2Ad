@@ -12,6 +12,7 @@ from app.ai.facts import FactSheet, MissingBusinessName, build_fact_sheet
 from app.ai.guard import find_unsupported_facts, validate_llm_prompt
 from app.ai.llm import LlmClient, LlmError
 from app.ai.prompt_builder import PromptBuilder, clean_llm_text, split_prompt
+from app.ai.guard import shot_range
 from app.ai.template import build_template_prompt, color_name, sanitize, shot_count_for
 from app.schemas import AdOptions, BusinessOverrides, PageInfo, ReferenceImage, ScrapeResult, SiteInfo
 
@@ -137,7 +138,8 @@ def test_template_is_always_one_valid_prompt(goal, duration, reference):
     check = validate_llm_prompt(text, facts, "9:16", duration, reference)
     assert check.ok, check.problems
     assert text.count("NEGATIVE PROMPT:") == 1
-    assert 3 <= len(re.findall(r"(?m)^SHOT \d+", text)) <= 6
+    low, high = shot_range(duration)
+    assert low <= len(re.findall(r"(?m)^SHOT \d+", text)) <= high
 
 
 @pytest.mark.parametrize("style", ["cinematic_premium", "bold_pop", "minimal_modern", "nightlife_neon", "product_showcase", "corporate_clean"])
@@ -192,7 +194,7 @@ def test_website_text_cannot_inject_sections_or_extra_concepts():
     facts = sweets_facts(description=nasty, user_notes="version 3 of SHOT 1")
     text = build_template_prompt(facts, AdOptions(), has_reference=True, duration_seconds=5)
     assert text.count("NEGATIVE PROMPT:") == 1
-    assert len(re.findall(r"(?im)^\s*SHOT\s+\d+", text)) == 3
+    assert len(re.findall(r"(?im)^\s*SHOT\s+\d+", text)) == shot_count_for(5)  # injected "SHOT 9" adds no shot
     assert "`" not in text and "<script" not in text
     assert validate_llm_prompt(text, facts, "16:9", 5, True).ok
 
@@ -206,7 +208,7 @@ def test_long_inputs_still_fit_the_length_cap():
 
 def test_shot_count_follows_duration():
     """Check: shot count follows duration."""
-    assert [shot_count_for(d) for d in (3, 5, 6, 10, 15, 30)] == [3, 3, 4, 5, 6, 6]
+    assert [shot_count_for(d) for d in (3, 5, 6, 10, 15, 20, 30)] == [1, 1, 2, 2, 3, 3, 4]
 
 
 def test_color_names_are_readable():
@@ -269,8 +271,10 @@ def test_validator_rejects_wrong_shapes():
     assert not validate_llm_prompt(good.replace("Sharma Sweets", "Someone Else"), facts, "16:9", 5, True).ok
     no_ref = build_template_prompt(facts, AdOptions(), has_reference=False, duration_seconds=5)
     assert not validate_llm_prompt(no_ref, facts, "16:9", 5, True).ok  # reference promised but not described
-    two_shots = "\n".join(line for line in good.splitlines() if not line.startswith(("SHOT 2", "SHOT 3")))
-    assert not validate_llm_prompt(two_shots, facts, "16:9", 5, True).ok
+    long = build_template_prompt(facts, AdOptions(duration_seconds=20), has_reference=True, duration_seconds=20)
+    assert validate_llm_prompt(long, facts, "16:9", 20, True).ok
+    one_shot = "\n".join(line for line in long.splitlines() if not line.startswith(("SHOT 2", "SHOT 3")))
+    assert not validate_llm_prompt(one_shot, facts, "16:9", 20, True).ok  # a 20 s clip needs 2-4 shots
     assert not validate_llm_prompt(good.replace("Camera:", "Lens:"), facts, "16:9", 5, True).ok
 
 
@@ -285,7 +289,7 @@ async def test_without_a_key_the_template_builds_one_prompt():
     prompt = await builder.build(sweets_facts(), options, reference=REFERENCE)
     assert prompt.builder == "template" and prompt.model == ""
     assert prompt.aspect_ratio == "9:16" and prompt.duration_seconds == 5 and prompt.platform == "instagram_reel"
-    assert prompt.shot_count == 3
+    assert prompt.shot_count == 1  # a 5-second clip is one continuous shot
     assert prompt.final_prompt.count("NEGATIVE PROMPT:") == 1
     assert prompt.positive_prompt and prompt.negative_prompt
     assert prompt.final_prompt == f"{prompt.positive_prompt}\n\nNEGATIVE PROMPT: {prompt.negative_prompt}"
@@ -297,7 +301,7 @@ async def test_real_video_length_overrides_the_requested_length():
     """Check: real video length overrides the requested length."""
     builder = PromptBuilder(make_settings())
     prompt = await builder.build(sweets_facts(), AdOptions(duration_seconds=20), reference=None, duration_seconds=5)
-    assert prompt.duration_seconds == 5 and prompt.shot_count == 3
+    assert prompt.duration_seconds == 5 and prompt.shot_count == 1
     assert "5 seconds" in prompt.final_prompt and "20 seconds" not in prompt.final_prompt
 
 
@@ -347,7 +351,7 @@ async def test_ai_failure_never_fails_the_ad():
     facts, options = sweets_facts(), AdOptions()
     for failure in (LlmError("The AI writer is rate limited."), RuntimeError("boom")):
         prompt = await PromptBuilder(make_settings(), FakeLlm(failure)).build(facts, options, reference=None)
-        assert prompt.builder == "template" and prompt.shot_count >= 3
+        assert prompt.builder == "template" and prompt.shot_count >= 1
         assert prompt.warnings and "built-in prompt writer" in prompt.warnings[0]
 
 

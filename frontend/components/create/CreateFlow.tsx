@@ -360,6 +360,9 @@ export function CreateFlow() {
               {(!result?.site.name || touched.has("name")) && (
                 <InputField label="Business name" required value={draft.name} onChange={(v) => edit("name", v)} maxLength={120} error={nameError} helpText="Your website did not show a clear business name." />
               )}
+              {(result?.site.offer || touched.has("offer")) && (
+                <InputField label="Offer shown on the video" value={draft.offer} onChange={(v) => edit("offer", v)} maxLength={160} helpText="Found on your website. Check it belongs to your business, or clear it to leave it out." />
+              )}
               <InputField label="Call to action" value={draft.cta} onChange={(v) => edit("cta", v)} maxLength={80} placeholder="e.g. Order now" helpText={draft.cta && !touched.has("cta") ? "Found on your website. Edit or clear it." : "Shown on the video, e.g. Order now or Book a table."} />
             </>
           )}

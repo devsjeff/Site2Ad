@@ -14,7 +14,18 @@ from .. import catalog
 
 
 class VideoError(Exception):
-    """A video step failed. The message is safe to show to the user (no keys, no stack traces)."""
+    """A video step failed. The message is safe to show to the user (no keys, no stack traces).
+
+    `kind` says what went wrong (auth, credits, request, rate_limited, server, timeout, error); `retryable` marks
+    transient provider errors that may succeed when tried again; `status` is the provider's HTTP status, if any.
+    """
+
+    def __init__(self, message: str, *, kind: str = "error", retryable: bool = False, status: Optional[int] = None):
+        """Keep the classification next to the message."""
+        super().__init__(message)
+        self.kind = kind
+        self.retryable = retryable
+        self.status = status
 
 
 @dataclass

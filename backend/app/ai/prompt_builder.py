@@ -7,10 +7,13 @@ import re
 from typing import Optional
 
 from ..config import Settings
-from ..schemas import AdOptions, AdPrompt, ReferenceImage
+from .. import catalog
+from ..schemas import AdBrief, AdOptions, AdPrompt, ReferenceImage
 from .facts import FactSheet
-from .guard import PROMPT_MAX_CHARS, validate_llm_prompt
+from .guard import PROMPT_MAX_CHARS, find_unsupported_facts, validate_llm_prompt
 from .llm import SYSTEM_PROMPT, LlmClient, LlmError, build_user_message
+from .brief import BRIEF_SYSTEM_PROMPT, build_brief_request, build_template_brief, merge_llm_brief, parse_llm_brief
+from .scene import SCENE_AVOID, build_scene_prompt
 from .template import build_template_prompt, shot_count_for
 
 logger = logging.getLogger(__name__)
@@ -157,6 +160,63 @@ class PromptBuilder:
             model=model,
             reference_image=reference,
             warnings=warnings,
+        )
+
+    async def build_brief(
+        self, facts: FactSheet, options: AdOptions, *, duration_seconds: int, include_logo: bool = True, include_qr: bool = False,
+    ) -> tuple[AdBrief, list[str]]:
+        """The validated Ad Brief: the AI writer's creative ideas when configured and valid, else the built-in brief.
+
+        Facts (CTA, offer, overlay text, supporting facts) always come from the FactSheet; the AI only shapes the idea.
+        """
+        base = build_template_brief(facts, options, duration_seconds=duration_seconds, include_logo=include_logo, include_qr=include_qr)
+        if not self.llm.enabled:
+            return base, []
+        try:
+            raw = await self.llm.complete(BRIEF_SYSTEM_PROMPT, build_brief_request(facts, options, duration_seconds))
+        except LlmError as exc:
+            return base, [f"{exc} Used the built-in ad brief instead."]
+        except Exception as exc:  # defensive: the ad must not fail because of the writer
+            logger.warning("AI brief writer crashed: %r", exc)
+            return base, ["The AI writer failed. Used the built-in ad brief instead."]
+        draft = parse_llm_brief(raw)
+        if draft is None:
+            logger.info("AI brief was not valid JSON for the brief schema; using the built-in brief")
+            return base, ["The AI writer's brief was malformed. Used the built-in ad brief instead."]
+        return merge_llm_brief(base, draft, facts)
+
+    async def build_scene(
+        self, facts: FactSheet, options: AdOptions, *, reference: Optional[ReferenceImage] = None, duration_seconds: Optional[int] = None,
+        loop_seconds: int = 0, brief: Optional[AdBrief] = None,
+    ) -> AdPrompt:
+        """ONE scene prompt for an AI video model, built from the brief's chosen concept (one continuous shot, plain sentences).
+
+        Offers, prices, phone numbers and addresses are kept out: exact text is added afterwards by FFmpeg.
+        """
+        duration = int(duration_seconds or options.duration_seconds)
+        warnings: list[str] = []
+        if brief is None:
+            brief, warnings = await self.build_brief(facts, options, duration_seconds=duration)
+        limit = self.video_prompt_limit or PROMPT_MAX_CHARS
+        text = build_scene_prompt(
+            facts, style=options.style, aspect_ratio=options.aspect_ratio, has_reference=reference is not None,
+            looping=loop_seconds > duration, notes=facts.user_notes, visual=brief.concept.visual,
+            mood=catalog.TONES.get(options.tone, {}).get("mood", ""),
+        )
+        if len(text) > limit:
+            text = text[:limit].rsplit(" ", 1)[0]
+            warnings.append(f"The prompt was shortened to {limit} characters, the most the video model accepts.")
+        problems = [p for p in find_unsupported_facts(text, facts)]
+        if problems:  # a concept slipped something through: fall back to the built-in concept (never send unsupported facts)
+            warnings.append("The scene repeated an unsupported fact, so the built-in scene was used.")
+            text = build_scene_prompt(
+                facts, style=options.style, aspect_ratio=options.aspect_ratio, has_reference=reference is not None,
+                looping=loop_seconds > duration, notes="",
+            )[:limit]
+        return AdPrompt(
+            final_prompt=text, positive_prompt=text, negative_prompt=SCENE_AVOID, platform=options.platform, duration_seconds=duration,
+            aspect_ratio=options.aspect_ratio, shot_count=len(brief.concept.scenes) or 1, builder=brief.builder,
+            model=self.llm.model if brief.builder == "llm" else "", reference_image=reference, warnings=warnings,
         )
 
     async def _ask_llm(

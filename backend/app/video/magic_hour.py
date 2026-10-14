@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import shutil
 from pathlib import Path
 from typing import Callable, Optional
@@ -12,6 +13,36 @@ from ..config import Settings
 from .base import VideoError, VideoRequest, VideoResult, scrub
 
 logger = logging.getLogger(__name__)
+
+
+RETRYABLE_STATUSES = {429, 502, 503, 504}  # rejected before any work started, so a retry cannot double-charge
+
+
+def classify_error(exc: Exception, secret: str) -> VideoError:
+    """Turn an SDK exception into a VideoError with an actionable message (the API key never appears in it)."""
+    status = getattr(exc, "status_code", None)
+    if not isinstance(status, int):
+        match = re.search(r"status_code:\s*(\d{3})", str(exc))
+        status = int(match.group(1)) if match else None
+    detail = scrub(f"{type(exc).__name__}: {exc}", secret)
+    message_match = re.search(r"'message':\s*'([^']{1,160})'", str(exc))
+    reason = scrub(message_match.group(1), secret) if message_match else detail
+    if status in (401, 403):
+        return VideoError(
+            f"Magic Hour rejected the API key (HTTP {status}). Create a new key at magichour.ai/developer, set "
+            "VIDEO_MODEL_API_KEY in backend/.env and restart the backend.", kind="auth", status=status,
+        )
+    if status == 402:
+        return VideoError("Magic Hour says the account has no credits left (HTTP 402). Add credits, then try again.", kind="credits", status=status)
+    if status == 429:
+        return VideoError("Magic Hour is rate limiting requests (HTTP 429). Please try again in a minute.", kind="rate_limited", retryable=True, status=status)
+    if status in RETRYABLE_STATUSES:
+        return VideoError(f"Magic Hour is temporarily unavailable (HTTP {status}).", kind="server", retryable=True, status=status)
+    if status is not None and status >= 500:
+        return VideoError(f"Magic Hour had a server error (HTTP {status}).", kind="server", status=status)
+    if status is not None and 400 <= status < 500:
+        return VideoError(f"Magic Hour refused the request (HTTP {status}): {reason}", kind="request", status=status)
+    return VideoError("The video model failed: " + detail)
 
 
 def default_client_factory(api_key: str):
@@ -40,18 +71,28 @@ class MagicHourProvider:
     async def generate(self, request: VideoRequest) -> VideoResult:
         """Submit the job in a worker thread and return the downloaded file, or raise VideoError."""
         if not self.settings.video_model_api_key:
-            raise VideoError("Magic Hour needs VIDEO_MODEL_API_KEY.")
+            raise VideoError("Magic Hour needs VIDEO_MODEL_API_KEY in backend/.env.", kind="auth")
         if request.image_path is not None and not request.image_path.is_file():
             raise VideoError("The first-frame image for the video model is missing.")
         request.output_dir.mkdir(parents=True, exist_ok=True)
         work_dir = request.output_dir / f"{request.ad_id}.mh"
         work_dir.mkdir(parents=True, exist_ok=True)
+        attempts = max(0, self.settings.video_retry_attempts) + 1
         try:
-            return await asyncio.wait_for(
-                asyncio.to_thread(self._run, request, work_dir), timeout=self.settings.video_timeout_seconds + 30
-            )
-        except asyncio.TimeoutError:
-            raise VideoError("The video model took too long to answer.") from None
+            for attempt in range(1, attempts + 1):
+                try:
+                    return await asyncio.wait_for(
+                        asyncio.to_thread(self._run, request, work_dir), timeout=self.settings.video_timeout_seconds + 30
+                    )
+                except asyncio.TimeoutError:  # the job may still be running (and charged): never retried
+                    raise VideoError("The video model took too long to answer.", kind="timeout") from None
+                except VideoError as exc:
+                    if not exc.retryable or attempt == attempts:
+                        raise
+                    delay = self.settings.video_retry_backoff_seconds * (2 ** (attempt - 1))
+                    logger.warning("Magic Hour attempt %s/%s failed (%s); retrying in %.0fs", attempt, attempts, exc, delay)
+                    await asyncio.sleep(delay)
+            raise VideoError("The video model could not be reached.")  # pragma: no cover (the loop always returns or raises)
         finally:
             shutil.rmtree(work_dir, ignore_errors=True)
 
@@ -69,6 +110,18 @@ class MagicHourProvider:
             download_outputs=True,
             download_directory=str(work_dir),
         )
+        # The exact prompt sent to the video model (never the API key), so it can be checked in the backend terminal.
+        logger.info(
+            "Magic Hour %s request for ad %s (%s, %ss, %s, %s chars):\n----- PROMPT START -----\n%s\n----- PROMPT END -----",
+            "text-to-video" if request.image_path is None else "image-to-video", request.ad_id, self.settings.magic_hour_model,
+            seconds, request.aspect_ratio, len(request.prompt), request.prompt,
+        )
+        try:  # the same text in a file, in case the terminal cuts long lines: DATA_DIR/prompts/<ad_id>.txt
+            prompts_dir = self.settings.data_dir / "prompts"
+            prompts_dir.mkdir(parents=True, exist_ok=True)
+            (prompts_dir / f"{request.ad_id}.txt").write_text(request.prompt, encoding="utf-8")
+        except OSError as exc:
+            logger.warning("could not save the prompt file: %s", exc)
         try:
             if request.image_path is None:
                 result = client.v1.text_to_video.generate(  # type: ignore[attr-defined]
@@ -81,8 +134,9 @@ class MagicHourProvider:
         except VideoError:
             raise
         except Exception as exc:  # the SDK raises its own error types; never let them escape with details
-            logger.warning("Magic Hour call failed: %s", type(exc).__name__)
-            raise VideoError("The video model failed: " + scrub(f"{type(exc).__name__}: {exc}", secret)) from None
+            error = classify_error(exc, secret)
+            logger.warning("Magic Hour call failed: %s (kind=%s, status=%s)", type(exc).__name__, error.kind, error.status)
+            raise error from None
         status = str(getattr(result, "status", ""))
         if status != "complete":
             raise VideoError(f"The video model ended with status '{status or 'unknown'}'.")

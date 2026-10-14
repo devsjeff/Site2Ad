@@ -2,7 +2,7 @@
 
 The video prompt may only contain facts that exist in the FactSheet. This module finds numbers, prices, contact
 details and marketing claims in a generated prompt that are NOT backed by the facts, and checks that an LLM
-answer has the required shape (one ad, 3-6 shots, negative prompt, ...).
+answer has the required shape (one ad, a shot count that fits the duration, negative prompt, ...).
 """
 
 from __future__ import annotations
@@ -13,7 +13,12 @@ from dataclasses import dataclass
 from .facts import FactSheet
 
 PROMPT_MAX_CHARS = 3600
-MIN_SHOTS, MAX_SHOTS = 3, 6
+MIN_SHOTS, MAX_SHOTS = 1, 4
+# (longest clip in seconds, fewest shots, most shots): a 5 s clip is one continuous shot, 10 s one or two, 15-20 s two to four.
+SHOT_LIMITS = ((5, 1, 1), (10, 1, 2), (20, 2, 4))
+MIN_SHOT_SECONDS = 2.0  # shorter shots make abrupt cuts that video models render badly
+TIMING_TOLERANCE = 0.5
+SHOT_TIMING_RE = re.compile(r"(?im)^\s*SHOT\s+\d+\s*\(\s*(\d+(?:\.\d+)?)\s*[-–]\s*(\d+(?:\.\d+)?)\s*(?:s|sec|secs|seconds)?\s*\)")
 
 # Claims that must never appear unless the website/user said them.
 RISKY_CLAIMS = (
@@ -32,6 +37,40 @@ EMAIL_RE = re.compile(r"[\w.+\-]+@[\w\-]+\.[\w.\-]+")
 SHOT_LABEL_RE = re.compile(r"(?im)\bSHOT\s+\d+\s*(?:\(\s*\d+(?:\.\d+)?\s*[-–]\s*\d+(?:\.\d+)?\s*(?:s|sec|secs|seconds)?\s*\))?")
 TIME_RANGE_RE = re.compile(r"\b\d+(?:\.\d+)?\s*[-–]\s*\d+(?:\.\d+)?\s*(?:s|sec|secs|seconds)\b", re.I)
 YEAR_CLAIM_RE = re.compile(r"\b(?:since|est\.?|established|founded(?: in)?)\s+(\d{4})\b|\b(\d{1,3})\+?\s+years?\b", re.I)
+
+
+def shot_range(duration_seconds: float) -> tuple[int, int]:
+    """(fewest, most) shots that fit a clip of this length."""
+    for longest, fewest, most in SHOT_LIMITS:
+        if duration_seconds <= longest:
+            return fewest, most
+    return SHOT_LIMITS[-1][1], SHOT_LIMITS[-1][2]
+
+
+def check_shot_timing(text: str, duration_seconds: float) -> list[str]:
+    """Shot count fits the duration; the (start-end) windows are in order, gap-free and add up to the duration."""
+    problems: list[str] = []
+    shot_lines = re.findall(r"(?im)^\s*SHOT\s+\d+\b.*$", text)
+    fewest, most = shot_range(duration_seconds)
+    if not (fewest <= len(shot_lines) <= most):
+        problems.append(f"a {duration_seconds:g}-second clip needs {fewest}-{most} shot(s), found {len(shot_lines)}")
+        return problems
+    windows = [(float(a), float(b)) for a, b in SHOT_TIMING_RE.findall(text)]
+    if len(windows) != len(shot_lines):
+        problems.append("every shot needs a time range such as (0-5s)")
+        return problems
+    position = 0.0
+    for start, end in windows:
+        if abs(start - position) > TIMING_TOLERANCE or end <= start:
+            problems.append("shot times must follow each other without gaps or overlaps")
+            break
+        if len(windows) > 1 and end - start < MIN_SHOT_SECONDS - TIMING_TOLERANCE:
+            problems.append(f"a shot of {end - start:g} seconds is too short (at least {MIN_SHOT_SECONDS:g} s)")
+            break
+        position = end
+    if abs(position - duration_seconds) > TIMING_TOLERANCE:
+        problems.append(f"shot times add up to {position:g} s instead of {duration_seconds:g} s")
+    return problems
 
 
 def _has_phrase(text: str, phrase: str) -> bool:
@@ -106,8 +145,7 @@ def validate_llm_prompt(text: str, facts: FactSheet, aspect_ratio: str, duration
     if len(re.findall(r"(?im)^\s*NEGATIVE PROMPT\s*:", text)) != 1:
         problems.append("needs exactly one 'NEGATIVE PROMPT:' section")
     shot_lines = re.findall(r"(?im)^\s*SHOT\s+\d+\b.*$", text)
-    if not (MIN_SHOTS <= len(shot_lines) <= MAX_SHOTS):
-        problems.append(f"needs {MIN_SHOTS}-{MAX_SHOTS} shots, found {len(shot_lines)}")
+    problems.extend(check_shot_timing(text, duration_seconds))
     for line in shot_lines:
         lowered = line.lower()
         if not all(word in lowered for word in ("camera", "motion", "lighting")):

@@ -469,6 +469,61 @@ class AdPrompt(ApiModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class BriefFact(ApiModel):
+    """One supporting fact in an ad brief, with where it came from."""
+
+    field: str
+    text: str
+    origin: Literal["user", "website"] = "website"
+    url: str = ""
+
+
+class BriefConcept(ApiModel):
+    """One creative concept: a visual idea and the scene(s) that film it."""
+
+    title: str = Field(min_length=1, max_length=80)
+    visual: str = Field(min_length=20, max_length=700)
+    scenes: list[str] = Field(default_factory=list, max_length=4)
+
+
+class AdBrief(ApiModel):
+    """The validated plan between the facts and the video prompt: what the ad says, shows and puts on screen.
+
+    Only facts from the FactSheet appear in `supporting_facts`, `cta` and `overlay_text`; missing facts are listed in
+    `missing` instead of being invented, and claims about other businesses are listed in `rejected_claims`.
+    """
+
+    business_name: str
+    product_focus: str = ""
+    audience: str = ""
+    objective: str = ""
+    main_message: str = ""
+    hook: str = ""
+    cta: str = ""
+    supporting_facts: list[BriefFact] = Field(default_factory=list)
+    concepts: list[BriefConcept] = Field(default_factory=list, min_length=1, max_length=3)
+    chosen_concept: int = 0
+    overlay_text: list[str] = Field(default_factory=list)
+    brand_assets: list[str] = Field(default_factory=list)
+    duration_seconds: int = 5
+    aspect_ratio: str = "16:9"
+    missing: list[str] = Field(default_factory=list)
+    rejected_claims: list[str] = Field(default_factory=list)
+    builder: Literal["llm", "template"] = "template"
+
+    @model_validator(mode="after")
+    def _chosen_exists(self) -> "AdBrief":
+        """The chosen concept must be one of the concepts."""
+        if not 0 <= self.chosen_concept < len(self.concepts):
+            raise ValueError("chosen_concept must point at one of the concepts")
+        return self
+
+    @property
+    def concept(self) -> BriefConcept:
+        """The concept the video is made from."""
+        return self.concepts[self.chosen_concept]
+
+
 class CompositionSegment(ApiModel):
     """One part of the finished video, in order: what it is, where it came from, how long it plays."""
 
@@ -498,6 +553,8 @@ class AdResponse(ApiModel):
     ai_video_used: bool = False  # True only when the configured AI provider (not a fallback) made the footage
     qr_added: bool = False
     composition: list[CompositionSegment] = Field(default_factory=list)
+    brief: Optional[AdBrief] = None  # the plan the AI video was made from (AI modes only)
+    provider_error: Optional[str] = None  # why the video provider failed (kept even when a fallback clip was used)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
 

@@ -192,6 +192,40 @@ export interface AdPrompt {
   warnings: string[];
 }
 
+export interface BriefFact {
+  field: string;
+  text: string;
+  origin: "user" | "website";
+  url: string;
+}
+
+export interface BriefConcept {
+  title: string;
+  visual: string;
+  scenes: string[];
+}
+
+/** The validated plan the AI video was made from (backend/app/schemas.py AdBrief). */
+export interface AdBrief {
+  business_name: string;
+  product_focus: string;
+  audience: string;
+  objective: string;
+  main_message: string;
+  hook: string;
+  cta: string;
+  supporting_facts: BriefFact[];
+  concepts: BriefConcept[];
+  chosen_concept: number;
+  overlay_text: string[];
+  brand_assets: string[];
+  duration_seconds: number;
+  aspect_ratio: string;
+  missing: string[];
+  rejected_claims: string[];
+  builder: "llm" | "template";
+}
+
 export interface CompositionSegment {
   kind: SegmentKind;
   source: string;
@@ -217,6 +251,8 @@ export interface AdResponse {
   ai_video_used: boolean;
   qr_added: boolean;
   composition: CompositionSegment[];
+  brief: AdBrief | null;
+  provider_error: string | null;
   created_at: string;
   updated_at: string;
 }

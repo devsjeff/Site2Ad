@@ -35,6 +35,7 @@ from ..video.base import VideoError, VideoRequest, output_size, probe_media
 from ..video.compose import Segment, compose
 from ..video.finalize import OverlaySpec, finalize_video
 from ..video.images import ImageProblem, PreparedImage, download_image, prepare_frame, prepare_hero, prepare_logo
+from ..video.quality import check_output
 from ..video.service import VideoService
 from .assets import AssetStore
 from .scrape_jobs import ScrapeJobs
@@ -376,7 +377,9 @@ class Ads:
             logger.exception("could not save ad %s", ad.ad_id)
 
     async def _set(self, ad: AdResponse, **changes) -> None:
-        """Apply changes to a live ad and persist."""
+        """Apply changes to a live ad and persist (stage changes are logged)."""
+        if "stage" in changes and changes["stage"] != ad.stage:
+            logger.info("ad %s stage %s -> %s: %s", ad.ad_id, ad.stage, changes["stage"], changes.get("message", ad.message))
         for name, value in changes.items():
             setattr(ad, name, value)
         await self._save(ad)
@@ -587,12 +590,16 @@ class Ads:
             finished = await finalize_video(made.path, final_path, spec)
             self._warn(ad, *finished.warnings)
 
-            try:  # never report success for a file that is not a playable video
-                info = await probe_media(final_path)
-            except VideoError:
-                raise VideoError("The finished video could not be validated, so it was not published. Please try again.") from None
-            if info.duration < 0.5 or info.width < 2 or info.height < 2:
-                raise VideoError("The finished video is empty, so it was not published. Please try again.")
+            # never report success for a file that is not a playable video of about the planned length
+            planned = sum(segment.seconds for segment in made.segments) or None
+            report = await check_output(final_path, expected_seconds=planned)
+            if not report.ok:
+                logger.warning("ad %s failed the output check: %s", ad_id, report.problems)
+                raise VideoError(f"{report.problems[0]} The ad was not published; please try again.")
+            self._warn(ad, *report.warnings)
+            if spec.logo_path is None and plan.creative is not None and plan.creative.include_logo and plan.mode != "manual":
+                self._warn(ad, "No usable logo was found on your website, so the ad has no logo. Upload one to add it.")
+            info = report
 
             fallback = made.fallback_used
             if fallback:
@@ -714,9 +721,30 @@ class Ads:
             half = max(1, math.ceil(len(frames) / 2))
             intro, outro = frames[:half], (frames[half:] or frames[:1])
 
-        await self._set(ad, stage="prompt_building", progress=30, message="Writing your ad prompt from your business details…")
-        prompt = await self.prompts.build(facts, options, reference=hero.reference, duration_seconds=plan.duration, loop_seconds=target)
+        if creative is None:  # the original request shape keeps its shot-list prompt
+            await self._set(ad, stage="prompt_building", progress=30, message="Writing your ad prompt from your business details…")
+            prompt = await self.prompts.build(facts, options, reference=hero.reference, duration_seconds=plan.duration)
+        else:
+            # facts -> validated Ad Brief -> ONE scene prompt; offers, prices and contacts are added later as exact text
+            await self._set(ad, stage="prompt_building", progress=25, message="Planning your ad (ad brief)…")
+            brief, brief_notes = await self.prompts.build_brief(
+                facts, options, duration_seconds=plan.duration, include_logo=creative.include_logo, include_qr=creative.include_qr,
+            )
+            self._warn(ad, *brief_notes, *brief.rejected_claims)
+            await self._set(ad, brief=brief, progress=32, message="Writing the video prompt from your ad brief…")
+            logger.info(
+                "ad %s AD BRIEF (%s): concept=%r message=%r cta=%r missing=%s rejected=%s",
+                ad.ad_id, brief.builder, brief.concept.title, brief.main_message, brief.cta, brief.missing, brief.rejected_claims,
+            )
+            prompt = await self.prompts.build_scene(
+                facts, options, reference=hero.reference, duration_seconds=plan.duration, loop_seconds=target, brief=brief,
+            )
         self._warn(ad, *prompt.warnings)
+        # The final prompt for the video model, visible in the backend terminal for every AI ad (whatever the provider).
+        logger.info(
+            "ad %s FINAL VIDEO PROMPT (%s, %s chars, provider=%s):\n===== FINAL PROMPT START =====\n%s\n===== FINAL PROMPT END =====",
+            ad.ad_id, prompt.builder, len(prompt.final_prompt), self.video.provider_name, prompt.final_prompt,
+        )
         await self._set(ad, stage="prompt_ready", progress=45, prompt=prompt, message="Prompt ready. Creating the video…")
         self._prompt_ready[ad.ad_id].set()
 
@@ -733,9 +761,15 @@ class Ads:
             ticker = asyncio.create_task(self._ticker(ad, expected))
             try:
                 outcome = await self.video.generate(video_request)
+            except VideoError as exc:  # keep the provider's own reason on the ad, then fail it
+                ad.provider_error = str(exc)
+                logger.warning("ad %s video provider failed (%s): %s", ad.ad_id, getattr(exc, "kind", "error"), exc)
+                raise
             finally:
                 ticker.cancel()
         self._warn(ad, *outcome.warnings)
+        if outcome.provider_error:  # the fallback must not hide why the real provider failed
+            ad.provider_error = outcome.provider_error
         ai_used = not outcome.fallback_used and outcome.result.provider != "mock"
         if creative is not None and outcome.fallback_used:
             self._warn(ad, "The AI video provider failed. The video part of this ad is a simple clip, NOT AI-generated footage.")

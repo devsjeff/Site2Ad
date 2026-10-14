@@ -179,7 +179,7 @@ async def test_full_flow_scan_prompt_video(tmp_path):
         ad = await ctx.ads.create(GenerateAdRequest(job_id=job.job_id, options=options))
         # wait_for_prompt: the first response already holds the ONE prompt
         assert ad.prompt is not None and ad.stage in {"prompt_ready", "generating_video", "finalizing", "completed"}
-        assert ad.prompt.shot_count == 3 and ad.prompt.aspect_ratio == "9:16" and ad.prompt.final_prompt.count("NEGATIVE PROMPT:") == 1
+        assert ad.prompt.shot_count == 1 and ad.prompt.aspect_ratio == "9:16" and ad.prompt.final_prompt.count("NEGATIVE PROMPT:") == 1
         assert "Sharma Sweets" in ad.prompt.final_prompt and "98765" not in ad.prompt.final_prompt
         assert ad.prompt.reference_image and ad.prompt.reference_image.source == "scraped"
         assert ad.prompt.reference_image.url.endswith("/img/a.jpg")  # the og:image 404s, so the next best image is used
