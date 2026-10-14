@@ -9,7 +9,8 @@ const RAW_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 // NEXT_PUBLIC_API_TARGET: "direct" (default) calls NEXT_PUBLIC_API_BASE_URL; "nginx" calls the page's own origin,
 // where nginx forwards /api to the backend (deploy/nginx). Switch it in frontend/.env.local and restart / rebuild.
 const API_TARGET = (process.env.NEXT_PUBLIC_API_TARGET ?? "direct").trim().toLowerCase();
-export const API_BASE = API_TARGET === "nginx" ? "" : RAW_BASE.replace(/\/+$/, "");
+// "proxy": same origin too; the Next.js server itself forwards /api to BACKEND_INTERNAL_URL (next.config.ts).
+export const API_BASE = API_TARGET === "nginx" || API_TARGET === "proxy" ? "" : RAW_BASE.replace(/\/+$/, "");
 
 export class ApiError extends Error {
   status: number;
@@ -44,7 +45,10 @@ async function readError(response: Response): Promise<ApiError> {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(apiUrl(path), init);
+    // ngrok's free plan answers browsers with a warning page unless this header is sent; other hosts ignore it.
+    const headers = new Headers(init?.headers);
+    headers.set("ngrok-skip-browser-warning", "1");
+    response = await fetch(apiUrl(path), { ...init, headers });
   } catch {
     throw new ApiError(0, "network", "Cannot reach the server. Check your connection and that the backend is running.");
   }

@@ -425,3 +425,25 @@ async def test_llm_client_disabled_without_key():
     assert client.enabled is False
     with pytest.raises(LlmError):
         await client.complete("s", "u")
+
+
+async def test_magic_hour_prompts_fit_its_2000_character_limit():
+    """Magic Hour rejects prompts over 2000 characters: they are compacted, keep their shot structure and still pass the guard."""
+    from app.ai.facts import FactSheet as Facts
+    from app.ai.guard import validate_llm_prompt as check_prompt
+    from app.ai.prompt_builder import PromptBuilder as Builder
+    from app.schemas import AdOptions as Options
+
+    from .conftest import make_settings as settings_for
+
+    facts = Facts(name="Sharma Sweets", category="Bakery", description="Fresh mithai made daily with pure ghee. " * 6,
+                  services=["kaju katli", "rasgulla", "gift boxes", "samosa"], offer="Diwali offer: 20% off on gift boxes", cta="Order Now",
+                  brand_colors=["#c0392b"], user_notes="Show the gift boxes on a festive table")
+    builder = Builder(settings_for(video_provider="magic_hour", video_model_api_key="k"))
+    for duration in (5, 20):
+        options = Options(goal="offer", duration_seconds=duration)
+        prompt = await builder.build(facts, options, duration_seconds=5, loop_seconds=duration)
+        assert len(prompt.final_prompt) <= 2000 and check_prompt(prompt.final_prompt, facts, options.aspect_ratio, 5, False).ok
+        assert any("2000 characters" in w for w in prompt.warnings) and ("LOOP:" in prompt.final_prompt) == (duration > 5)
+    unlimited = await Builder(settings_for()).build(facts, Options(goal="offer"), duration_seconds=5)  # mock provider: no cap
+    assert len(unlimited.final_prompt) > 2000

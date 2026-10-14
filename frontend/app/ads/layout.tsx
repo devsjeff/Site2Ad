@@ -12,7 +12,7 @@ export default function AdsLayout({ children }: { children: React.ReactNode }) {
             </svg>
             Home
           </Link>
-          <span className="text-sm font-bold tracking-tight text-ink">adsify</span>
+          <span className="text-sm font-bold tracking-tight text-ink">site2ad</span>
           <div className="w-12" />
         </div>
       </nav>

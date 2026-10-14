@@ -121,6 +121,7 @@ class Settings:
     video_fallback_on_error: bool = True
     hero_min_side_px: int = 400
     overlay_font_path: str = ""
+    video_prompt_max_chars: int = 2000  # Magic Hour rejects longer prompts
     compose_resolution: str = "720p"  # FFmpeg-only ads (manual uploads, website images)
 
     # --- job runner / abuse protection
@@ -191,6 +192,7 @@ class Settings:
             hero_min_side_px=_int(g("HERO_MIN_SIDE_PX"), d.hero_min_side_px),
             overlay_font_path=g("OVERLAY_FONT_PATH"),
             compose_resolution=g("COMPOSE_RESOLUTION", d.compose_resolution),
+            video_prompt_max_chars=_int(g("VIDEO_PROMPT_MAX_CHARS"), d.video_prompt_max_chars),
             max_concurrent_scrapes=_int(g("MAX_CONCURRENT_SCRAPES"), d.max_concurrent_scrapes),
             max_concurrent_ads=_int(g("MAX_CONCURRENT_ADS"), d.max_concurrent_ads),
             rate_limit_per_minute=_int(g("RATE_LIMIT_PER_MINUTE"), d.rate_limit_per_minute),

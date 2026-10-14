@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Adsify: website to video ad",
+  title: "site2ad: website to video ad",
   description: "Paste your website and get a short video ad for taxi screens and social media. No design skills needed.",
 };
 

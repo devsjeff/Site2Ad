@@ -1,6 +1,6 @@
 import { AdResult } from "@/components/ad/AdResult";
 
-export const metadata = { title: "Your ad | Adsify" };
+export const metadata = { title: "Your ad | site2ad" };
 
 // Result page for one ad; the id comes from the URL so a refresh keeps working.
 export default function AdPage() {

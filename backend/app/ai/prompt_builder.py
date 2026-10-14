@@ -42,6 +42,54 @@ def split_prompt(text: str) -> tuple[str, str]:
     return positive, negative
 
 
+# Lines dropped first when a video model accepts only short prompts (least useful to the picture first).
+DROP_ORDER = ("ABOUT:", "EXTRA DIRECTION", "AUDIO:", "BRAND COLOURS:", "GOAL:", "TONE:", "OFFERING:")
+SHORT_NEGATIVE = (
+    "text, letters or numbers drawn by the model, invented logos, watermarks, warped faces and hands, blurry frames, flicker"
+)
+
+
+def fit_prompt(positive: str, negative: str, limit: int) -> tuple[str, str]:
+    """Shorten a prompt to `limit` characters for video models with a hard cap (Magic Hour: 2000).
+
+    Order: compact the negative list and the text-overlay line, drop optional lines (least important first), shorten the
+    shot actions, and only then cut at a word boundary. The shot lines (camera, motion, action) are kept to the end.
+    """
+    def total(pos: str, neg: str) -> int:
+        """Length of the final prompt."""
+        return len(f"{pos}\n\nNEGATIVE PROMPT: {neg}")
+
+    if total(positive, negative) <= limit:
+        return positive, negative
+    negative = SHORT_NEGATIVE
+    lines = positive.splitlines()
+    lines = ["TEXT OVERLAYS: added in editing; draw no text in the video." if l.startswith("TEXT OVERLAYS:") else l for l in lines]
+    for prefix in DROP_ORDER:
+        if total("\n".join(lines), negative) <= limit:
+            break
+        lines = [l for l in lines if not l.startswith(prefix)]
+    if total("\n".join(lines), negative) > limit:  # compact wording, never the structure the guard checks
+        compact = []
+        for line in lines:
+            if line.startswith("FORMAT:"):
+                line = re.sub(r" \([^)]*\)\.?$", ".", line)  # drop the audience description
+            elif line.startswith("LOOP:"):
+                line = "LOOP: the clip repeats, so end with the same framing, light and colours as the opening; smooth continuous motion, no hard ending."
+            elif line.startswith("REFERENCE IMAGE: none"):
+                line = "REFERENCE IMAGE: none supplied; realistic visuals, no invented logos."
+            elif SHOT_RE.match(line):
+                for label in ("Camera", "Lighting"):  # keep the first phrase of each description
+                    line = re.sub(rf"({label}: [^,;]*)[^;]*", r"\1", line)
+                line = re.sub(r"(Action: [^.]*\.).*$", r"\1", line)  # keep the first sentence of the action
+            compact.append(line)
+        lines = compact
+    positive = "\n".join(lines)
+    room = limit - total("", negative)
+    if len(positive) > room:
+        positive = positive[:room].rsplit(" ", 1)[0].rstrip(" ,;:")
+    return positive, negative
+
+
 def count_shots(text: str) -> int:
     """Number of SHOT lines in a prompt."""
     return len(SHOT_RE.findall(text))
@@ -54,6 +102,13 @@ class PromptBuilder:
         """Create the builder; pass `llm` to inject a fake in tests."""
         self.settings = settings
         self.llm = llm or LlmClient(settings)
+
+    @property
+    def video_prompt_limit(self) -> int:
+        """Longest prompt the configured video model accepts (0 = no limit beyond our own)."""
+        if self.settings.effective_video_provider == "magic_hour":
+            return self.settings.video_prompt_max_chars
+        return 0
 
     @property
     def mode(self) -> str:
@@ -83,6 +138,10 @@ class PromptBuilder:
         builder = "llm" if model else "template"
 
         positive, negative = split_prompt(text)
+        limit = self.video_prompt_limit
+        if limit and len(f"{positive}\n\nNEGATIVE PROMPT: {negative}") > limit:
+            positive, negative = fit_prompt(positive, negative, limit)
+            warnings.append(f"The prompt was shortened to {limit} characters, the most the video model accepts.")
         final = f"{positive}\n\nNEGATIVE PROMPT: {negative}".strip()
         if len(final) > PROMPT_MAX_CHARS:
             warnings.append("The prompt is long; some video models may shorten it.")

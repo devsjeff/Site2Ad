@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export const metadata = { title: "Ads | Adsify" };
+export const metadata = { title: "Ads | site2ad" };
 
 const ENTRIES = [
   { href: "/ads/create?mode=auto", icon: "✨", title: "Auto ad", text: "Start from your website: original website content, an AI-generated video, or a mix of both." },
