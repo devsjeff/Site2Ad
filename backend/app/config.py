@@ -122,6 +122,7 @@ class Settings:
     hero_min_side_px: int = 400
     overlay_font_path: str = ""
     video_prompt_max_chars: int = 2000  # Magic Hour rejects longer prompts
+    video_clips_per_ad: int = 1  # different AI clips (one per brief concept) before looping; each one costs credits
     video_retry_attempts: int = 2  # extra tries for transient provider errors (429, 502, 503, 504)
     video_retry_backoff_seconds: float = 5.0
     compose_resolution: str = "720p"  # FFmpeg-only ads (manual uploads, website images)
@@ -195,6 +196,7 @@ class Settings:
             overlay_font_path=g("OVERLAY_FONT_PATH"),
             compose_resolution=g("COMPOSE_RESOLUTION", d.compose_resolution),
             video_prompt_max_chars=_int(g("VIDEO_PROMPT_MAX_CHARS"), d.video_prompt_max_chars),
+            video_clips_per_ad=_int(g("VIDEO_CLIPS_PER_AD"), d.video_clips_per_ad),
             video_retry_attempts=_int(g("VIDEO_RETRY_ATTEMPTS"), d.video_retry_attempts),
             video_retry_backoff_seconds=_float(g("VIDEO_RETRY_BACKOFF_SECONDS"), d.video_retry_backoff_seconds),
             max_concurrent_scrapes=_int(g("MAX_CONCURRENT_SCRAPES"), d.max_concurrent_scrapes),

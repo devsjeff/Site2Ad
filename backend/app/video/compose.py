@@ -10,8 +10,9 @@ afterwards by finalize.py on the complete composition.
 from __future__ import annotations
 
 import logging
+import math
 import shutil
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from .base import VideoError, ffmpeg_path, probe_media, run_tool
@@ -72,20 +73,38 @@ def _fades(seconds: float, fade_in: bool = True, fade_out: bool = True) -> str:
     return out + (f",fade=t=out:st={seconds - FADE_SECONDS:.3f}:d={FADE_SECONDS}" if fade_out else "")
 
 
+# Camera moves over a still image: (name, zoom, x, y) for zoompan. {r} = zoom speed, {f} = frames, {m} = max zoom.
+IMAGE_MOTIONS = (
+    ("zoom_in", "min(1+{r}*on,{m})", "iw/2-(iw/zoom/2)", "ih/2-(ih/zoom/2)"),
+    ("pan_right", "1.12", "(iw-iw/zoom)*on/{f}", "ih/2-(ih/zoom/2)"),
+    ("zoom_out", "max({m}-{r}*on,1)", "iw/2-(iw/zoom/2)", "ih/2-(ih/zoom/2)"),
+    ("tilt_up", "1.12", "iw/2-(iw/zoom/2)", "(ih-ih/zoom)*(1-on/{f})"),
+    ("pan_left", "1.12", "(iw-iw/zoom)*(1-on/{f})", "ih/2-(ih/zoom/2)"),
+    ("diagonal", "min(1+{r}*on,{m})", "(iw-iw/zoom)*on/{f}", "(ih-ih/zoom)*on/{f}"),
+    ("tilt_down", "1.12", "iw/2-(iw/zoom/2)", "(ih-ih/zoom)*on/{f}"),
+    ("zoom_in_left", "min(1+{r}*on,{m})", "(iw-iw/zoom)*0.15", "ih/2-(ih/zoom/2)"),
+)
+# Transitions between segments (FFmpeg xfade), used in turn so the ad does not cut the same way every time.
+TRANSITIONS = ("fade", "slideleft", "circleopen", "smoothleft", "wipeup", "dissolve", "slideup", "radial")
+TRANSITION_SECONDS = 0.5
+# A light, consistent cinematic look on still images: a touch more contrast and colour, and a soft vignette.
+IMAGE_GRADE = "eq=contrast=1.05:saturation=1.12,vignette=angle=PI/5"
+
+
 def image_filter(index: int, seconds: float, size: tuple[int, int], style: str, framed: bool, fades: str = "") -> str:
-    """Slow zoom in (even segments) or out (odd segments) over a still image that already has the frame's size."""
+    """A camera move over a still image (zoom in/out, pans, tilts, diagonal drift: a different one per segment)."""
     width, height = size
     frames = max(1, round(seconds * FPS))
     rate = ZOOM_RATE.get(style, DEFAULT_ZOOM_RATE)
-    zoom = f"min(1+{rate}*on,{MAX_ZOOM})" if index % 2 == 0 else f"max({MAX_ZOOM}-{rate}*on,1)"
+    _, zoom, x, y = (part.format(r=rate, f=frames, m=MAX_ZOOM) for part in IMAGE_MOTIONS[index % len(IMAGE_MOTIONS)])
     border = ""
     if framed:
         thickness = max(4, round(min(width, height) * 0.012))
         border = f",drawbox=x=0:y=0:w=iw:h=ih:color=white@0.85:t={thickness}"
     # drawn at 2x first so the zoom stays smooth (zoompan on small inputs jitters)
     return (
-        f"scale={width * 2}:{height * 2},zoompan=z='{zoom}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
-        f":d={frames}:s={width}x{height}:fps={FPS},setsar=1{border},format=yuv420p{fades}"
+        f"scale={width * 2}:{height * 2},zoompan=z='{zoom}':x='{x}':y='{y}'"
+        f":d={frames}:s={width}x{height}:fps={FPS},setsar=1{border},{IMAGE_GRADE},format=yuv420p{fades}"
     )
 
 
@@ -108,6 +127,44 @@ def _audio_filter(seconds: float, fade_in: bool, fade_out: bool) -> str:
     if fade_out:
         base += f",afade=t=out:st={seconds - FADE_SECONDS:.3f}:d={FADE_SECONDS}"
     return base
+
+
+LOOP_CROSSFADE_SECONDS = 0.6
+# How each repeat of a short clip is reframed, so a loop reads as new shots: (zoom, x, y) for zoompan; {f} = frames per repeat.
+LOOP_VARIANTS = (
+    ("1", "0", "0"),  # the clip as generated
+    ("1+0.10*on/{f}", "iw/2-(iw/zoom/2)", "ih/2-(ih/zoom/2)"),  # slow push-in to the centre
+    ("1.12-0.10*on/{f}", "(iw-iw/zoom)*0.3", "ih/2-(ih/zoom/2)"),  # pull-out, slightly left
+    ("1.08", "(iw-iw/zoom)*on/{f}", "ih/2-(ih/zoom/2)"),  # punched in, panning left to right
+)
+
+
+def loop_plan(clip_seconds: float, total_seconds: float) -> tuple[int, float]:
+    """(repeats, crossfade) so that repeats of the clip, overlapped by the crossfade, last at least `total_seconds`."""
+    crossfade = min(LOOP_CROSSFADE_SECONDS, clip_seconds / 3)
+    repeats = max(1, math.ceil((total_seconds - crossfade) / max(0.1, clip_seconds - crossfade)))
+    return repeats, crossfade
+
+
+def loop_filter(clip_seconds: float, total_seconds: float, size: tuple[int, int], fades: str) -> tuple[int, str]:
+    """(inputs needed, filter graph) that plays the clip `repeats` times, each reframed differently, joined by crossfades."""
+    width, height = size
+    repeats, crossfade = loop_plan(clip_seconds, total_seconds)
+    frames = max(1, round(clip_seconds * FPS))
+    parts = []
+    for index in range(repeats):
+        zoom, x, y = (value.format(f=frames) for value in LOOP_VARIANTS[index % len(LOOP_VARIANTS)])
+        parts.append(
+            f"[{index}:v:0]{video_filter(size)},zoompan=z='{zoom}':x='{x}':y='{y}':d=1:s={width}x{height}:fps={FPS},"
+            f"setsar=1,format=yuv420p,settb=AVTB[v{index}]"
+        )
+    previous = "v0"
+    for index in range(1, repeats):
+        offset = index * (clip_seconds - crossfade)
+        parts.append(f"[{previous}][v{index}]xfade=transition=fade:duration={crossfade:.3f}:offset={offset:.3f}[x{index}]")
+        previous = f"x{index}"
+    parts.append(f"[{previous}]trim=duration={total_seconds:.3f},setpts=PTS-STARTPTS{fades}[vout]")
+    return repeats, ";".join(parts)
 
 
 VIDEO_CODEC = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-r", str(FPS)]
@@ -144,22 +201,61 @@ async def render_segment(
         else:
             seconds = min(info.duration, segment.seconds) if segment.seconds > 0 else info.duration
         use_source_audio = with_audio and keep_source_audio and info.has_audio
-        args = [ffmpeg, "-y", "-loglevel", "error"] + (["-stream_loop", "-1"] if looping else []) + ["-i", str(segment.path)]
-        if with_audio and not use_source_audio:
-            args += SILENCE
         fades = _fades(seconds, fade_in=not first, fade_out=not last)
-        args += ["-t", f"{seconds:.3f}", "-vf", video_filter(size, fades), "-map", "0:v:0"]
-        if use_source_audio:
-            args += ["-map", "0:a:0", "-af", _audio_filter(seconds, not first, not last), *AUDIO_CODEC]
-        elif with_audio:
-            args += ["-map", "1:a:0", *AUDIO_CODEC]
+        if looping:  # every repeat reframed differently and crossfaded, so the loop reads as new shots
+            repeats, graph = loop_filter(info.duration, seconds, size, fades)
+            args = [ffmpeg, "-y", "-loglevel", "error"]
+            for _ in range(repeats):
+                args += ["-i", str(segment.path)]
+            if use_source_audio:
+                args += ["-stream_loop", "-1", "-i", str(segment.path)]
+            elif with_audio:
+                args += SILENCE
+            args += ["-filter_complex", graph, "-map", "[vout]", "-t", f"{seconds:.3f}"]
+            if use_source_audio:
+                args += ["-map", f"{repeats}:a:0", "-af", _audio_filter(seconds, not first, not last), *AUDIO_CODEC]
+            elif with_audio:
+                args += ["-map", f"{repeats}:a:0", *AUDIO_CODEC]
+            else:
+                args += ["-an"]
+            args += [*VIDEO_CODEC, str(out)]
         else:
-            args += ["-an"]
-        args += [*VIDEO_CODEC, str(out)]
+            args = [ffmpeg, "-y", "-loglevel", "error", "-i", str(segment.path)]
+            if with_audio and not use_source_audio:
+                args += SILENCE
+            args += ["-t", f"{seconds:.3f}", "-vf", video_filter(size, fades), "-map", "0:v:0"]
+            if use_source_audio:
+                args += ["-map", "0:a:0", "-af", _audio_filter(seconds, not first, not last), *AUDIO_CODEC]
+            elif with_audio:
+                args += ["-map", "1:a:0", *AUDIO_CODEC]
+            else:
+                args += ["-an"]
+            args += [*VIDEO_CODEC, str(out)]
     await run_tool(args, timeout=max(90.0, seconds * 10))
     if not out.is_file() or out.stat().st_size == 0:
         raise VideoError("A part of the video could not be created.")
     return ComposedSegment(segment.kind, segment.source, round(seconds, 2))
+
+
+def transition_graph(durations: list[float], with_audio: bool) -> str:
+    """Join parts with a different xfade transition at each cut (and audio crossfades), as one filter graph."""
+    graph = [f"[{i}:v:0]fps={FPS},settb=AVTB,format=yuv420p[p{i}]" for i in range(len(durations))]
+    previous, elapsed = "p0", durations[0]
+    for index in range(1, len(durations)):
+        overlap = min(TRANSITION_SECONDS, durations[index - 1] / 2, durations[index] / 2)
+        offset = elapsed - overlap
+        kind = TRANSITIONS[(index - 1) % len(TRANSITIONS)]
+        graph.append(f"[{previous}][p{index}]xfade=transition={kind}:duration={overlap:.3f}:offset={offset:.3f}[x{index}]")
+        previous, elapsed = f"x{index}", offset + durations[index]
+    graph.append(f"[{previous}]format=yuv420p[v]")
+    if with_audio:
+        audio = "0:a:0"
+        for index in range(1, len(durations)):
+            overlap = min(TRANSITION_SECONDS, durations[index - 1] / 2, durations[index] / 2)
+            graph.append(f"[{audio}][{index}:a:0]acrossfade=d={overlap:.3f}[ax{index}]")
+            audio = f"ax{index}"
+        graph.append(f"[{audio}]anull[a]")
+    return ";".join(graph)
 
 
 async def compose(
@@ -181,27 +277,35 @@ async def compose(
                     break
         parts: list[Path] = []
         composed: list[ComposedSegment] = []
+        joined = len(segments) > 1
         for index, segment in enumerate(segments):
             part = parts_dir / f"part-{index:02d}.mp4"
-            composed.append(await render_segment(
-                segment, index, part, size=size, style=style, with_audio=with_audio, keep_source_audio=keep_audio,
-                first=index == 0, last=index == len(segments) - 1,
-            ))
+            planned = segment
+            if joined and index < len(segments) - 1:  # the next transition overlaps this part: make it that much longer
+                if segment.is_image:
+                    planned = replace(segment, seconds=max(1.0, segment.seconds) + TRANSITION_SECONDS)
+                elif segment.loop_to:
+                    planned = replace(segment, loop_to=segment.loop_to + TRANSITION_SECONDS)
+            rendered = await render_segment(
+                planned, index, part, size=size, style=style, with_audio=with_audio, keep_source_audio=keep_audio,
+                first=True, last=True,  # transitions come from xfade below, not from fades inside each part
+            )
+            if planned is not segment:
+                rendered.seconds = round(rendered.seconds - TRANSITION_SECONDS, 2)
+            composed.append(rendered)
             parts.append(part)
         out.parent.mkdir(parents=True, exist_ok=True)
-        if len(parts) == 1:
+        if not joined:
             shutil.move(str(parts[0]), out)
         else:
+            durations = [(await probe_media(part)).duration for part in parts]
             args = [ffmpeg, "-y", "-loglevel", "error"]
             for part in parts:
                 args += ["-i", str(part)]
-            labels = "".join(f"[{i}:v:0]" + (f"[{i}:a:0]" if with_audio else "") for i in range(len(parts)))
-            graph = f"{labels}concat=n={len(parts)}:v=1:a={1 if with_audio else 0}[v]" + ("[a]" if with_audio else "")
-            args += ["-filter_complex", graph, "-map", "[v]"]
+            args += ["-filter_complex", transition_graph(durations, with_audio), "-map", "[v]"]
             args += ["-map", "[a]", *AUDIO_CODEC] if with_audio else ["-an"]
             args += [*VIDEO_CODEC, "-movflags", "+faststart", str(out)]
-            total = sum(c.seconds for c in composed)
-            await run_tool(args, timeout=max(120.0, total * 8))
+            await run_tool(args, timeout=max(120.0, sum(durations) * 8))
         info = await probe_media(out)
         return ComposeResult(out, info.duration, info.has_audio, composed, info.width, info.height)
     finally:

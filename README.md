@@ -155,6 +155,8 @@ Scan statuses: `queued` · `running` · `ok` · `partial` · `blocked` (Cloudfla
 
 ## 5. API (all under `/api`)
 
+Full OpenAPI 3.1 spec: [`docs/openapi.json`](docs/openapi.json) · Postman collection: [`docs/postman_collection.json`](docs/postman_collection.json) · integration guide for other teams: [`docs/API.md`](docs/API.md).
+
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/api/scrape` | Start a scan → `202` + job. Body `{url, refresh?}` |

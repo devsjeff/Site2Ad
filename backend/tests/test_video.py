@@ -351,3 +351,53 @@ async def test_finalize_keeps_the_video_when_ffmpeg_fails(tmp_path):
     result = await finalize_video(broken, final, OverlaySpec(name="X"))
     assert result.applied is False and final.read_bytes() == b"this is not a video"
     assert result.warnings and "without them" in result.warnings[0]
+
+
+
+# --------------------------------------------------------------------------- dynamic colours, see-through panel, motion
+
+
+def test_overlay_colours_follow_the_brand_or_the_footage():
+    """Brand colour wins; without one the accent comes from the footage; CTA text contrasts with the accent."""
+    from app.video.palette import DEFAULT_PALETTE, palette_from_frames
+
+    teal_frames = [Image.new("RGB", (192, 108), (20, 150, 140)) for _ in range(3)]
+    footage = palette_from_frames(teal_frames)
+    assert footage.accent[1] > footage.accent[0] and footage.accent[2] > footage.accent[0]  # a teal accent, from the video
+    brand = palette_from_frames(teal_frames, ["#e8590c"])
+    assert brand.accent[0] > 200 and brand.accent[2] < 80  # orange from the brand, not the footage
+    assert palette_from_frames([Image.new("RGB", (192, 108), (128, 128, 128))]) == DEFAULT_PALETTE  # grey footage: defaults
+    light = palette_from_frames([], ["#ffd43b"])
+    assert light.accent_text[:3] == (20, 20, 24)  # dark label on a light accent
+    bright = palette_from_frames([Image.new("RGB", (192, 108), (250, 240, 200))], ["#1c7ed6"])
+    assert bright.panel_alpha_start > DEFAULT_PALETTE.panel_alpha_start  # more contrast behind text on bright footage
+
+
+def test_text_panel_is_see_through_and_fades_into_the_picture(tmp_path):
+    """The panel never hides the video: at most ~70 % opacity on its left edge, fading towards the right."""
+    from app.video.finalize import OverlaySpec, render_layers
+
+    layers, _ = render_layers(854, 480, OverlaySpec(name="Night Owl Cafe", offer="2 for 1 coffee", cta="Order now"), tmp_path)
+    panel = next(layer for layer in layers if layer.kind == "panel")
+    with Image.open(panel.path) as image:
+        alpha = image.getchannel("A")
+        row = image.height - 4  # below the text: only the panel itself
+        left, right = alpha.getpixel((20, row)), alpha.getpixel((image.width - 20, row))
+    assert left <= 180 and right < left
+
+
+def test_overlay_motions_spring_overshoot_and_attention_bounce(tmp_path):
+    """Panel overshoots, QR/CTA spring, the CTA bounces again near the end, captions enter from different sides."""
+    from app.video.finalize import OverlaySpec, animated_overlay_args, render_layers
+
+    spec = OverlaySpec(name="Night Owl Cafe", cta="Order now", qr_url="https://nightowl.example",
+                       captions=["Fresh coffee all night", "Pastries baked daily", "Order at the counter"])
+    layers, _ = render_layers(854, 480, spec, tmp_path, 12.0)
+    motions = {layer.kind: layer.motion for layer in layers}
+    assert motions["panel"] == "overshoot" and motions["qr"] == "spring" and motions["cta"] == "spring"
+    cta = next(layer for layer in layers if layer.kind == "cta")
+    assert cta.attention_at == 9.0
+    captions = [layer for layer in layers if layer.kind == "caption"]
+    assert len({(c.dx > 0, c.dx < 0, c.dy > 0) for c in captions}) == 3  # three different entry directions
+    args = " ".join(animated_overlay_args(tmp_path / "in.mp4", layers, 12.0, tmp_path / "out.mp4"))
+    assert "exp(-7*" in args and "sin(PI*" in args and "abs(sin(9*" in args

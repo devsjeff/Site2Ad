@@ -10,9 +10,13 @@ from __future__ import annotations
 
 import re
 from .facts import FactSheet
+from .formula import formula_for
 from .template import color_names, sanitize
 
-SCENE_AVOID = "No generated text, letters, numbers, logos, watermarks or signage; no distorted hands or faces; no sudden cuts."
+SCENE_AVOID = (
+    "No generated text, letters, numbers, logos, watermarks, posters, signs or printed clothing; no people just posing, "
+    "talking or gesturing at the camera; no distorted hands or faces; no sudden cuts."
+)
 
 # Words that mark a service / description fragment as non-visual business data (it is left out of the scene).
 NON_VISUAL = re.compile(
@@ -23,6 +27,12 @@ NON_VISUAL = re.compile(
 
 # (keywords, subject + action, setting) — the first match decides the visual concept of the ad.
 CONCEPTS: list[tuple[tuple[str, ...], str, str]] = [
+    (("walk", "walking", "steps", "step counter", "running", "jogging", "workout plan", "fitness plan", "health plan"),
+     "A person walks briskly along a sunny park path, checking a step-count ring on a smartwatch that fills up, then smiles and keeps going, clearly fitter and energised",
+     "a green city park on a bright morning"),
+    (("mobile app", "app store", "play store", "android", "ios", "download the app"),
+     "A person uses the app on a smartphone in everyday life, the screen showing a clean interface of abstract shapes and no readable text, and visibly gets the result they wanted",
+     "a bright, real everyday setting"),
     (("news", "newspaper", "journal", "magazine", "publisher", "media", "editorial"),
      "A journalist reviews the day's stories on a tablet while colleagues work softly out of focus; the tablet shows a clean, generic news layout with photographs and abstract interface elements, without readable text",
      "a bright, modern newsroom with large windows"),
@@ -60,7 +70,10 @@ CONCEPTS: list[tuple[tuple[str, ...], str, str]] = [
      "A small creative team collaborates around a large screen showing abstract interface designs and charts without readable text, one person pointing as the others nod",
      "a modern, bright studio office with plants and large windows"),
 ]
-DEFAULT_CONCEPT = ("The people behind {name} at work, focused and welcoming, showing {item}", "their real, well-kept workplace")
+DEFAULT_CONCEPT = (
+    "A customer clearly uses and benefits from {item}: the product or service itself is front and centre and easy to recognise",
+    "a bright, real setting where it is used",
+)
 
 # One camera movement and one lighting look per style (from the first, most reliable entry of each style).
 STYLE_CAMERA = {
@@ -93,47 +106,88 @@ def about_line(facts: FactSheet) -> str:
     return " ".join(kept)
 
 
-def concept_for(facts: FactSheet) -> tuple[str, str]:
-    """(subject + action, setting) for this business, chosen from what it is (category, name, description, services)."""
+# Businesses whose product is a screen or a place get a set of three tailored concepts (title, subject + action, setting),
+# written like real city footage: a real location, practical light, people, and the screen as the hero.
+IN_CAB_KEYWORDS = ("in-cab", "in cab", "cab", "cabs", "taxi", "taxis", "rideshare", "ride-hailing", "uber", "ola", "car screen")
+SCREEN_KEYWORDS = (
+    "dooh", "out-of-home", "out of home", "ooh", "billboard", "billboards", "digital signage", "signage", "led screen",
+    "screen advertising", "advertising", "advertisement", "advertise", "ad network", "media buying", "transit media",
+) + IN_CAB_KEYWORDS
+IN_CAB_SET: list[tuple[str, str, str]] = [
+    ("In-cab screen at night",
+     "A seat-back tablet screen inside a taxi glows with a bright, colourful advertisement (a product photo and bold abstract shapes, no readable text) while city lights and shopfronts slide past the window in soft bokeh",
+     "a clean, modern taxi cabin moving through a busy Indian city at night"),
+    ("Passenger scans the screen",
+     "A passenger in the back seat notices the glowing seat-back ad screen, smiles, and holds up a phone to scan it, the screen's light reflecting softly on their face",
+     "a taxi cabin at dusk, warm street lights streaking past the windows"),
+    ("City screens at dusk",
+     "A huge curved LED screen on a city building plays a vivid, colourful 3D animation (abstract shapes, no readable text) as crowds cross the street below and traffic flows",
+     "a busy downtown intersection at dusk with glass towers and an elevated railway"),
+]
+SCREEN_SET: list[tuple[str, str, str]] = [IN_CAB_SET[2], IN_CAB_SET[0], IN_CAB_SET[1]]
+REAL_FOOTAGE = "a smooth handheld gimbal shot on a cinema camera, with natural motion blur and authentic city detail"
+
+
+def concept_set_for(facts: FactSheet) -> list[tuple[str, str, str]]:
+    """Three tailored (title, action, setting) concepts when the business sells screens or places; empty otherwise."""
     haystack = " ".join([facts.name, facts.category, facts.description, " ".join(facts.services)]).lower()
+    if not any(re.search(rf"(?<![a-z]){re.escape(k)}(?![a-z])", haystack) for k in SCREEN_KEYWORDS):
+        return []
+    in_cab = any(re.search(rf"(?<![a-z]){re.escape(k)}(?![a-z])", haystack) for k in IN_CAB_KEYWORDS)
+    return IN_CAB_SET if in_cab else SCREEN_SET
+
+
+def concept_for(facts: FactSheet) -> tuple[str, str]:
+    """(story, setting) for this business: hook -> turn -> payoff from its ad formula (screen businesses: their own set)."""
+    tailored = concept_set_for(facts)
+    if tailored:
+        return tailored[0][1], tailored[0][2]
+    formula = formula_for(facts)
     items = visual_items(facts)
-    item = ", ".join(items[:2]) if items else (facts.category.lower() or "what they offer")
-    place = (facts.category or "venue").lower()
-    for keywords, action, setting in CONCEPTS:
-        if any(re.search(rf"\b{re.escape(k)}\b", haystack) for k in keywords):
-            return action.format(item=item, place=place, name=facts.name), setting.format(place=place)
-    action, setting = DEFAULT_CONCEPT
-    return action.format(item=item, name=sanitize(facts.name, 80)), setting
+    item = items[0] if items else (facts.category.lower() or "the service")
+    story = f"{formula.hook}; then {formula.turn}; finally {formula.payoff}".format(item=item)
+    return story, formula.setting
 
 
 def build_scene_prompt(
     facts: FactSheet, *, style: str, aspect_ratio: str, has_reference: bool, looping: bool, notes: str = "", visual: str = "",
     mood: str = "",
 ) -> str:
-    """ONE paragraph describing ONE continuous scene. `visual` is the brief's chosen concept (else one is picked here)."""
-    name = sanitize(facts.name, 80)
+    """ONE flowing present-tense paragraph that opens on the hero visual, then setting, camera, light and limits.
+
+    `visual` is the brief's chosen concept (else the business's ad formula). Non-visual text (what the business is called)
+    comes last, because video models give the first words the most weight.
+    """
     action, setting = concept_for(facts)
     camera, lighting = STYLE_CAMERA.get(style, STYLE_CAMERA["cinematic_premium"])
-    category = facts.category.lower().strip()
-    kind = category if category.endswith(("business", "shop", "store", "studio", "agency", "company", "bakery", "restaurant", "cafe", "hotel", "salon", "clinic", "gym", "school", "publisher")) else (f"{category} business" if category else "business")
-    parts = [f"A premium, realistic commercial for {name}, a {kind}."]
-    about = about_line(facts)
-    if about:
-        parts.append(f"About the business: {about}")
+    tailored = bool(concept_set_for(facts))
+    formula = None if tailored or visual else formula_for(facts)
+    story = sanitize(visual, 600) if visual else f"{action}."
+    story = story[:1].upper() + story[1:]
+    parts = []
     if has_reference:
-        parts.append("Start exactly from the provided image and bring it to life gently, keeping everything in it unchanged.")
-    parts.append(sanitize(visual, 600) if visual else f"{action}, in {setting}.")
-    parts.append(f"The camera makes a {camera}; {lighting}; natural skin tones and believable real-world detail.")
+        parts.append("Starting exactly from the provided image, which comes to life without changing:")
+    parts.append(story if story.endswith(".") else story + ".")
+    parts.append(f"Setting: {setting}." if not visual else "")
+    focus = ", ".join(visual_items(facts)[:2]) or (facts.category.lower() if facts.category else "")
+    parts.append(
+        "Say it visually: with the sound off, the first second makes clear what is advertised"
+        + (f" ({focus})" if focus else "") + ", shown in use and clearly in frame."
+    )
+    parts.append(f"Camera: {formula.camera if formula else camera}. Light: {lighting}.")
+    if tailored:
+        parts.append(f"It looks like real footage: {REAL_FOOTAGE}.")
     if mood:
         parts.append(f"Mood: {mood}.")
     colours = color_names(facts.brand_colors)
     if colours:
-        parts.append(f"Subtle {' and '.join(colours[:2])} accents in the set echo the brand colours.")
+        parts.append(f"Subtle {' and '.join(colours[:2])} accents echo the brand colours.")
     if notes:
         parts.append(f"Direction from the advertiser: {sanitize(notes, 200)}")
     if looping:
-        parts.append("The clip will loop, so it ends with the same framing, light and colours as it begins, with no hard ending.")
-    parts.append(f"Keep {TEXT_SPACE.get(aspect_ratio, 'some of the frame')} calm and uncluttered for text added in editing.")
-    parts.append("One continuous shot, smooth natural movement, consistent lighting and realistic proportions.")
+        parts.append("The clip will loop, so it ends with the same framing and light as it begins.")
+    parts.append(f"Keep {TEXT_SPACE.get(aspect_ratio, 'some of the frame')} calm for text added in editing.")
+    parts.append("One continuous shot, smooth natural motion, realistic proportions.")
+    parts.append(f"An ad for {sanitize(facts.name, 80)}.")
     parts.append(SCENE_AVOID)
-    return " ".join(parts)
+    return " ".join(part for part in parts if part)

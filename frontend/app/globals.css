@@ -1,30 +1,38 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fafaf9;
-  --foreground: #1c1917;
-  --accent: #4f46e5;
-  --accent-light: #e0e7ff;
+  --background: #f7f5ff;
+  --foreground: #1a1033;
+  --accent: #7c3aed;
+  --accent-light: #ede9fe;
+  --accent-2: #ec4899;
+  --accent-3: #f59e0b;
+  --accent-4: #06b6d4;
   --surface: #ffffff;
-  --border: #e7e5e4;
-  --muted: #78716c;
+  --border: #e6e1f5;
+  --muted: #6b6485;
   --danger: #dc2626;
-  --success: #15803d;
+  --success: #059669;
   --warn: #b45309;
+  --glow: rgba(124, 58, 237, 0.28);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0c0a09;
-    --foreground: #e7e5e4;
-    --accent: #818cf8;
-    --accent-light: #1e1b4b;
-    --surface: #1c1917;
-    --border: #292524;
-    --muted: #a8a29e;
+    --background: #0b0718;
+    --foreground: #efeaff;
+    --accent: #a78bfa;
+    --accent-light: #2a1b4d;
+    --accent-2: #f472b6;
+    --accent-3: #fbbf24;
+    --accent-4: #22d3ee;
+    --surface: #150f28;
+    --border: #2b2147;
+    --muted: #a59cc4;
     --danger: #f87171;
-    --success: #4ade80;
+    --success: #34d399;
     --warn: #fbbf24;
+    --glow: rgba(167, 139, 250, 0.3);
   }
 }
 
@@ -33,6 +41,9 @@
   --color-ink: var(--foreground);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-light);
+  --color-pink: var(--accent-2);
+  --color-amber: var(--accent-3);
+  --color-cyan: var(--accent-4);
   --color-surface: var(--surface);
   --color-line: var(--border);
   --color-muted: var(--muted);
@@ -53,18 +64,126 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
+/* ---------- colour utilities */
+
+.bg-brand {
+  background-image: linear-gradient(120deg, var(--accent) 0%, var(--accent-2) 55%, var(--accent-3) 100%);
+  background-size: 200% 200%;
+}
+.text-brand {
+  background-image: linear-gradient(100deg, var(--accent) 0%, var(--accent-2) 50%, var(--accent-3) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradientShift 6s ease infinite;
+}
+.glass {
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.shadow-glow { box-shadow: 0 10px 30px -10px var(--glow); }
+
+/* Selected cards get a moving gradient border. */
+.ring-brand {
+  border-color: transparent !important;
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    linear-gradient(120deg, var(--accent), var(--accent-2), var(--accent-3)) border-box;
+}
+
+/* Soft, slowly drifting colour blobs behind every page. */
+.aurora {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.aurora::before,
+.aurora::after,
+.aurora > span {
+  content: "";
+  position: absolute;
+  width: 42vmax;
+  height: 42vmax;
+  border-radius: 9999px;
+  filter: blur(80px);
+  opacity: 0.35;
+  animation: drift 22s ease-in-out infinite alternate;
+}
+.aurora::before { background: var(--accent); top: -14vmax; left: -10vmax; }
+.aurora::after { background: var(--accent-2); bottom: -16vmax; right: -12vmax; animation-delay: -8s; }
+.aurora > span { background: var(--accent-4); top: 30%; left: 55%; width: 26vmax; height: 26vmax; opacity: 0.22; animation-delay: -14s; }
+
+/* ---------- animations */
+
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes popIn {
+  0% { opacity: 0; transform: scale(0.92); }
+  70% { opacity: 1; transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+@keyframes spin-slow { to { transform: rotate(360deg); } }
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@keyframes drift {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(6vmax, 4vmax) scale(1.12); }
+  100% { transform: translate(-4vmax, 8vmax) scale(0.95); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(200%); }
+}
+@keyframes expand {
+  from { opacity: 0; transform: translateY(-6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes spin-slow {
-  to { transform: rotate(360deg); }
-}
-
-.animate-fadeUp { animation: fadeUp 0.4s ease-out both; }
+.animate-fadeUp { animation: fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-popIn { animation: popIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .animate-spin-slow { animation: spin-slow 1s linear infinite; }
+.animate-gradient { animation: gradientShift 5s ease infinite; }
+.animate-float { animation: float 4s ease-in-out infinite; }
+.animate-expand { animation: expand 0.3s ease-out both; }
+.delay-1 { animation-delay: 0.06s; }
+.delay-2 { animation-delay: 0.12s; }
+.delay-3 { animation-delay: 0.18s; }
+.delay-4 { animation-delay: 0.24s; }
+
+/* A light sweep across buttons and progress bars. */
+.shine { position: relative; overflow: hidden; }
+.shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: translateX(-100%);
+  pointer-events: none;
+}
+.shine:hover::after { animation: shimmer 0.9s ease; }
+.shine-loop::after { animation: shimmer 1.6s linear infinite; }
+
+/* <details> used for the "Advanced options" drop-downs. */
+details > summary { list-style: none; cursor: pointer; }
+details > summary::-webkit-details-marker { display: none; }
+details[open] > summary .chevron { transform: rotate(180deg); }
+details[open] > .details-body { animation: expand 0.3s ease-out both; }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-fadeUp, .animate-spin-slow { animation: none; }
+  .animate-fadeUp, .animate-popIn, .animate-spin-slow, .animate-gradient, .animate-float, .animate-expand,
+  .text-brand, .aurora::before, .aurora::after, .aurora > span, .shine::after,
+  details[open] > .details-body { animation: none; }
 }

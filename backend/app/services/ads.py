@@ -23,10 +23,11 @@ from pathlib import Path
 from typing import Optional
 
 from ..ai.facts import FactSheet, build_fact_sheet
+from ..ai.scene import about_line, visual_items
 from ..ai.prompt_builder import PromptBuilder
 from ..config import Settings
 from ..schemas import (
-    AdResponse, AssetInfo, CompositionSegment, CreativeConfig, GenerateAdRequest, ReferenceImage, ScrapeResult, utcnow,
+    AdBrief, AdPrompt, AdResponse, AssetInfo, CompositionSegment, CreativeConfig, GenerateAdRequest, ReferenceImage, ScrapeResult, utcnow,
 )
 from ..scraper.fetch import Deadline
 from ..scraper.service import Scraper
@@ -152,6 +153,43 @@ class Made:
     fallback_used: bool = False
     ai_video_used: bool = False
     provider: str = "ffmpeg"
+
+
+CAPTION_MAX_CHARS = 70
+DANGLING_WORDS = {"in", "on", "at", "of", "for", "to", "and", "or", "the", "a", "an", "with", "from", "by", "across", "your", "our", "every", "each", "that", "which", "who", "more", "very"}
+
+
+def _short(text: str) -> str:
+    """One readable caption: the first sentence, cut at a clause or word boundary when it is long."""
+    sentence = re.split(r"(?<=[.!?])\s+", " ".join(text.split()))[0].rstrip(".")
+    if len(sentence) <= CAPTION_MAX_CHARS:
+        return sentence
+    clause = re.split(r"\s*[–—]\s*|[,;:]\s|\s-\s", sentence)[0]  # em/en dashes split even without spaces
+    if 12 <= len(clause) <= CAPTION_MAX_CHARS:
+        return clause
+    # cut before a trailing phrase ("... in Mumbai, Delhi"), never leaving a dangling "in", "and", "the" at the end
+    words = sentence[:CAPTION_MAX_CHARS].rsplit(" ", 1)[0].split()
+    for joiner in (" in ", " across ", " for ", " with ", " at ", " from "):
+        head = " ".join(words).rsplit(joiner, 1)[0]
+        if head != " ".join(words) and len(head) >= 20:
+            words = head.split()
+            break
+    while len(words) > 3 and words[-1].lower() in DANGLING_WORDS:
+        words.pop()
+    return " ".join(words).rstrip(",;:")
+
+
+def key_messages(facts: FactSheet, brief: Optional[AdBrief] = None) -> list[str]:
+    """Up to three short on-screen messages that say what the ad is about (main message, then real services)."""
+    messages: list[str] = []
+    main = (brief.main_message if brief else "") or about_line(facts)
+    if main:
+        messages.append(_short(main))
+    for item in visual_items(facts)[:2]:
+        caption = item[:1].upper() + item[1:]
+        if caption.lower() not in {m.lower() for m in messages}:
+            messages.append(caption)
+    return [m for m in messages if m][:3]
 
 
 def _skippable(url: str) -> bool:
@@ -532,7 +570,7 @@ class Ads:
                 ad.warnings.append(f"Your logo could not be used ({exc}).")
             return None
 
-    def _overlay_spec(self, plan: AdPlan, logo: Optional[Path]) -> OverlaySpec:
+    def _overlay_spec(self, plan: AdPlan, logo: Optional[Path], brief: Optional[AdBrief] = None) -> OverlaySpec:
         """What finalize.py draws: verified text (if wanted), the logo and the QR code for the user's exact URL."""
         options, creative, facts = plan.request.options, plan.creative, plan.facts
         font = self.settings.overlay_font_path
@@ -544,9 +582,13 @@ class Ads:
                 qr_url=facts.website if facts.website.startswith(("http://", "https://")) else "", logo_path=logo, font_path=font,
             )
         spec = OverlaySpec(qr_url=creative.qr_url if creative.include_qr else "", logo_path=logo if creative.include_logo else None, font_path=font)
+        if options.add_overlays and facts is not None:
+            spec.captions = key_messages(facts, brief)
+        if facts is not None:
+            spec.brand_colors = list(facts.brand_colors)  # the overlay accent follows the brand, else the footage
         if options.add_overlays:
             if facts is not None:
-                spec.name, spec.offer, spec.cta, spec.phone, spec.address = facts.name, facts.offer, facts.cta, facts.phone, facts.address
+                spec.name, spec.offer, spec.cta, spec.phone, spec.address = facts.name, _short(facts.offer) if facts.offer else "", facts.cta, facts.phone, facts.address
             else:  # manual: only what the user typed
                 business = plan.request.business
                 spec.name, spec.offer, spec.cta = business.name.strip(), business.offer.strip(), business.cta.strip()
@@ -586,7 +628,7 @@ class Ads:
             await self._set(ad, stage="finalizing", progress=90, message="Adding your business details…", provider=made.provider)
             want_logo = plan.request.options.add_overlays if plan.creative is None else plan.creative.include_logo
             logo = await self._prepare_logo(plan, folder, ad) if want_logo else None
-            spec = self._overlay_spec(plan, logo)
+            spec = self._overlay_spec(plan, logo, ad.brief)
             finished = await finalize_video(made.path, final_path, spec)
             self._warn(ad, *finished.warnings)
 
@@ -691,6 +733,55 @@ class Ads:
         result = await compose(segments, folder / "composed.mp4", size=size, style=options.style, keep_audio=False, work_dir=folder)
         return Made(result.path, _segments(result))
 
+    async def _extra_clips(
+        self, ad: AdResponse, plan: AdPlan, brief: AdBrief, hero: HeroSelection, folder: Path, missing_seconds: float,
+        film_prompts: Optional[list[str]] = None,
+    ) -> list[tuple[Path, float]]:
+        """More AI clips from the brief's other concepts (VIDEO_CLIPS_PER_AD), so a long ad shows new footage instead of a loop.
+
+        Stops at the first failure (the ad then loops what it has); a fallback clip is never mixed in with AI footage.
+        """
+        extra: list[tuple[Path, float]] = []
+        film_prompts = film_prompts or []
+        wanted = len(film_prompts) if film_prompts else min(max(1, self.settings.video_clips_per_ad), len(brief.concepts)) - 1
+        options = plan.request.options
+        for index in range(1, wanted + 1):
+            if missing_seconds <= 0.5:
+                break
+            if film_prompts:  # the AI director's next clip of the story
+                prompt = AdPrompt(
+                    final_prompt=film_prompts[index - 1], positive_prompt=film_prompts[index - 1], negative_prompt="",
+                    platform=options.platform, duration_seconds=plan.duration, aspect_ratio=options.aspect_ratio, shot_count=1,
+                )
+                title = f"story part {index + 1}"
+            else:
+                concept_brief = brief.model_copy(update={"chosen_concept": min(index, len(brief.concepts) - 1)})
+                prompt = await self.prompts.build_scene(
+                    plan.facts, options, reference=hero.reference, duration_seconds=plan.duration, loop_seconds=0, brief=concept_brief,
+                )
+                title = concept_brief.concept.title
+            logger.info("ad %s EXTRA CLIP %s PROMPT (%s):\n%s", ad.ad_id, index + 1, title, prompt.final_prompt)
+            await self._set(ad, message=f"Creating AI clip {index + 1} of {wanted + 1} ({title})…")
+            request = VideoRequest(
+                ad_id=f"{ad.ad_id}-{index}", prompt=prompt.final_prompt, negative_prompt=prompt.negative_prompt,
+                image_path=hero.prepared.path if hero.prepared else None, duration_seconds=prompt.duration_seconds,
+                aspect_ratio=prompt.aspect_ratio, resolution=self.settings.video_resolution, output_dir=folder,
+                business_name=plan.facts.name if plan.facts else "",
+            )
+            try:
+                async with self._video_slots:
+                    outcome = await self.video.generate(request)
+            except VideoError as exc:
+                self._warn(ad, f"An extra AI clip could not be made ({exc}); the first clip is looped instead.")
+                break
+            if outcome.fallback_used:
+                self._warn(ad, "An extra AI clip failed, so it was left out (no demo footage is mixed with AI footage).")
+                break
+            seconds = (await probe_media(outcome.result.path)).duration
+            extra.append((outcome.result.path, seconds))
+            missing_seconds -= seconds
+        return extra
+
     async def _make_ai(self, ad: AdResponse, plan: AdPlan, folder: Path) -> Made:
         """AI ad (and the original flow): ONE prompt -> ONE AI clip, looped to the chosen length.
 
@@ -703,6 +794,7 @@ class Ads:
         mode = plan.mode
         target = plan.target_seconds if creative is not None else 0
         hero = HeroSelection()
+        film_prompts: list[str] = []
         if mode == "ai":
             await self._set(ad, status="running", stage="preparing", progress=10, message="Collecting your business details for the AI…")
         else:
@@ -736,9 +828,19 @@ class Ads:
                 "ad %s AD BRIEF (%s): concept=%r message=%r cta=%r missing=%s rejected=%s",
                 ad.ad_id, brief.builder, brief.concept.title, brief.main_message, brief.cta, brief.missing, brief.rejected_claims,
             )
-            prompt = await self.prompts.build_scene(
-                facts, options, reference=hero.reference, duration_seconds=plan.duration, loop_seconds=target, brief=brief,
+            clips_wanted = min(max(1, self.settings.video_clips_per_ad), max(1, math.ceil(target / max(1, plan.duration))) if target else 1)
+            film, film_notes = await self.prompts.build_film(
+                facts, options, brief, clips=clips_wanted, clip_seconds=plan.duration, reference=hero.reference,
             )
+            self._warn(ad, *film_notes)
+            if film:  # OpenRouter wrote a shot-by-shot prose prompt for every clip
+                prompt, film_prompts = film[0], [p.final_prompt for p in film[1:]]
+                for index, extra in enumerate(film_prompts, start=2):
+                    logger.info("ad %s FILM CLIP %s PROMPT:\n%s", ad.ad_id, index, extra)
+            else:
+                prompt = await self.prompts.build_scene(
+                    facts, options, reference=hero.reference, duration_seconds=plan.duration, loop_seconds=target, brief=brief,
+                )
         self._warn(ad, *prompt.warnings)
         # The final prompt for the video model, visible in the backend terminal for every AI ad (whatever the provider).
         logger.info(
@@ -778,17 +880,23 @@ class Ads:
         clip = await probe_media(outcome.result.path)
         if clip.duration and clip.duration < plan.duration - 0.5:
             self._warn(ad, f"The video provider returned a {clip.duration:.1f}-second clip ({plan.duration} seconds were requested).")
-        loop_to = float(target) if target and clip.duration and target > clip.duration + 0.05 else 0.0
-        if creative is None or (not (intro or outro) and not loop_to):
+        clips: list[tuple[Path, float]] = [(outcome.result.path, clip.duration)]
+        if creative is not None and ad.brief is not None and ai_used and target:
+            clips += await self._extra_clips(ad, plan, ad.brief, hero, folder, target - clip.duration, film_prompts)
+        covered = sum(seconds for _, seconds in clips)
+        if creative is None or (not (intro or outro) and len(clips) == 1 and not (target and target > covered + 0.05)):
             segment = CompositionSegment(kind=clip_kind, source=outcome.result.provider, seconds=round(clip.duration, 2))
             return Made(outcome.result.path, [segment], outcome.fallback_used, ai_used, outcome.result.provider)
 
-        await self._set(
-            ad, stage="composing", progress=86,
-            message="Placing your website images around the AI video…" if intro else f"Looping the AI video to {target} seconds…",
+        # loop only what is still missing, spread over the clips (each loop repeat is reframed in compose.py)
+        share = (float(target) / len(clips)) if target and target > covered + 0.05 else 0.0
+        message = "Placing your website images around the AI video…" if intro else (
+            f"Joining {len(clips)} AI clips…" if len(clips) > 1 else f"Looping the AI video to {target} seconds…"
         )
+        await self._set(ad, stage="composing", progress=86, message=message)
         segments = [Segment("website_image", path, True, WEBSITE_IMAGE_SECONDS, url, framed=True) for url, path in intro]
-        segments.append(Segment(clip_kind, outcome.result.path, False, 0.0, outcome.result.provider, loop_to=loop_to))
+        for path, seconds in clips:
+            segments.append(Segment(clip_kind, path, False, 0.0, outcome.result.provider, loop_to=share if share > seconds + 0.05 else 0.0))
         segments += [Segment("website_image", path, True, WEBSITE_IMAGE_SECONDS, url, framed=True) for url, path in outro]
         result = await compose(
             segments, folder / "composed.mp4", size=(clip.width, clip.height), style=options.style, keep_audio=creative.keep_audio, work_dir=folder,

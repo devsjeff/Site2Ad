@@ -57,7 +57,7 @@ class FakeLlm:
         self.answers = list(answers)
         self.requests: list[tuple[str, str]] = []
 
-    async def complete(self, system: str, user: str) -> str:
+    async def complete(self, system: str, user: str, max_tokens: int = 1400) -> str:
         """Return or raise the next canned answer."""
         self.requests.append((system, user))
         answer = self.answers.pop(0)

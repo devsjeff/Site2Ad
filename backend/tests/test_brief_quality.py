@@ -344,3 +344,242 @@ async def test_output_check_accepts_a_real_video_and_warns_about_length(tmp_path
     assert report.ok and report.warnings == [] and (report.width, report.height) == (320, 240)
     report = await check_output(video, expected_seconds=10)
     assert report.ok and report.warnings and "10.0 seconds were planned" in report.warnings[0]
+
+
+# --------------------------------------------------------------------------- reference-style scenes, varied loops, animated text
+
+
+def test_screen_advertising_business_gets_real_city_screen_concepts():
+    """An in-cab / DOOH advertiser is shown as screens in taxis and cities (like real DOOH footage), not as an office."""
+    from app.ai.facts import FactSheet
+
+    facts = FactSheet(name="In-cab CADOOH advertising in India", category="service",
+                      description="Digital out-of-home advertising on taxi and airport cab screens in Mumbai, Delhi NCR and Bengaluru.")
+    brief = build_template_brief(facts, AdOptions(), duration_seconds=5)
+    assert [c.title for c in brief.concepts] == ["In-cab screen at night", "Passenger scans the screen", "City screens at dusk"]
+    assert "taxi" in brief.concept.visual and "office" not in brief.concept.visual
+
+
+async def test_looped_clip_is_reframed_per_repeat_and_keeps_the_exact_length(tmp_path):
+    """A 5 s clip filling 20 s: several differently framed repeats, crossfaded, exactly 20 s long."""
+    from app.video.base import probe_media
+    from app.video.compose import Segment, compose, loop_filter, loop_plan
+
+    repeats, crossfade = loop_plan(5.0, 20.0)
+    assert repeats == 5 and crossfade == 0.6 and repeats * 5.0 - (repeats - 1) * crossfade >= 20.0
+    _, graph = loop_filter(5.0, 20.0, (854, 480), "")
+    assert graph.count("xfade") == repeats - 1 and graph.count("zoompan") == repeats
+    clip = tmp_path / "clip.mp4"
+    subprocess.run([ffmpeg_path(), "-y", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc=size=854x480:rate=24", "-t", "5",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", str(clip)], check=True)
+    result = await compose([Segment("ai_video", clip, False, 0.0, "x", loop_to=20.0)], tmp_path / "out.mp4", size=(854, 480),
+                           style="cinematic_premium", keep_audio=False, work_dir=tmp_path / "w")
+    assert abs((await probe_media(result.path)).duration - 20.0) < 0.2
+
+
+async def test_overlay_elements_animate_in_one_after_another(tmp_path):
+    """Logo, text panel, QR and CTA pill are separate layers that fade and slide in at staggered times."""
+    from app.video.finalize import OverlaySpec, animated_overlay_args, render_layers
+
+    logo = tmp_path / "logo.png"
+    Image.new("RGBA", (200, 80), (200, 0, 0, 255)).save(logo)
+    spec = OverlaySpec(name="Night Owl Cafe", offer="2 for 1 coffee", cta="Scan to order", qr_url="https://nightowl.example", logo_path=logo)
+    layers, warnings = render_layers(854, 480, spec, tmp_path / "layers")
+    assert warnings == [] and {layer.kind for layer in layers} == {"panel", "cta", "qr", "logo"}
+    starts = {layer.kind: layer.start for layer in layers}
+    assert starts["logo"] < starts["panel"] < starts["qr"] < starts["cta"]
+    args = " ".join(animated_overlay_args(tmp_path / "in.mp4", layers, 5.0, tmp_path / "out.mp4"))
+    assert args.count("fade=t=in") == 4 and "eval=frame" in args
+
+
+# --------------------------------------------------------------------------- "say it visually": clear ads, captions, clips, effects
+
+
+def test_scene_prompt_says_what_is_advertised_and_forbids_posing_and_printed_text():
+    """The bad 'two men waving in a lobby' ad: the prompt must show the service in use and forbid posters / printed shirts."""
+    from app.ai.facts import FactSheet
+    from app.ai.scene import build_scene_prompt
+
+    facts = FactSheet(name="Harna Walking", category="Fitness", services=["Daily walking plans"], cta="Get my plan",
+                      description="Personal daily walking plans that help you walk more.")
+    text = build_scene_prompt(facts, style="cinematic_premium", aspect_ratio="16:9", has_reference=False, looping=False)
+    assert "walks" in text and "smartwatch" in text  # a walking business shows walking, not people talking
+    assert "Say it visually" in text and "Daily walking plans" in text
+    assert "posing" in text and "posters" in text and "printed clothing" in text
+
+
+def test_key_messages_come_from_facts_and_stay_short():
+    """On-screen captions: the main message and real services, short, never invented."""
+    from app.ai.facts import FactSheet
+    from app.services.ads import key_messages
+
+    facts = FactSheet(name="Harna Walking", services=["Daily walking plans", "Step challenges", "Coach calls"],
+                      description="Personal daily walking plans that help busy people walk more every single day of the week, with reminders and progress tracking.")
+    messages = key_messages(facts)
+    assert messages[1:] == ["Daily walking plans", "Step challenges"] and len(messages) == 3
+    assert all(len(m) <= 70 for m in messages) and messages[0].startswith("Personal daily walking plans")
+
+
+async def test_long_ai_ad_uses_several_different_clips_instead_of_a_loop(tmp_path):
+    """VIDEO_CLIPS_PER_AD=3 and a 15 s ad from 5 s clips: three DIFFERENT prompts, three clips, no looping."""
+    settings = make_settings(tmp_path, video_clips_per_ad=3, video_max_seconds=5)
+    provider = CountingProvider()
+    ctx = await AppContext.create(settings, scraper=Scraper(settings, policy=LOCAL_POLICY), video=VideoService(settings, primary=provider), start_background=False)
+    try:
+        creative = CreativeConfig(creation_mode="auto", creative_mode="ai", use_ai_video=True)
+        request = GenerateAdRequest(business=BusinessOverrides(name="Sharma Sweets", category="bakery", services=["kaju katli"]),
+                                    options=AdOptions(duration_seconds=15), creative=creative)
+        done = await finished_ad(ctx, (await ctx.ads.create(request)).ad_id)
+        assert done.status == "completed", done.error
+        prompts = [call.prompt for call in provider.calls]
+        assert len(prompts) == 3 and len(set(prompts)) == 3  # one prompt per brief concept
+        assert [s.kind for s in done.composition] == ["ai_video"] * 3 and all(s.seconds == 5.0 for s in done.composition)
+        assert 14.0 <= done.actual_duration_seconds <= 15.0
+    finally:
+        await ctx.close()
+
+
+async def test_extra_clips_are_optional_and_the_ad_loops_when_they_are_off(tmp_path):
+    """With the default (one clip per ad) a 15 s ad makes ONE paid call and loops it."""
+    settings = make_settings(tmp_path, video_max_seconds=5)
+    provider = CountingProvider()
+    ctx = await AppContext.create(settings, scraper=Scraper(settings, policy=LOCAL_POLICY), video=VideoService(settings, primary=provider), start_background=False)
+    try:
+        creative = CreativeConfig(creation_mode="auto", creative_mode="ai", use_ai_video=True)
+        request = GenerateAdRequest(business=BusinessOverrides(name="Loop Cafe"), options=AdOptions(duration_seconds=15), creative=creative)
+        done = await finished_ad(ctx, (await ctx.ads.create(request)).ad_id)
+        assert done.status == "completed" and len(provider.calls) == 1 and [(s.kind, s.seconds) for s in done.composition] == [("ai_video", 15.0)]
+    finally:
+        await ctx.close()
+
+
+def test_images_get_different_motions_and_cuts_get_different_transitions():
+    """Not one zoom everywhere: each image segment moves differently and each cut uses another transition."""
+    from app.video.compose import IMAGE_MOTIONS, TRANSITIONS, image_filter, transition_graph
+
+    filters = {image_filter(i, 3.0, (854, 480), "cinematic_premium", False) for i in range(len(IMAGE_MOTIONS))}
+    assert len(filters) == len(IMAGE_MOTIONS) >= 6
+    graph = transition_graph([3.5, 3.5, 3.5, 3.0], with_audio=False)
+    used = [kind for kind in TRANSITIONS if f"transition={kind}:" in graph]
+    assert len(used) == 3 and "concat" not in graph
+
+
+# --------------------------------------------------------------------------- AI director: shot-by-shot prose prompts
+
+
+def _film_answer(clips: int, extra: str = "") -> str:
+    """A well-formed director plan for a bakery."""
+    shots = [
+        "Shot 1 (0-5s): The gold-and-red sweet box stands centred on a marble counter as pieces of kaju katli slide into a neat ring around it, fast push-in, warm key light. "
+        "Shot 2 (5-10s): Hard cut to a macro of the silver leaf on a kaju katli diamond, slow lateral slide, soft window light.",
+        "Shot 1 (0-5s): Hands in a spotless kitchen press fresh cashew dough into a tray, overhead top-down, bright daylight. "
+        "Shot 2 (5-10s): A family member lifts one piece and takes a bite, smiling, slow orbit, warm evening light; the scene settles on the box, still and centred." + extra,
+    ]
+    return json.dumps({
+        "subject": {"what": "a box of kaju katli sweets", "form_material": "solid diamond-shaped sweets; they can be stacked, lifted and bitten, never melt or pour",
+                    "key_visual_detail": "pale cashew fudge diamonds with a thin edible silver leaf", "must_not": ["melting sweets", "printed text on the box"]},
+        "clips": [{"title": f"Part {i + 1}", "prompt": shots[i % 2]} for i in range(clips)],
+    })
+
+
+async def test_ai_director_writes_one_detailed_prompt_per_clip():
+    """OpenRouter's plan becomes a shot-by-shot prose prompt per clip, with the subject restated and sound words removed."""
+    from app.ai.facts import FactSheet
+
+    facts = FactSheet(name="Sharma Sweets", category="Bakery", services=["kaju katli"], description="Fresh mithai made daily.")
+    builder = PromptBuilder(make_settings(video_provider="magic_hour", video_model_api_key="k"), FakeLlm(_film_answer(2, " A loud crunch as it breaks.")))
+    prompts, notes = await builder.build_film(facts, AdOptions(duration_seconds=20), None, clips=2, clip_seconds=10)
+    assert notes == [] and len(prompts) == 2 and all(p.builder == "llm" for p in prompts)
+    assert "Shot 1 (0-5s)" in prompts[0].final_prompt and "Shot 2 (5-10s)" in prompts[1].final_prompt
+    assert all("The hero throughout: a box of kaju katli sweets" in p.final_prompt for p in prompts)
+    assert all(len(p.final_prompt) <= 2000 for p in prompts) and "crunch" not in prompts[1].final_prompt.lower()
+    assert "Never show: melting sweets" in prompts[0].final_prompt
+
+
+@pytest.mark.parametrize("answer", [
+    "not json at all",
+    json.dumps({"subject": {"what": "a flight"}, "clips": [{"title": "x", "prompt": "Shot 1 (0-10s): Fly Jetstar from WSI to Brisbane for only $236, a plane climbing over the bay at sunrise, slow aerial orbit, golden light, passengers smiling at the window."}]}),
+])
+async def test_ai_director_falls_back_when_the_plan_is_malformed_or_unrelated(answer):
+    """Bad JSON or a plan that advertises another company never reaches the video model."""
+    facts = build_fact_sheet(guardian_scrape(), BusinessOverrides(), AdOptions())
+    builder = PromptBuilder(make_settings(), FakeLlm(answer, answer))
+    prompts, notes = await builder.build_film(facts, AdOptions(), None, clips=1, clip_seconds=10)
+    assert prompts is None and notes and "built-in scene prompt" in notes[0]
+
+
+async def test_ai_ad_uses_the_directors_story_across_clips(tmp_path):
+    """With OpenRouter on and two clips per ad, each paid video call gets its own part of the director's story."""
+    settings = make_settings(tmp_path, video_clips_per_ad=2, video_max_seconds=10)
+    provider = CountingProvider()
+    prompts = PromptBuilder(settings, FakeLlm("not a brief (the brief falls back to the built-in one)", _film_answer(2)))
+    ctx = await AppContext.create(settings, scraper=Scraper(settings, policy=LOCAL_POLICY), prompts=prompts,
+                                  video=VideoService(settings, primary=provider), start_background=False)
+    try:
+        creative = CreativeConfig(creation_mode="auto", creative_mode="ai", use_ai_video=True)
+        request = GenerateAdRequest(business=BusinessOverrides(name="Sharma Sweets", category="bakery", services=["kaju katli"]),
+                                    options=AdOptions(duration_seconds=20), creative=creative)
+        done = await finished_ad(ctx, (await ctx.ads.create(request)).ad_id)
+        assert done.status == "completed", done.error
+        sent = [call.prompt for call in provider.calls]
+        assert len(sent) == 2 and "marble counter" in sent[0] and "cashew dough" in sent[1]
+        assert all(call.duration_seconds == 10 for call in provider.calls)  # the model is asked for 10-second clips
+        assert done.prompt.builder == "llm" and [s.kind for s in done.composition] == ["ai_video", "ai_video"]
+    finally:
+        await ctx.close()
+
+
+# --------------------------------------------------------------------------- ad formulas (hook -> turn -> payoff)
+
+
+MAGIC_HOUR = (
+    "Magic Hour is a browser-based creative platform and API for generating and editing video, images, and audio. Creators and "
+    "teams use tools including face swap, lip sync, image-to-video, text-to-video, image editing, and voice generation."
+)
+
+
+@pytest.mark.parametrize("name, category, description, expected", [
+    ("Magic Hour", "", MAGIC_HOUR, "creative_ai"),
+    ("Cool Fix", "", "AC repair and installation at home.", "local_service"),
+    ("QuickPay", "", "Payments and wallet for small shops.", "finance"),
+    ("Taj Lake", "hotel", "", "hotel"),
+    ("Sharma Sweets", "Bakery", "Fresh mithai made daily.", "food"),
+    ("The Guardian", "News", "Latest news, sport and opinion.", "news"),
+    ("Harna Walking", "Fitness", "Daily walking plans.", "fitness"),
+])
+def test_each_business_gets_the_right_ad_formula(name, category, description, expected):
+    """The formula is chosen from the whole description, not one keyword (the Magic Hour ad used to fall to 'generic')."""
+    from app.ai.facts import FactSheet
+    from app.ai.formula import formula_for
+
+    assert formula_for(FactSheet(name=name, category=category, description=description)).id == expected
+
+
+def test_ai_tool_prompt_shows_a_transformation_and_leads_with_the_visual():
+    """No 'someone at a monitor': an AI video tool is sold by a still photo coming alive; the visual comes first."""
+    from app.ai.facts import FactSheet
+    from app.ai.scene import build_scene_prompt
+
+    text = build_scene_prompt(FactSheet(name="Magic Hour", description=MAGIC_HOUR), style="cinematic_premium", aspect_ratio="16:9",
+                              has_reference=False, looping=False)
+    assert text.startswith("A creator holds up a smartphone") and "comes alive" in text
+    assert "commercial for" not in text and text.index("An ad for Magic Hour") > len(text) // 2
+    assert 80 <= len(text.split()) <= 240
+
+
+def test_captions_cover_the_whole_ad_and_the_last_one_stays():
+    """With a 10 s ad and two captions, each gets about half; the last never fades out."""
+    from app.video.finalize import OverlaySpec, render_layers
+
+    import tempfile
+    with tempfile.TemporaryDirectory() as folder:
+        layers, _ = render_layers(854, 480, OverlaySpec(captions=["Turn photos into video", "Face swap and lip sync"]), Path(folder), 10.0)
+    captions = [layer for layer in layers if layer.kind == "caption"]
+    assert len(captions) == 2 and captions[1].end is None and captions[0].end > 4.0
+
+
+def test_long_offers_are_cut_to_their_key_clause():
+    """'Cut photoshoot costs by up to 90%—test new outfits…' must not end as '…without boo…' on screen."""
+    from app.services.ads import _short
+
+    assert _short("Cut photoshoot costs by up to 90%—test new outfits, colors, and drops without booking a studio") == "Cut photoshoot costs by up to 90%"

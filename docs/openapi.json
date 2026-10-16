@@ -1,0 +1,2534 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Site2Ad (Adsify) API",
+    "version": "1.0.0",
+    "summary": "Turn a business website, or your own media, into a short video ad.",
+    "description": "Scan a website, upload media, create ONE video ad in the background and download the MP4.\n\n**Long-running work is asynchronous.** `POST /api/scrape` and `POST /api/generate-ad` answer `202 Accepted` at once; poll `GET /api/jobs/{job_id}` and `GET /api/ads/{ad_id}` until the job is final.\n\n**Authentication:** none. The API has no login; protect a public deployment with your own gateway (see docs/API.md). Requests that cost money are limited per client (`RATE_LIMIT_PER_MINUTE`) and per day (`MAX_ADS_PER_DAY`).\n\n**Errors** always use the body `{\"detail\": \"plain-language message\", \"code\": \"machine_code\"}`."
+  },
+  "paths": {
+    "/api/scrape": {
+      "post": {
+        "summary": "Start Scrape",
+        "description": "Start scanning a website. Poll GET /api/jobs/{job_id} for progress.",
+        "operationId": "start_scrape",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScrapeRequest"
+              },
+              "examples": {
+                "scan": {
+                  "summary": "Scan a website",
+                  "value": {
+                    "url": "https://www.example.com",
+                    "refresh": false
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request` (body failed validation).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited` (too many requests from this client per minute).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`internal_error` (unexpected server error; details are logged, never returned).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Website scan"
+        ]
+      }
+    },
+    "/api/jobs/{job_id}": {
+      "get": {
+        "summary": "Get Job",
+        "description": "Progress and result of a website scan.",
+        "operationId": "get_job",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`job_not_found` (unknown or expired scan).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`internal_error` (unexpected server error; details are logged, never returned).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Website scan"
+        ]
+      }
+    },
+    "/api/uploads": {
+      "post": {
+        "summary": "Upload Images",
+        "description": "Multipart upload. Images are decoded and re-encoded (EXIF and hidden data removed); videos are identified from their bytes and checked with ffprobe (H.264, H.265, VP8, VP9, AV1; length and size limits). All files of one request are stored or none (all or nothing).",
+        "operationId": "upload_images",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_images_api_uploads_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`bad_kind`, `no_files`, `too_many_files`, `bad_image` or `bad_video` (the file failed validation).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "`file_too_large` (MAX_UPLOAD_BYTES for images, MAX_VIDEO_UPLOAD_BYTES for videos).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request` (missing multipart fields).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`internal_error` (unexpected server error; details are logged, never returned).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Uploads"
+        ]
+      }
+    },
+    "/api/assets/{asset_id}": {
+      "get": {
+        "summary": "Get Asset",
+        "description": "An uploaded image or video (for previews). The type comes from the stored file, never from the uploader.",
+        "operationId": "get_asset",
+        "parameters": [
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The stored file. The media type comes from the stored file, never from the uploader.",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "contentMediaType": "application/octet-stream"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "contentMediaType": "application/octet-stream"
+                }
+              },
+              "video/mp4": {
+                "schema": {
+                  "type": "string",
+                  "contentMediaType": "application/octet-stream"
+                }
+              },
+              "video/quicktime": {
+                "schema": {
+                  "type": "string",
+                  "contentMediaType": "application/octet-stream"
+                }
+              },
+              "video/webm": {
+                "schema": {
+                  "type": "string",
+                  "contentMediaType": "application/octet-stream"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`asset_not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`internal_error` (unexpected server error; details are logged, never returned).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Uploads"
+        ]
+      }
+    },
+    "/api/generate-ad": {
+      "post": {
+        "summary": "Generate Ad",
+        "description": "Create ONE ad (one prompt, one video). Poll GET /api/ads/{ad_id}.",
+        "operationId": "generate_ad",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateAdRequest"
+              },
+              "examples": {
+                "website": {
+                  "summary": "Auto ad from a scan: original website images (no AI video)",
+                  "value": {
+                    "job_id": "0123456789abcdef0123456789abcdef",
+                    "options": {
+                      "platform": "taxi_screen",
+                      "duration_seconds": 10,
+                      "style": "cinematic_premium",
+                      "add_overlays": true
+                    },
+                    "creative": {
+                      "creation_mode": "auto",
+                      "creative_mode": "website",
+                      "use_website_images": true,
+                      "include_qr": true,
+                      "qr_url": "https://www.example.com/order"
+                    },
+                    "wait_for_prompt": false
+                  }
+                },
+                "ai": {
+                  "summary": "Auto ad with AI-generated footage (needs a configured video provider)",
+                  "value": {
+                    "job_id": "0123456789abcdef0123456789abcdef",
+                    "business": {
+                      "cta": "Order now"
+                    },
+                    "options": {
+                      "goal": "awareness",
+                      "platform": "instagram_reel",
+                      "duration_seconds": 10
+                    },
+                    "creative": {
+                      "creation_mode": "auto",
+                      "creative_mode": "ai",
+                      "use_ai_video": true
+                    },
+                    "wait_for_prompt": false
+                  }
+                },
+                "manual": {
+                  "summary": "Manual ad from uploaded media (FFmpeg only, no scan, no AI)",
+                  "value": {
+                    "business": {
+                      "name": "Night Owl Cafe",
+                      "offer": "2 for 1 coffee",
+                      "cta": "Scan to order"
+                    },
+                    "options": {
+                      "platform": "taxi_screen",
+                      "duration_seconds": 5
+                    },
+                    "creative": {
+                      "creation_mode": "manual",
+                      "use_uploaded_media": true,
+                      "media_asset_ids": [
+                        "0123456789abcdef0123456789abcdef"
+                      ],
+                      "include_qr": true,
+                      "qr_url": "https://www.example.com/menu"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`job_not_found` (the scan in `job_id` does not exist or expired).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`scan_not_ready` (the scan has no first result yet).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request` (contradictory or invalid fields), `business_name_required`, `ai_video_unavailable` (AI modes without a configured video provider), `no_images`, `unknown_image`, `asset_not_found`, `bad_media` or `invalid_creative`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited` or `daily_limit` (MAX_ADS_PER_DAY reached).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`internal_error` (unexpected server error; details are logged, never returned).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Ads"
+        ]
+      }
+    },
+    "/api/ads/{ad_id}": {
+      "get": {
+        "summary": "Get Ad",
+        "description": "Progress, prompt and result of an ad.",
+        "operationId": "get_ad",
+        "parameters": [
+          {
+            "name": "ad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ad Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`ad_not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`internal_error` (unexpected server error; details are logged, never returned).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Ads"
+        ]
+      }
+    },
+    "/api/ads/{ad_id}/cancel": {
+      "post": {
+        "summary": "Cancel Ad",
+        "description": "Stop an ad that is still being made (it ends as failed with a 'cancelled' message).",
+        "operationId": "cancel_ad",
+        "parameters": [
+          {
+            "name": "ad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ad Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`ad_not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`ad_finished` (already completed or failed).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`internal_error` (unexpected server error; details are logged, never returned).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Ads"
+        ]
+      }
+    },
+    "/api/ads/{ad_id}/video": {
+      "get": {
+        "summary": "Get Ad Video",
+        "description": "The finished MP4 (supports Range requests so players can seek).",
+        "operationId": "get_ad_video",
+        "parameters": [
+          {
+            "name": "ad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ad Id"
+            }
+          },
+          {
+            "name": "download",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Download"
+            }
+          },
+          {
+            "name": "Range",
+            "in": "header",
+            "required": false,
+            "description": "Optional byte range, e.g. `bytes=0-1048575` (players use it to seek).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The whole MP4. With `download=true` it is sent as an attachment.",
+            "headers": {
+              "Accept-Ranges": {
+                "schema": {
+                  "type": "string",
+                  "const": "bytes"
+                }
+              },
+              "Content-Disposition": {
+                "description": "Only with download=true.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "video/mp4": {
+                "schema": {
+                  "type": "string",
+                  "contentMediaType": "application/octet-stream"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`ad_not_found`, or `no_video` (the ad failed).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`video_not_ready` (the ad is still being made).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request` (bad query parameter).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`internal_error` (unexpected server error; details are logged, never returned).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "206": {
+            "description": "The requested byte range of the MP4.",
+            "headers": {
+              "Content-Range": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "e.g. `bytes 0-1048575/5242880`"
+              }
+            },
+            "content": {
+              "video/mp4": {
+                "schema": {
+                  "type": "string",
+                  "contentMediaType": "application/octet-stream"
+                }
+              }
+            }
+          },
+          "416": {
+            "description": "The Range header cannot be satisfied (no body).",
+            "headers": {
+              "Content-Range": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "e.g. `bytes */5242880`"
+              }
+            }
+          }
+        },
+        "tags": [
+          "Ads"
+        ]
+      }
+    },
+    "/api/config": {
+      "get": {
+        "summary": "Get Config",
+        "description": "What this server can do (options, limits, demo mode).",
+        "operationId": "get_config",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`internal_error` (unexpected server error; details are logged, never returned).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Configuration"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "description": "Liveness: the process is up.",
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Health"
+        ]
+      }
+    },
+    "/ready": {
+      "get": {
+        "summary": "Ready",
+        "description": "Readiness: database, cache, browser and video provider status. Answers 503 when the database is down.",
+        "operationId": "ready",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadyResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadyResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Health"
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AdBrief": {
+        "properties": {
+          "business_name": {
+            "type": "string",
+            "title": "Business Name"
+          },
+          "product_focus": {
+            "type": "string",
+            "title": "Product Focus",
+            "default": ""
+          },
+          "audience": {
+            "type": "string",
+            "title": "Audience",
+            "default": ""
+          },
+          "objective": {
+            "type": "string",
+            "title": "Objective",
+            "default": ""
+          },
+          "main_message": {
+            "type": "string",
+            "title": "Main Message",
+            "default": ""
+          },
+          "hook": {
+            "type": "string",
+            "title": "Hook",
+            "default": ""
+          },
+          "cta": {
+            "type": "string",
+            "title": "Cta",
+            "default": ""
+          },
+          "supporting_facts": {
+            "items": {
+              "$ref": "#/components/schemas/BriefFact"
+            },
+            "type": "array",
+            "title": "Supporting Facts"
+          },
+          "concepts": {
+            "items": {
+              "$ref": "#/components/schemas/BriefConcept"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 1,
+            "title": "Concepts"
+          },
+          "chosen_concept": {
+            "type": "integer",
+            "title": "Chosen Concept",
+            "default": 0
+          },
+          "overlay_text": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Overlay Text"
+          },
+          "brand_assets": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Brand Assets"
+          },
+          "duration_seconds": {
+            "type": "integer",
+            "title": "Duration Seconds",
+            "default": 5
+          },
+          "aspect_ratio": {
+            "type": "string",
+            "title": "Aspect Ratio",
+            "default": "16:9"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing"
+          },
+          "rejected_claims": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Rejected Claims"
+          },
+          "builder": {
+            "type": "string",
+            "enum": [
+              "llm",
+              "template"
+            ],
+            "title": "Builder",
+            "default": "template"
+          }
+        },
+        "type": "object",
+        "required": [
+          "business_name"
+        ],
+        "title": "AdBrief",
+        "description": "The validated plan between the facts and the video prompt: what the ad says, shows and puts on screen.\n\nOnly facts from the FactSheet appear in `supporting_facts`, `cta` and `overlay_text`; missing facts are listed in\n`missing` instead of being invented, and claims about other businesses are listed in `rejected_claims`."
+      },
+      "AdOptions": {
+        "properties": {
+          "goal": {
+            "type": "string",
+            "title": "Goal",
+            "default": "awareness"
+          },
+          "platform": {
+            "type": "string",
+            "title": "Platform",
+            "default": "taxi_screen"
+          },
+          "duration_seconds": {
+            "type": "integer",
+            "maximum": 30.0,
+            "minimum": 3.0,
+            "title": "Duration Seconds",
+            "default": 5
+          },
+          "style": {
+            "type": "string",
+            "title": "Style",
+            "default": "cinematic_premium"
+          },
+          "tone": {
+            "type": "string",
+            "title": "Tone",
+            "default": "friendly"
+          },
+          "special_instructions": {
+            "type": "string",
+            "maxLength": 600,
+            "title": "Special Instructions",
+            "default": ""
+          },
+          "add_overlays": {
+            "type": "boolean",
+            "title": "Add Overlays",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "AdOptions",
+        "description": "Creative options for ONE ad. For another ad, call the pipeline again with different options."
+      },
+      "AdPrompt": {
+        "properties": {
+          "final_prompt": {
+            "type": "string",
+            "title": "Final Prompt"
+          },
+          "positive_prompt": {
+            "type": "string",
+            "title": "Positive Prompt"
+          },
+          "negative_prompt": {
+            "type": "string",
+            "title": "Negative Prompt"
+          },
+          "platform": {
+            "type": "string",
+            "title": "Platform"
+          },
+          "duration_seconds": {
+            "type": "integer",
+            "title": "Duration Seconds"
+          },
+          "aspect_ratio": {
+            "type": "string",
+            "title": "Aspect Ratio"
+          },
+          "shot_count": {
+            "type": "integer",
+            "title": "Shot Count"
+          },
+          "builder": {
+            "type": "string",
+            "enum": [
+              "llm",
+              "template"
+            ],
+            "title": "Builder",
+            "default": "template"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "default": ""
+          },
+          "reference_image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReferenceImage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "final_prompt",
+          "positive_prompt",
+          "negative_prompt",
+          "platform",
+          "duration_seconds",
+          "aspect_ratio",
+          "shot_count"
+        ],
+        "title": "AdPrompt",
+        "description": "The ONE video prompt for ONE ad, plus its negative prompt."
+      },
+      "AdResponse": {
+        "properties": {
+          "ad_id": {
+            "type": "string",
+            "title": "Ad Id"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "completed_with_fallback",
+              "failed"
+            ],
+            "title": "Status",
+            "default": "queued"
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "preparing",
+              "prompt_building",
+              "prompt_ready",
+              "generating_video",
+              "composing",
+              "finalizing",
+              "completed",
+              "failed"
+            ],
+            "title": "Stage",
+            "default": "queued"
+          },
+          "progress": {
+            "type": "integer",
+            "title": "Progress",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": ""
+          },
+          "prompt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdPrompt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "video_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Url"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "default": ""
+          },
+          "fallback_used": {
+            "type": "boolean",
+            "title": "Fallback Used",
+            "default": false
+          },
+          "actual_duration_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual Duration Seconds"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "options": {
+            "$ref": "#/components/schemas/AdOptions"
+          },
+          "creative": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CreativeConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ai_video_used": {
+            "type": "boolean",
+            "title": "Ai Video Used",
+            "default": false
+          },
+          "qr_added": {
+            "type": "boolean",
+            "title": "Qr Added",
+            "default": false
+          },
+          "composition": {
+            "items": {
+              "$ref": "#/components/schemas/CompositionSegment"
+            },
+            "type": "array",
+            "title": "Composition"
+          },
+          "brief": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provider_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ad_id"
+        ],
+        "title": "AdResponse",
+        "description": "Body of GET /api/ads/{ad_id} and the response of POST /api/generate-ad."
+      },
+      "AssetInfo": {
+        "properties": {
+          "asset_id": {
+            "type": "string",
+            "title": "Asset Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "logo",
+              "photo",
+              "video"
+            ],
+            "title": "Kind"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename",
+            "default": ""
+          },
+          "width": {
+            "type": "integer",
+            "title": "Width",
+            "default": 0
+          },
+          "height": {
+            "type": "integer",
+            "title": "Height",
+            "default": 0
+          },
+          "bytes": {
+            "type": "integer",
+            "title": "Bytes",
+            "default": 0
+          },
+          "media_type": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video"
+            ],
+            "title": "Media Type",
+            "default": "image"
+          },
+          "duration_seconds": {
+            "type": "number",
+            "title": "Duration Seconds",
+            "default": 0.0
+          },
+          "has_audio": {
+            "type": "boolean",
+            "title": "Has Audio",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "asset_id",
+          "kind",
+          "url"
+        ],
+        "title": "AssetInfo",
+        "description": "A user uploaded image or video."
+      },
+      "Body_upload_images_api_uploads_post": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": "photo",
+            "enum": [
+              "logo",
+              "photo",
+              "video"
+            ],
+            "description": "logo: one image (PNG kept). photo: JPG/PNG/WebP, re-encoded. video: MP4/MOV/WebM, checked with ffprobe."
+          },
+          "files": {
+            "items": {
+              "type": "string",
+              "contentMediaType": "application/octet-stream"
+            },
+            "type": "array",
+            "title": "Files",
+            "description": "One or more files (one for a logo). Limits come from GET /api/config."
+          }
+        },
+        "type": "object",
+        "required": [
+          "files"
+        ],
+        "title": "Body_upload_images_api_uploads_post"
+      },
+      "BriefConcept": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "visual": {
+            "type": "string",
+            "maxLength": 700,
+            "minLength": 20,
+            "title": "Visual"
+          },
+          "scenes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 4,
+            "title": "Scenes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "visual"
+        ],
+        "title": "BriefConcept",
+        "description": "One creative concept: a visual idea and the scene(s) that film it."
+      },
+      "BriefFact": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "user",
+              "website"
+            ],
+            "title": "Origin",
+            "default": "website"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "text"
+        ],
+        "title": "BriefFact",
+        "description": "One supporting fact in an ad brief, with where it came from."
+      },
+      "BusinessOverrides": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "title": "Name",
+            "default": ""
+          },
+          "website_url": {
+            "type": "string",
+            "maxLength": 2048,
+            "title": "Website Url",
+            "default": ""
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 60,
+            "title": "Category",
+            "default": ""
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 800,
+            "title": "Description",
+            "default": ""
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "Phone",
+            "default": ""
+          },
+          "address": {
+            "type": "string",
+            "maxLength": 240,
+            "title": "Address",
+            "default": ""
+          },
+          "offer": {
+            "type": "string",
+            "maxLength": 160,
+            "title": "Offer",
+            "default": ""
+          },
+          "cta": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Cta",
+            "default": ""
+          },
+          "services": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Services"
+          },
+          "omit": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Omit"
+          }
+        },
+        "type": "object",
+        "title": "BusinessOverrides",
+        "description": "Facts typed by the user. They win over scraped facts and count as verified."
+      },
+      "CompositionSegment": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "website_image",
+              "uploaded_image",
+              "uploaded_video",
+              "ai_video",
+              "fallback_video"
+            ],
+            "title": "Kind"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "default": ""
+          },
+          "seconds": {
+            "type": "number",
+            "title": "Seconds",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "CompositionSegment",
+        "description": "One part of the finished video, in order: what it is, where it came from, how long it plays."
+      },
+      "ConfigResponse": {
+        "properties": {
+          "api_version": {
+            "type": "string",
+            "title": "Api Version",
+            "default": "1"
+          },
+          "demo_mode": {
+            "type": "boolean",
+            "title": "Demo Mode"
+          },
+          "video_provider": {
+            "type": "string",
+            "title": "Video Provider"
+          },
+          "prompt_builder": {
+            "type": "string",
+            "enum": [
+              "llm",
+              "template"
+            ],
+            "title": "Prompt Builder"
+          },
+          "max_video_seconds": {
+            "type": "integer",
+            "title": "Max Video Seconds"
+          },
+          "durations": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Durations"
+          },
+          "platforms": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Platforms"
+          },
+          "goals": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Goals"
+          },
+          "styles": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Styles"
+          },
+          "tones": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Tones"
+          },
+          "categories": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Categories"
+          },
+          "max_upload_bytes": {
+            "type": "integer",
+            "title": "Max Upload Bytes"
+          },
+          "max_upload_files": {
+            "type": "integer",
+            "title": "Max Upload Files"
+          },
+          "phase2_mode": {
+            "type": "string",
+            "title": "Phase2 Mode"
+          },
+          "ai_video_available": {
+            "type": "boolean",
+            "title": "Ai Video Available",
+            "default": false
+          },
+          "ai_video_message": {
+            "type": "string",
+            "title": "Ai Video Message",
+            "default": ""
+          },
+          "creative_modes": {
+            "items": {
+              "$ref": "#/components/schemas/CreativeModeInfo"
+            },
+            "type": "array",
+            "title": "Creative Modes"
+          },
+          "compose_durations": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Compose Durations"
+          },
+          "website_image_seconds": {
+            "type": "number",
+            "title": "Website Image Seconds",
+            "default": 2.5
+          },
+          "max_video_upload_bytes": {
+            "type": "integer",
+            "title": "Max Video Upload Bytes",
+            "default": 0
+          },
+          "max_video_upload_seconds": {
+            "type": "integer",
+            "title": "Max Video Upload Seconds",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "demo_mode",
+          "video_provider",
+          "prompt_builder",
+          "max_video_seconds",
+          "durations",
+          "platforms",
+          "goals",
+          "styles",
+          "tones",
+          "categories",
+          "max_upload_bytes",
+          "max_upload_files",
+          "phase2_mode"
+        ],
+        "title": "ConfigResponse",
+        "description": "Body of GET /api/config: what this deployment can do, so the UI never hard-codes it."
+      },
+      "Contacts": {
+        "properties": {
+          "whatsapp": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Whatsapp"
+          },
+          "emails": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Emails"
+          },
+          "social": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Social"
+          }
+        },
+        "type": "object",
+        "title": "Contacts",
+        "description": "Other contact channels found on the page."
+      },
+      "CreativeConfig": {
+        "properties": {
+          "creation_mode": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "auto"
+            ],
+            "title": "Creation Mode",
+            "default": "auto"
+          },
+          "creative_mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "website",
+                  "ai",
+                  "mixed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Creative Mode"
+          },
+          "use_website_images": {
+            "type": "boolean",
+            "title": "Use Website Images",
+            "default": false
+          },
+          "use_ai_video": {
+            "type": "boolean",
+            "title": "Use Ai Video",
+            "default": false
+          },
+          "use_uploaded_media": {
+            "type": "boolean",
+            "title": "Use Uploaded Media",
+            "default": false
+          },
+          "prefer_website_images": {
+            "type": "boolean",
+            "title": "Prefer Website Images",
+            "default": true
+          },
+          "include_logo": {
+            "type": "boolean",
+            "title": "Include Logo",
+            "default": true
+          },
+          "include_qr": {
+            "type": "boolean",
+            "title": "Include Qr",
+            "default": false
+          },
+          "qr_url": {
+            "type": "string",
+            "maxLength": 2048,
+            "title": "Qr Url",
+            "default": ""
+          },
+          "selected_image_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 8,
+            "title": "Selected Image Urls"
+          },
+          "media_asset_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Media Asset Ids"
+          },
+          "keep_audio": {
+            "type": "boolean",
+            "title": "Keep Audio",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "CreativeConfig",
+        "description": "How ONE ad is made. The backend validates every combination; the browser never decides alone what runs.\n\nmanual          -> your uploaded images/videos, FFmpeg only (no scan, no prompt writer, no AI video)\nauto + website  -> original website images, FFmpeg only (no AI video, no prompt writer)\nauto + ai       -> website facts -> ONE prompt -> AI text-to-video (no website images) -> loop to length -> finalize\nauto + mixed    -> website image(s) -> AI video -> website image(s), composed with FFmpeg"
+      },
+      "CreativeModeInfo": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "website",
+              "ai",
+              "mixed"
+            ],
+            "title": "Id"
+          },
+          "creation_mode": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "auto"
+            ],
+            "title": "Creation Mode"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "uses_scraper": {
+            "type": "boolean",
+            "title": "Uses Scraper"
+          },
+          "uses_prompt_writer": {
+            "type": "boolean",
+            "title": "Uses Prompt Writer"
+          },
+          "uses_ai_video": {
+            "type": "boolean",
+            "title": "Uses Ai Video"
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available",
+            "default": true
+          },
+          "unavailable_reason": {
+            "type": "string",
+            "title": "Unavailable Reason",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "creation_mode",
+          "label",
+          "description",
+          "uses_scraper",
+          "uses_prompt_writer",
+          "uses_ai_video"
+        ],
+        "title": "CreativeModeInfo",
+        "description": "One way of making an ad, as offered by GET /api/config (the UI lists these instead of hard-coding them)."
+      },
+      "ErrorResponse": {
+        "properties": {
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "default": "error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "ErrorResponse",
+        "description": "Error body used by every non-2xx response."
+      },
+      "GenerateAdRequest": {
+        "properties": {
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "scrape_result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScrapeResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "business": {
+            "$ref": "#/components/schemas/BusinessOverrides"
+          },
+          "options": {
+            "$ref": "#/components/schemas/AdOptions"
+          },
+          "hero": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HeroRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "logo_asset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Asset Id"
+          },
+          "photo_asset_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 15,
+            "title": "Photo Asset Ids"
+          },
+          "wait_for_prompt": {
+            "type": "boolean",
+            "title": "Wait For Prompt",
+            "default": true
+          },
+          "creative": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CreativeConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "GenerateAdRequest",
+        "description": "Body of POST /api/generate-ad. Provide a scrape job_id, a scrape_result, or manual business details.\n\nWithout `creative` the original one-prompt / one-hero AI flow runs unchanged (kept for older clients)."
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "ok"
+          }
+        },
+        "type": "object",
+        "title": "HealthResponse",
+        "description": "Body of /health."
+      },
+      "HeroRef": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "scraped",
+              "asset"
+            ],
+            "title": "Source",
+            "default": "scraped"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "asset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Id"
+          }
+        },
+        "type": "object",
+        "title": "HeroRef",
+        "description": "Which ONE image becomes the first frame of the video."
+      },
+      "JobResponse": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "ok",
+              "partial",
+              "blocked",
+              "unreachable",
+              "invalid_url",
+              "unsupported_platform",
+              "timeout",
+              "internal_error"
+            ],
+            "title": "Status",
+            "default": "queued"
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "fetching",
+              "rendering",
+              "extracting",
+              "ad_ready"
+            ],
+            "title": "Stage",
+            "default": "queued"
+          },
+          "progress": {
+            "type": "integer",
+            "title": "Progress",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": ""
+          },
+          "cached": {
+            "type": "boolean",
+            "title": "Cached",
+            "default": false
+          },
+          "is_final": {
+            "type": "boolean",
+            "title": "Is Final",
+            "default": false
+          },
+          "phase2": {
+            "$ref": "#/components/schemas/Phase2Info"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScrapeResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "url"
+        ],
+        "title": "JobResponse",
+        "description": "Body of GET /api/jobs/{job_id} and the response of POST /api/scrape."
+      },
+      "PageInfo": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "default": ""
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "text_excerpt": {
+            "type": "string",
+            "title": "Text Excerpt",
+            "default": ""
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": ""
+          },
+          "rendered_with": {
+            "type": "string",
+            "enum": [
+              "httpx",
+              "playwright"
+            ],
+            "title": "Rendered With",
+            "default": "httpx"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "PageInfo",
+        "description": "A secondary page read during phase 2."
+      },
+      "Phase2Info": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "done",
+              "skipped",
+              "failed"
+            ],
+            "title": "State",
+            "default": "pending"
+          },
+          "pages_done": {
+            "type": "integer",
+            "title": "Pages Done",
+            "default": 0
+          },
+          "pages_total": {
+            "type": "integer",
+            "title": "Pages Total",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "Phase2Info",
+        "description": "Progress of the background crawl of extra pages."
+      },
+      "Phone": {
+        "properties": {
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "display": {
+            "type": "string",
+            "title": "Display",
+            "default": ""
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "tel_link",
+              "whatsapp_link",
+              "json_ld",
+              "header",
+              "footer",
+              "body",
+              "contact_page",
+              "user"
+            ],
+            "title": "Source",
+            "default": "body"
+          }
+        },
+        "type": "object",
+        "required": [
+          "number"
+        ],
+        "title": "Phone",
+        "description": "One phone number candidate with where it was found."
+      },
+      "ReadyResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "database": {
+            "type": "boolean",
+            "title": "Database"
+          },
+          "redis": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redis"
+          },
+          "video_provider": {
+            "type": "string",
+            "title": "Video Provider"
+          },
+          "prompt_builder": {
+            "type": "string",
+            "title": "Prompt Builder"
+          },
+          "browser": {
+            "type": "string",
+            "title": "Browser"
+          },
+          "problems": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Problems"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "database",
+          "video_provider",
+          "prompt_builder",
+          "browser"
+        ],
+        "title": "ReadyResponse",
+        "description": "Body of /ready."
+      },
+      "ReferenceImage": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "scraped",
+              "asset"
+            ],
+            "title": "Source",
+            "default": "scraped"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "asset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Id"
+          },
+          "role": {
+            "type": "string",
+            "const": "first_frame",
+            "title": "Role",
+            "default": "first_frame"
+          },
+          "width": {
+            "type": "integer",
+            "title": "Width",
+            "default": 0
+          },
+          "height": {
+            "type": "integer",
+            "title": "Height",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "ReferenceImage",
+        "description": "The hero image sent to the video model together with the prompt."
+      },
+      "ScrapeMeta": {
+        "properties": {
+          "rendered_with": {
+            "type": "string",
+            "enum": [
+              "httpx",
+              "playwright"
+            ],
+            "title": "Rendered With",
+            "default": "httpx"
+          },
+          "bot_protection": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bot Protection"
+          },
+          "csr_score": {
+            "type": "integer",
+            "title": "Csr Score",
+            "default": 0
+          },
+          "embedded_data": {
+            "type": "boolean",
+            "title": "Embedded Data",
+            "default": false
+          },
+          "took_ms": {
+            "type": "integer",
+            "title": "Took Ms",
+            "default": 0
+          },
+          "phase": {
+            "type": "integer",
+            "title": "Phase",
+            "default": 1
+          },
+          "browser": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Browser"
+          }
+        },
+        "type": "object",
+        "title": "ScrapeMeta",
+        "description": "How the page was read."
+      },
+      "ScrapeRequest": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 3,
+            "title": "Url"
+          },
+          "refresh": {
+            "type": "boolean",
+            "title": "Refresh",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "ScrapeRequest",
+        "description": "Body of POST /api/scrape."
+      },
+      "ScrapeResult": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "default": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "partial",
+              "blocked",
+              "unreachable",
+              "invalid_url",
+              "unsupported_platform",
+              "timeout",
+              "internal_error"
+            ],
+            "title": "Status",
+            "default": "internal_error"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": ""
+          },
+          "final_url": {
+            "type": "string",
+            "title": "Final Url",
+            "default": ""
+          },
+          "home_url": {
+            "type": "string",
+            "title": "Home Url",
+            "default": ""
+          },
+          "site": {
+            "$ref": "#/components/schemas/SiteInfo"
+          },
+          "images": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Images"
+          },
+          "contacts": {
+            "$ref": "#/components/schemas/Contacts"
+          },
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/PageInfo"
+            },
+            "type": "array",
+            "title": "Pages"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ScrapeMeta"
+          },
+          "flags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Flags"
+          }
+        },
+        "type": "object",
+        "title": "ScrapeResult",
+        "description": "Everything the scraper returns. It is always returned, never raised."
+      },
+      "SiteInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "default": ""
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "default": ""
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "language": {
+            "type": "string",
+            "title": "Language",
+            "default": ""
+          },
+          "logo": {
+            "type": "string",
+            "title": "Logo",
+            "default": ""
+          },
+          "favicon": {
+            "type": "string",
+            "title": "Favicon",
+            "default": ""
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone",
+            "default": ""
+          },
+          "phones": {
+            "items": {
+              "$ref": "#/components/schemas/Phone"
+            },
+            "type": "array",
+            "title": "Phones"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address",
+            "default": ""
+          },
+          "category": {
+            "type": "string",
+            "title": "Category",
+            "default": ""
+          },
+          "services": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Services"
+          },
+          "offer": {
+            "type": "string",
+            "title": "Offer",
+            "default": ""
+          },
+          "cta": {
+            "type": "string",
+            "title": "Cta",
+            "default": ""
+          },
+          "brand_colors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Brand Colors"
+          },
+          "text_excerpt": {
+            "type": "string",
+            "title": "Text Excerpt",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "SiteInfo",
+        "description": "Business facts and metadata taken from the website."
+      },
+      "UploadResponse": {
+        "properties": {
+          "assets": {
+            "items": {
+              "$ref": "#/components/schemas/AssetInfo"
+            },
+            "type": "array",
+            "title": "Assets"
+          }
+        },
+        "type": "object",
+        "required": [
+          "assets"
+        ],
+        "title": "UploadResponse",
+        "description": "Body of POST /api/uploads."
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Local development backend"
+    },
+    {
+      "url": "{baseUrl}",
+      "description": "Your deployment",
+      "variables": {
+        "baseUrl": {
+          "default": "https://api.example.com"
+        }
+      }
+    }
+  ],
+  "security": [],
+  "tags": [
+    {
+      "name": "Website scan",
+      "description": "Start a background scan of a business website and poll its progress and result."
+    },
+    {
+      "name": "Uploads",
+      "description": "Upload a logo, photos or videos (validated on the server) and fetch them by id."
+    },
+    {
+      "name": "Ads",
+      "description": "Create ONE video ad in the background, poll it, cancel it and download the finished MP4."
+    },
+    {
+      "name": "Configuration",
+      "description": "Options and limits of this deployment, so clients never hard-code them."
+    },
+    {
+      "name": "Health",
+      "description": "Liveness and readiness probes (outside the /api prefix)."
+    }
+  ]
+}

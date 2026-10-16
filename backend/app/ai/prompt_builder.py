@@ -12,6 +12,7 @@ from ..schemas import AdBrief, AdOptions, AdPrompt, ReferenceImage
 from .facts import FactSheet
 from .guard import PROMPT_MAX_CHARS, find_unsupported_facts, validate_llm_prompt
 from .llm import SYSTEM_PROMPT, LlmClient, LlmError, build_user_message
+from .director import DIRECTOR_SYSTEM_PROMPT, build_director_request, film_problems, finish_clip_prompt, parse_film
 from .brief import BRIEF_SYSTEM_PROMPT, build_brief_request, build_template_brief, merge_llm_brief, parse_llm_brief
 from .scene import SCENE_AVOID, build_scene_prompt
 from .template import build_template_prompt, shot_count_for
@@ -184,6 +185,43 @@ class PromptBuilder:
             logger.info("AI brief was not valid JSON for the brief schema; using the built-in brief")
             return base, ["The AI writer's brief was malformed. Used the built-in ad brief instead."]
         return merge_llm_brief(base, draft, facts)
+
+    async def build_film(
+        self, facts: FactSheet, options: AdOptions, brief: Optional[AdBrief], *, clips: int, clip_seconds: int,
+        reference: Optional[ReferenceImage] = None,
+    ) -> tuple[Optional[list[AdPrompt]], list[str]]:
+        """Shot-by-shot prose prompts written by the AI director, one per clip (None when no AI writer or no valid plan)."""
+        if not self.llm.enabled:
+            return None, []
+        limit = self.video_prompt_limit or PROMPT_MAX_CHARS
+        system = DIRECTOR_SYSTEM_PROMPT.replace("{limit}", str(limit))
+        user = build_director_request(
+            facts, options, brief, clips=clips, clip_seconds=clip_seconds, has_reference=reference is not None, limit=limit,
+        )
+        for attempt in range(1, LLM_ATTEMPTS + 1):
+            try:
+                raw = await self.llm.complete(system, user, max_tokens=900 + 700 * clips)
+            except LlmError as exc:
+                return None, [f"{exc} Used the built-in scene prompt instead."]
+            except Exception as exc:  # defensive: the ad must not fail because of the writer
+                logger.warning("AI director crashed: %r", exc)
+                return None, ["The AI director failed. Used the built-in scene prompt instead."]
+            film = parse_film(raw)
+            problems = ["the answer was not the requested JSON"] if film is None else film_problems(film, facts, clips)
+            if film is not None and not problems:
+                prompts = [
+                    AdPrompt(
+                        final_prompt=(text := finish_clip_prompt(film, index, limit)), positive_prompt=text, negative_prompt=SCENE_AVOID,
+                        platform=options.platform, duration_seconds=clip_seconds, aspect_ratio=options.aspect_ratio,
+                        shot_count=max(1, len(re.findall(r"(?i)\bshot\s*\d", film.clips[index].prompt))), builder="llm",
+                        model=self.llm.model, reference_image=reference if index == 0 else None,
+                    )
+                    for index in range(clips)
+                ]
+                return prompts, []
+            logger.info("AI director plan rejected (attempt %s): %s", attempt, problems)
+            user += "\n\nYour previous answer had these problems; fix them and answer with the full JSON again: " + "; ".join(problems[:4])
+        return None, ["The AI director's plan broke the rules. Used the built-in scene prompt instead."]
 
     async def build_scene(
         self, facts: FactSheet, options: AdOptions, *, reference: Optional[ReferenceImage] = None, duration_seconds: Optional[int] = None,

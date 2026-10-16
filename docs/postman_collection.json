@@ -1,0 +1,370 @@
+{
+  "info": {
+    "name": "Site2Ad (Adsify) API",
+    "description": "Scan a website, upload media, create ONE video ad in the background and download the MP4.\n\n**Long-running work is asynchronous.** `POST /api/scrape` and `POST /api/generate-ad` answer `202 Accepted` at once; poll `GET /api/jobs/{job_id}` and `GET /api/ads/{ad_id}` until the job is final.\n\n**Authentication:** none. The API has no login; protect a public deployment with your own gateway (see docs/API.md). Requests that cost money are limited per client (`RATE_LIMIT_PER_MINUTE`) and per day (`MAX_ADS_PER_DAY`).\n\n**Errors** always use the body `{\"detail\": \"plain-language message\", \"code\": \"machine_code\"}`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "job_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "ad_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "asset_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Website scan",
+      "description": "Start a background scan of a business website and poll its progress and result.",
+      "item": [
+        {
+          "name": "Start Scrape",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/scrape",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "scrape"
+              ]
+            },
+            "description": "Start scanning a website. Poll GET /api/jobs/{job_id} for progress.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://www.example.com\",\n  \"refresh\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get Job",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/jobs/{{job_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "jobs",
+                "{{job_id}}"
+              ]
+            },
+            "description": "Progress and result of a website scan."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Uploads",
+      "description": "Upload a logo, photos or videos (validated on the server) and fetch them by id.",
+      "item": [
+        {
+          "name": "Upload Images",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/uploads",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "uploads"
+              ]
+            },
+            "description": "Multipart upload. Images are decoded and re-encoded (EXIF and hidden data removed); videos are identified from their bytes and checked with ffprobe (H.264, H.265, VP8, VP9, AV1; length and size limits). All files of one request are stored or none (all or nothing).",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "kind",
+                  "value": "photo",
+                  "type": "text",
+                  "description": "logo | photo | video"
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": [],
+                  "description": "Choose one or more files"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Asset",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/assets/{{asset_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "assets",
+                "{{asset_id}}"
+              ]
+            },
+            "description": "An uploaded image or video (for previews). The type comes from the stored file, never from the uploader."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ads",
+      "description": "Create ONE video ad in the background, poll it, cancel it and download the finished MP4.",
+      "item": [
+        {
+          "name": "Generate Ad",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/generate-ad",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "generate-ad"
+              ]
+            },
+            "description": "Create ONE ad (one prompt, one video). Poll GET /api/ads/{ad_id}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"job_id\": \"0123456789abcdef0123456789abcdef\",\n  \"options\": {\n    \"platform\": \"taxi_screen\",\n    \"duration_seconds\": 10,\n    \"style\": \"cinematic_premium\",\n    \"add_overlays\": true\n  },\n  \"creative\": {\n    \"creation_mode\": \"auto\",\n    \"creative_mode\": \"website\",\n    \"use_website_images\": true,\n    \"include_qr\": true,\n    \"qr_url\": \"https://www.example.com/order\"\n  },\n  \"wait_for_prompt\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get Ad",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/ads/{{ad_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ads",
+                "{{ad_id}}"
+              ]
+            },
+            "description": "Progress, prompt and result of an ad."
+          }
+        },
+        {
+          "name": "Cancel Ad",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/ads/{{ad_id}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ads",
+                "{{ad_id}}",
+                "cancel"
+              ]
+            },
+            "description": "Stop an ad that is still being made (it ends as failed with a 'cancelled' message)."
+          }
+        },
+        {
+          "name": "Get Ad Video",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/ads/{{ad_id}}/video",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ads",
+                "{{ad_id}}",
+                "video"
+              ],
+              "query": [
+                {
+                  "key": "download",
+                  "value": "false",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "The finished MP4 (supports Range requests so players can seek)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Configuration",
+      "description": "Options and limits of this deployment, so clients never hard-code them.",
+      "item": [
+        {
+          "name": "Get Config",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/config",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "config"
+              ]
+            },
+            "description": "What this server can do (options, limits, demo mode)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "description": "Liveness and readiness probes (outside the /api prefix).",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Liveness: the process is up."
+          }
+        },
+        {
+          "name": "Ready",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ready",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ready"
+              ]
+            },
+            "description": "Readiness: database, cache, browser and video provider status. Answers 503 when the database is down."
+          }
+        }
+      ]
+    }
+  ]
+}

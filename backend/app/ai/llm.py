@@ -117,7 +117,7 @@ class LlmClient:
         """The configured model id."""
         return self.settings.ai_prompt_model
 
-    async def complete(self, system: str, user: str) -> str:
+    async def complete(self, system: str, user: str, max_tokens: int = 1400) -> str:
         """Send one chat request and return the answer text. Raises LlmError with a safe message on any failure."""
         if not self.enabled:
             raise LlmError("The AI writer is not configured.")
@@ -127,7 +127,7 @@ class LlmClient:
             "model": self.settings.ai_prompt_model,
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
             "temperature": 0.6,
-            "max_tokens": 1400,
+            "max_tokens": max_tokens,
         }
         timeout = httpx.Timeout(self.settings.ai_prompt_timeout_seconds, connect=10.0)
         owns_client = self._client is None

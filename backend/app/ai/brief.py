@@ -19,7 +19,7 @@ from .. import catalog
 from ..schemas import AdBrief, AdOptions, BriefConcept, BriefFact
 from .facts import FactSheet
 from .guard import find_unsupported_facts, shot_range
-from .scene import about_line, concept_for, visual_items
+from .scene import about_line, concept_for, concept_set_for, visual_items
 from .template import sanitize
 
 logger = logging.getLogger(__name__)
@@ -40,6 +40,12 @@ def _scenes(visual: str, count: int) -> list[str]:
 
 def template_concepts(facts: FactSheet, scene_count: int) -> list[BriefConcept]:
     """Three distinct, filmable ideas for this business (signature scene, product detail, customer moment)."""
+    tailored = concept_set_for(facts)
+    if tailored:  # screens / places: three scenes written like real city footage
+        return [
+            BriefConcept(title=title, visual=f"{action}, in {setting}.", scenes=_scenes(f"{action}, in {setting}.", scene_count))
+            for title, action, setting in tailored
+        ]
     action, setting = concept_for(facts)
     items = visual_items(facts)
     name = sanitize(facts.name, 80)
@@ -109,6 +115,8 @@ RULES
    If a fact is missing, leave it out. Do not create a call to action or an offer.
 3. "visual" describes ONE continuous, filmable scene: a concrete subject, an action, the setting, one camera movement and
    the lighting, in 1-3 plain sentences, 40-600 characters. No on-screen text, logos, numbers or brand names in the scene.
+   SAY IT VISUALLY: a viewer with the sound off must understand within one second what is advertised. Show the product
+   or service itself, in use, clearly in frame. Never people just posing, talking or gesturing: this is an ad, not a film.
 4. "audience" only if the facts make it clear; otherwise an empty string.
 5. Plain JSON: no markdown, no comments."""
 
