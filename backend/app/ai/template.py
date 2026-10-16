@@ -359,7 +359,7 @@ def build_template_prompt(
         )
     tail = [
         _overlay_line(clean, options.add_overlays),
-        f"AUDIO: {tone['music']}, no spoken voice-over because the sound may be off.",
+        "AUDIO: silent, no music and no voice. The tablet plays with the sound off." if options.platform == "taxi_screen" else f"AUDIO: {tone['music']}, no spoken voice-over because the sound may be off.",
         "NEGATIVE PROMPT: " + negative_prompt(options.add_overlays),
     ]
 

@@ -33,7 +33,21 @@ FIREFOX_PREFS = {
     "geo.enabled": False,
     "dom.push.enabled": False,
 }
+# Render blocks the user namespaces Firefox's sandbox needs, so the process exits at launch.
+FIREFOX_CONTAINER_PREFS = {"security.sandbox.content.level": 0}
+FIREFOX_CONTAINER_ENV = {
+    "MOZ_DISABLE_CONTENT_SANDBOX": "1",
+    "MOZ_DISABLE_GMP_SANDBOX": "1",
+    "MOZ_DISABLE_GPU_SANDBOX": "1",
+    "MOZ_DISABLE_RDD_SANDBOX": "1",
+    "MOZ_DISABLE_SOCKET_PROCESS_SANDBOX": "1",
+}
 INSTALL_HINT = "Run: python -m playwright install --with-deps firefox"
+
+
+def _in_container() -> bool:
+    """True on Render and in Docker, where Firefox cannot use its content sandbox."""
+    return os.path.exists("/.dockerenv") or os.environ.get("RENDER", "").lower() == "true"
 
 
 @dataclass
@@ -112,7 +126,10 @@ class BrowserPool:
         engine = getattr(self._playwright, engine_name)
         kwargs: dict[str, Any] = {"headless": self.settings.playwright_headless}
         if engine_name == "firefox":
-            kwargs["firefox_user_prefs"] = FIREFOX_PREFS
+            kwargs["firefox_user_prefs"] = dict(FIREFOX_PREFS)
+            if _in_container():
+                kwargs["firefox_user_prefs"].update(FIREFOX_CONTAINER_PREFS)
+                kwargs["env"] = {**os.environ, **FIREFOX_CONTAINER_ENV}
         elif engine_name == "chromium":
             kwargs["args"] = ["--disable-dev-shm-usage", "--no-sandbox"]
             logger.warning("Playwright is using chromium; production should use firefox (PLAYWRIGHT_BROWSER=firefox)")

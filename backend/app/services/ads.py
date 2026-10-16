@@ -616,6 +616,7 @@ class Ads:
         final_path = self.videos_dir / f"{ad_id}.mp4"
         started = time.monotonic()
         try:
+            await self.scrape_jobs.release_browser()
             folder.mkdir(parents=True, exist_ok=True)
             self.videos_dir.mkdir(parents=True, exist_ok=True)
             if plan.mode == "manual":

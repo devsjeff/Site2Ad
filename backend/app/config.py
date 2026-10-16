@@ -152,6 +152,13 @@ class Settings:
             env = os.environ
         g = lambda name, default="": _get(env, name, default)  # noqa: E731
         d = cls()
+        # A small Render instance cannot keep Firefox open while it also encodes a video.
+        if _bool(g("RENDER"), False):
+            d.max_concurrent_renders = 1
+            d.render_timeout_seconds = 30.0
+            d.max_scrape_seconds = 120.0
+            d.max_crawl_pages = 3
+            d.max_concurrent_ads = 1
         return cls(
             env=g("APP_ENV", d.env),
             log_level=g("LOG_LEVEL", d.log_level).upper(),

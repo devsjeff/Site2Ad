@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 PLATFORMS: dict[str, dict] = {
-    "taxi_screen": {"label": "Taxi screen", "aspect_ratio": "16:9", "audience": "commuters riding in a taxi, watching a seat-back screen with the sound often low"},
+    "taxi_screen": {"label": "In-cab tablet", "aspect_ratio": "9:16", "audience": "riders in a cab, watching a silent portrait tablet on the back of the front seat. No voiceover, few words, large type"},
     "instagram_reel": {"label": "Instagram Reel", "aspect_ratio": "9:16", "audience": "mobile users scrolling a vertical feed"},
     "youtube_shorts": {"label": "YouTube Shorts", "aspect_ratio": "9:16", "audience": "mobile users watching short vertical videos"},
     "facebook_feed": {"label": "Facebook feed", "aspect_ratio": "1:1", "audience": "people scrolling a mixed social feed"},

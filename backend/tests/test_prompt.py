@@ -143,7 +143,7 @@ def test_template_is_always_one_valid_prompt(goal, duration, reference):
 
 
 @pytest.mark.parametrize("style", ["cinematic_premium", "bold_pop", "minimal_modern", "nightlife_neon", "product_showcase", "corporate_clean"])
-@pytest.mark.parametrize("platform,aspect", [("taxi_screen", "16:9"), ("instagram_reel", "9:16"), ("youtube_shorts", "9:16"), ("facebook_feed", "1:1")])
+@pytest.mark.parametrize("platform,aspect", [("taxi_screen", "9:16"), ("instagram_reel", "9:16"), ("youtube_shorts", "9:16"), ("facebook_feed", "1:1")])
 def test_template_covers_every_style_and_platform(style, platform, aspect):
     """Check: template covers every style and platform."""
     facts = sweets_facts()
@@ -167,7 +167,7 @@ def test_template_uses_only_known_offer_and_cta():
     text = build_template_prompt(facts, AdOptions(goal="offer"), has_reference=True, duration_seconds=10)
     assert "OFFER:" not in text and "CALL TO ACTION:" not in text
     assert "20%" not in text
-    assert validate_llm_prompt(text, facts, "16:9", 10, True).ok
+    assert validate_llm_prompt(text, facts, "9:16", 10, True).ok
 
 
 def test_template_reference_instruction_only_when_a_hero_exists():
@@ -196,7 +196,7 @@ def test_website_text_cannot_inject_sections_or_extra_concepts():
     assert text.count("NEGATIVE PROMPT:") == 1
     assert len(re.findall(r"(?im)^\s*SHOT\s+\d+", text)) == shot_count_for(5)  # injected "SHOT 9" adds no shot
     assert "`" not in text and "<script" not in text
-    assert validate_llm_prompt(text, facts, "16:9", 5, True).ok
+    assert validate_llm_prompt(text, facts, "9:16", 5, True).ok
 
 
 def test_long_inputs_still_fit_the_length_cap():
@@ -260,22 +260,22 @@ def test_validator_rejects_wrong_shapes():
     """Check: validator rejects wrong shapes."""
     facts = sweets_facts()
     good = build_template_prompt(facts, AdOptions(), has_reference=True, duration_seconds=5)
-    assert validate_llm_prompt(good, facts, "16:9", 5, True).ok
-    assert not validate_llm_prompt("", facts, "16:9", 5, True).ok
-    assert not validate_llm_prompt("```\n" + good + "\n```", facts, "16:9", 5, True).ok
-    assert not validate_llm_prompt(json.dumps({"prompt": good}), facts, "16:9", 5, True).ok
-    assert not validate_llm_prompt(good + "\nOption 2: another idea", facts, "16:9", 5, True).ok
-    assert not validate_llm_prompt(good.replace("NEGATIVE PROMPT:", "AVOID:"), facts, "16:9", 5, True).ok
-    assert not validate_llm_prompt(good, facts, "9:16", 5, True).ok  # wrong aspect ratio
-    assert not validate_llm_prompt(good, facts, "16:9", 8, True).ok  # wrong duration
-    assert not validate_llm_prompt(good.replace("Sharma Sweets", "Someone Else"), facts, "16:9", 5, True).ok
+    assert validate_llm_prompt(good, facts, "9:16", 5, True).ok
+    assert not validate_llm_prompt("", facts, "9:16", 5, True).ok
+    assert not validate_llm_prompt("```\n" + good + "\n```", facts, "9:16", 5, True).ok
+    assert not validate_llm_prompt(json.dumps({"prompt": good}), facts, "9:16", 5, True).ok
+    assert not validate_llm_prompt(good + "\nOption 2: another idea", facts, "9:16", 5, True).ok
+    assert not validate_llm_prompt(good.replace("NEGATIVE PROMPT:", "AVOID:"), facts, "9:16", 5, True).ok
+    assert not validate_llm_prompt(good, facts, "16:9", 5, True).ok  # wrong aspect ratio
+    assert not validate_llm_prompt(good, facts, "9:16", 8, True).ok  # wrong duration
+    assert not validate_llm_prompt(good.replace("Sharma Sweets", "Someone Else"), facts, "9:16", 5, True).ok
     no_ref = build_template_prompt(facts, AdOptions(), has_reference=False, duration_seconds=5)
-    assert not validate_llm_prompt(no_ref, facts, "16:9", 5, True).ok  # reference promised but not described
+    assert not validate_llm_prompt(no_ref, facts, "9:16", 5, True).ok  # reference promised but not described
     long = build_template_prompt(facts, AdOptions(duration_seconds=20), has_reference=True, duration_seconds=20)
-    assert validate_llm_prompt(long, facts, "16:9", 20, True).ok
+    assert validate_llm_prompt(long, facts, "9:16", 20, True).ok
     one_shot = "\n".join(line for line in long.splitlines() if not line.startswith(("SHOT 2", "SHOT 3")))
-    assert not validate_llm_prompt(one_shot, facts, "16:9", 20, True).ok  # a 20 s clip needs 2-4 shots
-    assert not validate_llm_prompt(good.replace("Camera:", "Lens:"), facts, "16:9", 5, True).ok
+    assert not validate_llm_prompt(one_shot, facts, "9:16", 20, True).ok  # a 20 s clip needs 2-4 shots
+    assert not validate_llm_prompt(good.replace("Camera:", "Lens:"), facts, "9:16", 5, True).ok
 
 
 # --------------------------------------------------------------------------- builder

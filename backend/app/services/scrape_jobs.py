@@ -214,3 +214,13 @@ class ScrapeJobs:
             if self._by_key.get(key) == job_id:
                 self._by_key.pop(key, None)
             logger.info("scrape job %s finished in %.1fs with status %s", job_id, time.monotonic() - started, job.status)
+            await self.release_browser()
+
+    async def release_browser(self) -> None:
+        """Close Firefox once no scan is running, so a later video job has the memory."""
+        if self._active:
+            return
+        try:
+            await self.scraper.pool.close()
+        except Exception:
+            logger.warning("the browser did not close", exc_info=True)
