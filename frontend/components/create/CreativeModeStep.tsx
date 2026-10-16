@@ -7,6 +7,13 @@ import { OptionCard } from "../ui/OptionCard";
 
 const ICONS: Record<string, string> = { website: "🖼️", ai: "🤖", mixed: "🧩" };
 
+// Short card copy; the server's longer description is the fallback for unknown modes.
+const SHORT: Record<string, string> = {
+  website: "Your own website photos, 3 seconds each, with motion, text and QR code.",
+  ai: "A brand-new AI video made from your business details. No website photos.",
+  mixed: "Website photos open and close the ad around an AI video clip.",
+};
+
 interface CreativeModeStepProps {
   modes: CreativeModeInfo[];
   value: CreativeMode | null;
@@ -32,7 +39,7 @@ export function CreativeModeStep({ modes, value, onChange, aiMessage, aiAvailabl
             key={mode.id}
             icon={ICONS[mode.id]}
             title={mode.label}
-            description={mode.description}
+            description={SHORT[mode.id] ?? mode.description}
             badge={badgeFor(mode)}
             note={mode.available ? undefined : "Not available on this server"}
             disabled={!mode.available}

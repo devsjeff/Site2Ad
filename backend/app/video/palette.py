@@ -2,9 +2,11 @@
 
 - Accent (bar, CTA pill, caption underline): the brand colour when the website has a usable one, otherwise the most
   vivid colour that is actually in the footage, normalised so it reads well on screen.
-- Panel tint: a very dark, see-through version of the accent hue, so the panel belongs to the picture instead of
-  covering it. Where the footage behind the text is very bright the panel gets a little more opacity, so the text
-  always keeps enough contrast (it also carries a soft outline).
+- Panel tint: a very dark, mostly see-through version of the accent hue, so the panel belongs to the picture instead
+  of covering it. Where the footage behind the text is very bright the panel gets a little more opacity; the text
+  itself carries a soft drop shadow and a thin outline, so it stays readable without a heavy box.
+- Text colours: three bright hues around the accent (the accent and two neighbours on the colour wheel). The name,
+  offer, captions and CTA blend between them, so the overlay is multicoloured but always in one colour family.
 - Text on the accent (the CTA label): dark on light accents, white on dark ones.
 """
 
@@ -35,10 +37,14 @@ class Palette:
     text: RGBA = (255, 255, 255, 255)
     soft_text: RGBA = (232, 232, 238, 255)
     panel: tuple[int, int, int] = (14, 14, 20)
-    panel_alpha_start: int = 140  # left edge of the panel
-    panel_alpha_end: int = 40  # right edge: the panel fades into the picture
-    caption_alpha: int = 95
-    outline: RGBA = (0, 0, 0, 150)
+    panel_alpha_start: int = 92  # left edge of the panel
+    panel_alpha_end: int = 12  # right edge: the panel fades into the picture
+    caption_alpha: int = 58
+    outline: RGBA = (0, 0, 0, 120)
+    shadow_alpha: int = 170  # the soft drop shadow under all text
+    # bright text colours that blend into each other (gold, pink, cyan by default)
+    colors: tuple[RGBA, ...] = ((255, 214, 102, 255), (255, 128, 191, 255), (110, 231, 255, 255))
+    accent_2: RGBA = (255, 92, 168, 255)  # the far end of the CTA pill gradient
 
 
 DEFAULT_PALETTE = Palette()
@@ -122,14 +128,18 @@ def palette_from_frames(images: list[Image.Image], brand_colors: list[str] | Non
     panel = _rgb(hue, 0.08, 0.35)
     lower = region_brightness(images, (0.0, 0.55, 0.65, 1.0)) if images else 0.4
     upper = region_brightness(images, (0.1, 0.0, 0.9, 0.3)) if images else 0.4
+    colors = tuple((*_rgb((hue + shift) % 1.0, 0.7, 1.0), 255) for shift in (0.0, 0.11, -0.11))
     return Palette(
         accent=(*accent, 255),
+        accent_2=(*vivid(_rgb((hue + 0.11) % 1.0, 0.55, 0.9)), 255),
+        colors=colors,  # type: ignore[arg-type]
         highlight=(*_rgb(hue, 0.76, 0.9), 255),
         accent_text=(20, 20, 24, 255) if _luminance(accent) > 0.55 else (255, 255, 255, 255),
         panel=panel,
-        panel_alpha_start=175 if lower > 0.62 else 140,
-        panel_alpha_end=70 if lower > 0.62 else 40,
-        caption_alpha=125 if upper > 0.62 else 95,
+        panel_alpha_start=128 if lower > 0.62 else 92,
+        panel_alpha_end=36 if lower > 0.62 else 12,
+        caption_alpha=92 if upper > 0.62 else 58,
+        shadow_alpha=200 if max(lower, upper) > 0.62 else 170,
     )
 
 

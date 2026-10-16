@@ -21,7 +21,7 @@ export function SelectField({ label, options, value, onChange, helpText, placeho
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink shadow-sm transition-all focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+        className="w-full rounded-2xl border border-line bg-surface/90 px-4 py-3 text-sm text-ink shadow-sm transition-all hover:border-accent/50 focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/15"
       >
         <option value="">{placeholder}</option>
         {options.map((option) => (

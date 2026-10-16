@@ -54,12 +54,12 @@ export function ImageUpload({ kind, label, hint, assets, maxFiles, onChange, onE
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={(e) => { e.preventDefault(); setDragging(false); void send(Array.from(e.dataTransfer.files)); }}
-        className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-5 text-center transition-colors ${
-          dragging ? "border-accent bg-accent-soft" : "border-line bg-surface hover:border-accent/60"
+        className={`flex cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed p-5 text-center transition-all duration-300 ${
+          dragging ? "scale-[1.01] border-accent bg-accent-soft shadow-glow" : "border-accent/30 bg-surface/80 hover:border-accent hover:bg-accent-soft/40"
         } ${room === 0 ? "cursor-not-allowed opacity-60" : ""}`}
       >
         <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" multiple={kind === "photo"} className="hidden" onChange={(e) => void send(Array.from(e.target.files ?? []))} />
-        {busy ? <Spinner /> : <span className="text-2xl" aria-hidden="true">{kind === "logo" ? "🏷️" : "🖼️"}</span>}
+        {busy ? <Spinner /> : <span className="animate-float text-3xl" aria-hidden="true">{kind === "logo" ? "🏷️" : "🖼️"}</span>}
         <p className="mt-1 text-sm font-medium text-ink">{busy ? "Uploading…" : room > 0 ? "Click to upload or drop here" : "Limit reached"}</p>
         <p className="text-xs text-muted">{hint}</p>
       </div>

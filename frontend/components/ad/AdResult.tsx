@@ -24,7 +24,7 @@ const SEGMENT_LABELS: Record<SegmentKind, string> = {
 function BriefView({ brief }: { brief: AdBrief }) {
   const concept = brief.concepts[brief.chosen_concept];
   return (
-    <details className="rounded-xl border border-line bg-surface p-4 text-sm">
+    <details className="rounded-2xl border border-line bg-surface/85 p-4 text-sm">
       <summary className="cursor-pointer font-medium text-ink">
         Ad brief
         <span className="ml-2 text-xs font-normal text-muted">{concept?.title} · written by {brief.builder === "llm" ? "AI" : "the built-in writer"}</span>
@@ -51,7 +51,7 @@ function MadeOf({ ad }: { ad: AdResponse }) {
   if (ad.composition.length === 0) return null;
   const qr = ad.creative ? (ad.creative.include_qr ? (ad.qr_added ? `QR code added, opens ${ad.creative.qr_url}` : "QR code was requested but could not be added (see below)") : "No QR code") : null;
   return (
-    <div className="rounded-xl border border-line bg-surface p-4 text-sm">
+    <div className="rounded-2xl border border-line bg-surface/85 p-4 text-sm">
       <p className="font-medium text-ink">{ad.ai_video_used ? `Contains AI-generated footage (${ad.provider})` : "No AI-generated footage: built with FFmpeg from real images and video"}</p>
       <ol className="mt-2 list-decimal space-y-0.5 pl-5 text-muted">
         {ad.composition.map((segment, index) => <li key={`${segment.kind}-${index}`}>{SEGMENT_LABELS[segment.kind]} · {segment.seconds.toFixed(1)} s</li>)}
@@ -88,7 +88,7 @@ export function AdResult() {
   return (
     <div className="space-y-6 animate-fadeUp">
       <header>
-        <h1 className="text-2xl font-bold tracking-tight text-ink">
+        <h1 className="text-3xl font-extrabold tracking-tight text-ink">
           {ad.status === "failed" ? "We could not finish your ad" : isAdFinished(ad.status) ? "Your ad is ready" : "Creating your ad"}
         </h1>
         {ad.prompt && !isAdFinished(ad.status) && <p className="mt-1 text-sm text-muted">Your prompt is ready. The video is being created.</p>}
@@ -110,19 +110,19 @@ export function AdResult() {
 
       {ad.video_url && (
         <div className="space-y-3">
-          <div className={`mx-auto overflow-hidden rounded-2xl border border-line bg-black ${vertical ? "max-w-xs" : square ? "max-w-md" : "w-full"}`}>
+          <div className={`animate-popIn mx-auto overflow-hidden rounded-3xl border border-line bg-black shadow-glow ${vertical ? "max-w-xs" : square ? "max-w-md" : "w-full"}`}>
             <video key={ad.ad_id} src={adVideoUrl(ad.ad_id)} controls playsInline preload="metadata" className="h-auto w-full" onLoadedMetadata={(e) => e.currentTarget.videoHeight > 0 && setShape(e.currentTarget.videoWidth / e.currentTarget.videoHeight)} />
           </div>
           <div className="flex flex-wrap justify-center gap-3">
-            <a href={adVideoUrl(ad.ad_id, true)} className="inline-flex items-center rounded-xl bg-accent px-6 py-3 text-sm font-semibold text-white hover:opacity-90">Download MP4</a>
-            <Link href={again} className="inline-flex items-center rounded-xl border border-line bg-surface px-6 py-3 text-sm font-semibold text-ink hover:border-accent">Make another ad</Link>
+            <a href={adVideoUrl(ad.ad_id, true)} className="bg-brand animate-gradient shine shadow-glow inline-flex items-center rounded-2xl px-6 py-3 text-sm font-bold text-white transition-transform hover:-translate-y-0.5">Download MP4</a>
+            <Link href={again} className="inline-flex items-center rounded-2xl border border-line bg-surface/85 px-6 py-3 text-sm font-semibold text-ink hover:border-accent">Make another ad</Link>
           </div>
         </div>
       )}
 
       {ad.status === "failed" && (
         <div className="flex justify-center">
-          <Link href={again} className="inline-flex items-center rounded-xl bg-accent px-6 py-3 text-sm font-semibold text-white hover:opacity-90">Try again</Link>
+          <Link href={again} className="bg-brand animate-gradient shine shadow-glow inline-flex items-center rounded-2xl px-6 py-3 text-sm font-bold text-white transition-transform hover:-translate-y-0.5">Try again</Link>
         </div>
       )}
 

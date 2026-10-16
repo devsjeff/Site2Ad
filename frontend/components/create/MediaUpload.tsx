@@ -69,19 +69,19 @@ export function MediaUpload({ assets, maxFiles, maxVideoMb, maxVideoSeconds, onC
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={(e) => { e.preventDefault(); setDragging(false); void send(Array.from(e.dataTransfer.files)); }}
-        className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
-          dragging ? "border-accent bg-accent-soft" : "border-line bg-surface hover:border-accent/60"
+        className={`flex cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed p-6 text-center transition-all duration-300 ${
+          dragging ? "scale-[1.01] border-accent bg-accent-soft shadow-glow" : "border-accent/30 bg-surface/80 hover:border-accent hover:bg-accent-soft/40"
         } ${room === 0 ? "cursor-not-allowed opacity-60" : ""}`}
       >
         <input ref={inputRef} type="file" accept={`${IMAGE_TYPES},${VIDEO_TYPES}`} multiple className="hidden" onChange={(e) => void send(Array.from(e.target.files ?? []))} />
-        {busy ? <Spinner /> : <span className="text-2xl" aria-hidden="true">🎞️</span>}
+        {busy ? <Spinner /> : <span className="animate-float text-3xl" aria-hidden="true">🎞️</span>}
         <p className="mt-1 text-sm font-medium text-ink">{busy ? "Uploading and checking…" : room > 0 ? "Click to upload or drop here" : "Limit reached"}</p>
         <p className="text-xs text-muted">Photos (JPG, PNG, WebP) or videos (MP4, MOV, WebM up to {maxVideoMb} MB and {maxVideoSeconds} seconds). They play in this order.</p>
       </div>
       {assets.length > 0 && (
         <ol className="mt-3 space-y-2">
           {assets.map((asset, index) => (
-            <li key={asset.asset_id} className="flex items-center gap-3 rounded-lg border border-line bg-surface p-2">
+            <li key={asset.asset_id} className="flex items-center gap-3 animate-fadeUp rounded-2xl border border-line bg-surface/85 p-2">
               <span className="w-5 text-center text-xs font-semibold text-muted">{index + 1}</span>
               <div className="h-12 w-16 shrink-0 overflow-hidden rounded-md border border-line bg-black">
                 {asset.media_type === "video" ? (

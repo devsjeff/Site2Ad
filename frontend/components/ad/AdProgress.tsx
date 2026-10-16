@@ -55,7 +55,7 @@ export function AdProgress({ ad }: { ad: AdResponse }) {
   }
 
   return (
-    <div className="space-y-4 rounded-xl border border-line bg-surface p-5" aria-live="polite">
+    <div className="space-y-4 rounded-2xl border border-line bg-surface/85 p-5" aria-live="polite">
       <div className="flex items-center gap-3 text-sm font-medium text-ink">
         <Spinner />
         <span>{ad.message || "Working on your ad…"}</span>
@@ -68,7 +68,7 @@ export function AdProgress({ ad }: { ad: AdResponse }) {
           const active = !done && position === index;
           return (
             <li key={step.stage} className={done ? "text-ink" : active ? "font-medium text-ink" : "text-muted"}>
-              <span className="mr-2" aria-hidden="true">{done ? "✓" : active ? "▸" : "•"}</span>
+              <span className={`mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] transition-colors ${done ? "bg-ok text-white" : active ? "bg-brand animate-pulse text-white" : "bg-line text-muted"}`} aria-hidden="true">{done ? "✓" : active ? "▸" : "•"}</span>
               {step.label}
             </li>
           );

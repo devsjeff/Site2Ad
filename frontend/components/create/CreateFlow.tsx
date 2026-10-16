@@ -15,21 +15,20 @@ import {
 } from "@/lib/types";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
+import { Advanced } from "../ui/Advanced";
 import { InputField } from "../ui/InputField";
 import { CreativeModeStep } from "./CreativeModeStep";
 import { ImageUpload } from "./ImageUpload";
 import { MediaUpload } from "./MediaUpload";
-import { ModeStep } from "./ModeStep";
 import { OptionsStep } from "./OptionsStep";
 import { PreferencesStep } from "./PreferencesStep";
 import { ReviewStep, type EditTarget, type ReviewSummary } from "./ReviewStep";
 import { ScanProgress } from "./ScanProgress";
 
-// Screens of the flow. Only the current one is shown (no step counter), so the flow never looks long.
-type StepKey = "mode" | "business" | "media" | "creative" | "settings" | "review";
+// Three short screens: start (website or uploads), customize (style, format, length + advanced), review and create.
+type StepKey = "start" | "customize" | "review";
 
-const AUTO_STEPS: StepKey[] = ["mode", "business", "creative", "settings", "review"];
-const MANUAL_STEPS: StepKey[] = ["mode", "media", "settings", "review"];
+const STEPS: StepKey[] = ["start", "customize", "review"];
 
 const DEFAULT_OPTIONS: AdOptions = {
   goal: "awareness", platform: "taxi_screen", duration_seconds: 5, style: "cinematic_premium", tone: "friendly",
@@ -51,8 +50,8 @@ export function CreateFlow() {
   const router = useRouter();
   const [config, setConfig] = useState<ConfigResponse | null>(null);
   const [configError, setConfigError] = useState<string | null>(null);
-  const [stepKey, setStepKey] = useState<StepKey>("mode");
-  const [creation, setCreation] = useState<CreationMode | null>(null);
+  const [stepKey, setStepKey] = useState<StepKey>("start");
+  const [creation, setCreation] = useState<CreationMode | null>("auto");
   const [creativeMode, setCreativeMode] = useState<CreativeMode | null>(null);
 
   const [url, setUrl] = useState("");
@@ -74,7 +73,6 @@ export function CreateFlow() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const mode: ModeId = creation === "manual" ? "manual" : creativeMode ?? "website";
-  const steps = creation === "manual" ? MANUAL_STEPS : AUTO_STEPS;
 
   // --- server options
   useEffect(() => {
@@ -104,16 +102,16 @@ export function CreateFlow() {
     if (previous) {
       setCreation("auto");
       startAuto();
-      setStepKey("business");
       api.getJob(previous).then(
         (job) => { setFirstJob(job); setJobId(job.job_id); setUrl(job.url); },
         () => undefined,
       );
     } else if (wanted === "manual" || wanted === "auto") {
       setCreation(wanted);
-      setStepKey(wanted === "manual" ? "media" : "business");
       if (wanted === "manual") setPrefs(defaultPrefs("manual"));
       else startAuto();
+    } else {
+      startAuto(); // the flow opens on "From my website"
     }
   }, [startAuto]);
 
@@ -193,22 +191,20 @@ export function CreateFlow() {
   // Go to the next screen (with the checks for the screen we leave).
   function next() {
     setStepError(null);
-    if (stepKey === "mode") {
-      if (!creation) { setStepError("Choose an auto or a manual ad."); return; }
-      setStepKey(creation === "manual" ? "media" : "business");
-    } else if (stepKey === "business") {
-      if (!scanUsable) { setStepError("Scan your website first."); return; }
-      if (!draft.name.trim()) { setNameError("We could not find your business name. Enter it."); return; }
-      setStepKey("creative");
-    } else if (stepKey === "media") {
-      if (media.length === 0) { setStepError("Upload at least one image or video."); return; }
-      setStepKey("settings");
-    } else if (stepKey === "creative") {
-      if (!creativeMode) { setStepError("Choose how your ad should be made."); return; }
-      if (callsAiVideo(creativeMode) && !config?.ai_video_available) { setStepError(config?.ai_video_message ?? "AI video is not available."); return; }
-      if (prefs && !prefs.qrUrl && websiteUrl) setPrefs({ ...prefs, qrUrl: websiteUrl, includeQr: true });
-      setStepKey("settings");
-    } else if (stepKey === "settings") {
+    if (stepKey === "start") {
+      if (creation === "manual") {
+        if (media.length === 0) { setStepError("Upload at least one image or video."); return; }
+      } else {
+        if (!scanUsable) { setStepError("Scan your website first."); return; }
+        if (!draft.name.trim()) { setNameError("We could not find your business name. Enter it."); return; }
+        if (prefs && !prefs.qrUrl && websiteUrl) setPrefs({ ...prefs, qrUrl: websiteUrl, includeQr: true });
+      }
+      setStepKey("customize");
+    } else if (stepKey === "customize") {
+      if (creation !== "manual") {
+        if (!creativeMode) { setStepError("Choose how your ad should be made."); return; }
+        if (callsAiVideo(creativeMode) && !config?.ai_video_available) { setStepError(config?.ai_video_message ?? "AI video is not available."); return; }
+      }
       setStepKey("review");
     }
   }
@@ -216,14 +212,13 @@ export function CreateFlow() {
   // Go one screen back.
   function back() {
     setStepError(null);
-    const index = steps.indexOf(stepKey);
-    if (index > 0) setStepKey(steps[index - 1]);
+    const index = STEPS.indexOf(stepKey);
+    if (index > 0) setStepKey(STEPS[index - 1]);
   }
 
   // Jump from the review screen to the screen that holds a value.
   function editFrom(target: EditTarget) {
-    if (target === "business") setStepKey(creation === "manual" ? "media" : "business");
-    else setStepKey(target);
+    setStepKey(target === "mode" || target === "business" ? "start" : "customize");
   }
 
   // The business details that go with the request.
@@ -293,127 +288,143 @@ export function CreateFlow() {
   }
 
   const nav = (label = "Continue", disabled = false) => (
-    <div className="flex justify-between">
-      {stepKey !== "mode" ? <Button variant="ghost" onClick={back}>Back</Button> : <span />}
-      <Button onClick={next} disabled={disabled}>{label}</Button>
+    <div className="flex items-center justify-between pt-2">
+      {stepKey !== "start" ? <Button variant="ghost" onClick={back}>← Back</Button> : <span />}
+      <Button onClick={next} disabled={disabled} className="min-w-40">{label} →</Button>
     </div>
   );
 
+  const header = (title: React.ReactNode, sub: string) => (
+    <div className="flex items-start justify-between gap-4">
+      <div>
+        <h1 className="text-3xl font-extrabold tracking-tight text-ink">{title}</h1>
+        <p className="mt-1.5 text-sm text-muted">{sub}</p>
+      </div>
+      <div className="mt-3 flex shrink-0 items-center gap-1.5" aria-label={`Step ${STEPS.indexOf(stepKey) + 1} of ${STEPS.length}`}>
+        {STEPS.map((key, index) => (
+          <span key={key} className={`h-2 rounded-full transition-all duration-500 ${key === stepKey ? "bg-brand w-7" : index < STEPS.indexOf(stepKey) ? "w-2 bg-accent" : "w-2 bg-line"}`} />
+        ))}
+      </div>
+    </div>
+  );
+
+  const manual = creation === "manual";
+
   return (
     <div className="space-y-8">
-      {stepKey === "mode" && (
-        <section className="space-y-6 animate-fadeUp">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-ink">Create an ad</h1>
-            <p className="mt-1 text-sm text-muted">Start from your website, or build it from your own photos and videos.</p>
-          </div>
-          <ModeStep modes={config.creative_modes} value={creation} onChange={chooseCreation} />
-          {stepError && <Alert tone="error">{stepError}</Alert>}
-          {nav("Continue", !creation)}
-        </section>
-      )}
+      {stepKey === "start" && (
+        <section key="start" className="space-y-6 animate-fadeUp">
+          {header(<>Create your <span className="text-brand">video ad</span></>, manual ? "Upload your photos or videos. Nothing is scanned and no AI video is made." : "Paste your website. We find your name, images and details for you.")}
 
-      {stepKey === "media" && (
-        <section className="space-y-6 animate-fadeUp">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-ink">Your media</h1>
-            <p className="mt-1 text-sm text-muted">Upload the images or videos the ad is made of. Nothing is scanned and no AI video is generated.</p>
-          </div>
-          <MediaUpload assets={media} maxFiles={Math.min(config.max_upload_files, 10)} maxVideoMb={Math.round(config.max_video_upload_bytes / (1024 * 1024))} maxVideoSeconds={config.max_video_upload_seconds} onChange={setMedia} onError={setUploadError} />
-          <ImageUpload kind="logo" label="Your logo (optional)" hint="Shown in the corner of the video." assets={logo} maxFiles={1} onChange={setLogo} onError={setUploadError} />
-          {uploadError && <Alert tone="error">{uploadError}</Alert>}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <InputField label="Business name (optional)" value={details.name} onChange={(v) => setDetails({ ...details, name: v })} maxLength={120} />
-            <InputField label="Offer (optional)" value={details.offer} onChange={(v) => setDetails({ ...details, offer: v })} maxLength={160} placeholder="e.g. 20% off this week" />
-            <InputField label="Call to action (optional)" value={details.cta} onChange={(v) => setDetails({ ...details, cta: v })} maxLength={80} placeholder="e.g. Scan to order" />
-            <InputField label="Phone (optional)" value={details.phone} onChange={(v) => setDetails({ ...details, phone: v })} maxLength={40} inputMode="tel" />
-          </div>
-          {stepError && <Alert tone="error">{stepError}</Alert>}
-          {nav("Continue", media.length === 0)}
-        </section>
-      )}
-
-      {stepKey === "business" && (
-        <section className="space-y-6 animate-fadeUp">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-ink">Your website</h1>
-            <p className="mt-1 text-sm text-muted">Paste your website. We scan it for your business name, images and details.</p>
+          <div className="grid grid-cols-2 gap-1 rounded-2xl border border-line bg-surface/80 p-1" role="group" aria-label="How to start">
+            {([["auto", "✨", "From my website"], ["manual", "🎬", "My own photos"]] as const).map(([value, icon, label]) => (
+              <button key={value} type="button" aria-pressed={creation === value} onClick={() => chooseCreation(value)}
+                className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-300 ${creation === value ? "bg-brand animate-gradient text-white shadow-glow" : "text-muted hover:bg-accent-soft hover:text-ink"}`}>
+                <span aria-hidden="true">{icon}</span>{label}
+              </button>
+            ))}
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div className="flex-1">
-              <InputField label="Website address" value={url} onChange={setUrl} placeholder="yourbusiness.com" inputMode="url" autoComplete="url" disabled={scanning} error={scanError ?? undefined} />
+          {!manual && (
+            <div className="space-y-5">
+              <div className="rounded-3xl border border-line bg-surface/85 p-5 shadow-glow">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                  <div className="flex-1">
+                    <InputField label="Website address" value={url} onChange={setUrl} placeholder="yourbusiness.com" inputMode="url" autoComplete="url" disabled={scanning} error={scanError ?? undefined} />
+                  </div>
+                  <Button onClick={startScan} loading={scanning} disabled={!url.trim()}>{result ? "Scan again" : "🔍 Scan website"}</Button>
+                </div>
+              </div>
+
+              {jobId !== null && !(job?.is_final ?? false) && <ScanProgress job={job} />}
+              {polled.error !== null && polled.error !== undefined && <Alert tone="error" title="We lost contact with the server">{errorMessage(polled.error)}</Alert>}
+              {failed && job && <Alert tone="warn" title="We could not read that website">{job.result?.message || job.message} Check the address, or switch to &ldquo;My own photos&rdquo;.</Alert>}
+              {job?.is_final && !failed && job.result?.status === "partial" && <Alert tone="info">{job.result.message}</Alert>}
+              {result?.flags.includes("browser_unavailable") && (
+                <Alert tone="warn" title="Some content may be missing">This website needs JavaScript, but the server&apos;s browser renderer is not available, so only the plain page was read.</Alert>
+              )}
+
+              {scanUsable && draftReady && (
+                <div className="animate-fadeUp space-y-4">
+                  <div className="flex items-center gap-3 rounded-2xl border border-ok/30 bg-ok/10 px-4 py-3 text-sm">
+                    <span className="animate-popIn flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ok text-white" aria-hidden="true">✓</span>
+                    <span className="text-ink"><b>{draft.name || "Your website"}</b> scanned · {plural(usableScraped.length, "usable image")} found</span>
+                  </div>
+                  {(!result?.site.name || touched.has("name")) && (
+                    <InputField label="Business name" required value={draft.name} onChange={(v) => edit("name", v)} maxLength={120} error={nameError} helpText="Your website did not show a clear business name." />
+                  )}
+                  <InputField label="Call to action" value={draft.cta} onChange={(v) => edit("cta", v)} maxLength={80} placeholder="e.g. Order now" helpText={draft.cta && !touched.has("cta") ? "Found on your website. Edit or clear it." : "Shown on the video, e.g. Order now or Book a table."} />
+                  {(result?.site.offer || touched.has("offer")) && (
+                    <Advanced title="More details" hint="The offer we found on your website">
+                      <InputField label="Offer shown on the video" value={draft.offer} onChange={(v) => edit("offer", v)} maxLength={160} helpText="Check it belongs to your business, or clear it to leave it out." />
+                    </Advanced>
+                  )}
+                </div>
+              )}
             </div>
-            <Button onClick={startScan} loading={scanning} disabled={!url.trim()}>{result ? "Scan again" : "Scan website"}</Button>
-          </div>
-
-          {jobId !== null && !(job?.is_final ?? false) && <ScanProgress job={job} />}
-          {polled.error !== null && polled.error !== undefined && <Alert tone="error" title="We lost contact with the server">{errorMessage(polled.error)}</Alert>}
-          {failed && job && <Alert tone="warn" title="We could not read that website">{job.result?.message || job.message} Check the address, or create a manual ad from your own photos and videos.</Alert>}
-          {job?.is_final && !failed && job.result?.status === "partial" && <Alert tone="info">{job.result.message}</Alert>}
-          {result?.flags.includes("browser_unavailable") && (
-            <Alert tone="warn" title="Some content may be missing">This website needs JavaScript, but the server&apos;s browser renderer is not available, so only the plain page was read.</Alert>
           )}
 
-          {scanUsable && draftReady && (
-            <>
-              {(!result?.site.name || touched.has("name")) && (
-                <InputField label="Business name" required value={draft.name} onChange={(v) => edit("name", v)} maxLength={120} error={nameError} helpText="Your website did not show a clear business name." />
-              )}
-              {(result?.site.offer || touched.has("offer")) && (
-                <InputField label="Offer shown on the video" value={draft.offer} onChange={(v) => edit("offer", v)} maxLength={160} helpText="Found on your website. Check it belongs to your business, or clear it to leave it out." />
-              )}
-              <InputField label="Call to action" value={draft.cta} onChange={(v) => edit("cta", v)} maxLength={80} placeholder="e.g. Order now" helpText={draft.cta && !touched.has("cta") ? "Found on your website. Edit or clear it." : "Shown on the video, e.g. Order now or Book a table."} />
-            </>
+          {manual && (
+            <div className="space-y-5">
+              <MediaUpload assets={media} maxFiles={Math.min(config.max_upload_files, 10)} maxVideoMb={Math.round(config.max_video_upload_bytes / (1024 * 1024))} maxVideoSeconds={config.max_video_upload_seconds} onChange={setMedia} onError={setUploadError} />
+              {uploadError && <Alert tone="error">{uploadError}</Alert>}
+              <Advanced title="Text and logo" hint="Optional: name, offer, call to action, phone and logo">
+                <ImageUpload kind="logo" label="Your logo" hint="Shown in the corner of the video." assets={logo} maxFiles={1} onChange={setLogo} onError={setUploadError} />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <InputField label="Business name" value={details.name} onChange={(v) => setDetails({ ...details, name: v })} maxLength={120} />
+                  <InputField label="Offer" value={details.offer} onChange={(v) => setDetails({ ...details, offer: v })} maxLength={160} placeholder="e.g. 20% off this week" />
+                  <InputField label="Call to action" value={details.cta} onChange={(v) => setDetails({ ...details, cta: v })} maxLength={80} placeholder="e.g. Scan to order" />
+                  <InputField label="Phone" value={details.phone} onChange={(v) => setDetails({ ...details, phone: v })} maxLength={40} inputMode="tel" />
+                </div>
+              </Advanced>
+            </div>
           )}
+
           {stepError && <Alert tone="error">{stepError}</Alert>}
-          {nav("Continue", !scanUsable || scanning)}
+          {nav("Continue", manual ? media.length === 0 : !scanUsable || scanning)}
         </section>
       )}
 
-      {stepKey === "creative" && (
-        <section className="space-y-6 animate-fadeUp">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-ink">How should your ad be made?</h1>
-            <p className="mt-1 text-sm text-muted">We found {plural(usableScraped.length, "usable image")} on your website.</p>
-          </div>
-          <CreativeModeStep modes={config.creative_modes} value={creativeMode} onChange={chooseCreative} aiAvailable={config.ai_video_available} aiMessage={config.ai_video_message} />
-          {stepError && <Alert tone="error">{stepError}</Alert>}
-          {nav("Continue", !creativeMode)}
-        </section>
-      )}
-
-      {stepKey === "settings" && (
-        <section className="space-y-8 animate-fadeUp">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-ink">Almost done</h1>
-            <p className="mt-1 text-sm text-muted">Change anything you like; only the options that fit your ad are shown.</p>
-          </div>
-          <PreferencesStep
-            mode={mode} prefs={activePrefs} onChange={setPrefs} websiteImages={scraped} photos={[]}
-            hasLogo={logo.length > 0} hasVideo={mode === "manual" && media.some((m) => m.media_type === "video")} durationSeconds={options.duration_seconds}
-          />
+      {stepKey === "customize" && (
+        <section key="customize" className="space-y-7 animate-fadeUp">
+          {header(<>Make it <span className="text-brand">yours</span></>, manual ? "Pick where it plays and how long it runs." : "Pick a look, where it plays and how long it runs. Everything else is optional.")}
+          {!manual && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-bold text-ink">How should it be made?</h3>
+              <CreativeModeStep modes={config.creative_modes} value={creativeMode} onChange={chooseCreative} aiAvailable={config.ai_video_available} aiMessage={config.ai_video_message} />
+            </div>
+          )}
           <OptionsStep
-            config={config} options={options} onChange={setOptions} durations={durations} aiControls={callsAiVideo(mode)}
+            part="essentials" config={config} options={options} onChange={setOptions} durations={durations} aiControls={callsAiVideo(mode)}
             durationNote={
               callsAiVideo(mode) ? `The AI model makes clips of up to ${config.max_video_seconds} seconds; shorter clips loop to fill your chosen length.`
                 : mode === "manual" && media.some((m) => m.media_type === "video") ? "Uploaded videos play in full; the length applies to photos."
                   : mode === "website" ? "Each website image plays for 3 seconds." : undefined
             }
-            overlayLabel={mode === "manual" ? "Show my business name, offer and call to action" : undefined}
           />
-          {nav("Review")}
+          <Advanced hint={callsAiVideo(mode) ? "Images, logo, QR code, goal, tone, style and AI instructions" : "Images, logo, QR code, sound, style and text"}>
+            <PreferencesStep
+              mode={mode} prefs={activePrefs} onChange={setPrefs} websiteImages={scraped} photos={[]}
+              hasLogo={logo.length > 0} hasVideo={mode === "manual" && media.some((m) => m.media_type === "video")} durationSeconds={options.duration_seconds}
+            />
+            <OptionsStep
+              part="advanced" config={config} options={options} onChange={setOptions} durations={durations} aiControls={callsAiVideo(mode)}
+              overlayLabel={mode === "manual" ? "Show my business name, offer and call to action" : undefined}
+            />
+          </Advanced>
+          {stepError && <Alert tone="error">{stepError}</Alert>}
+          {nav("Review", !manual && !creativeMode)}
         </section>
       )}
 
       {stepKey === "review" && (
-        <section className="space-y-6 animate-fadeUp">
-          <h1 className="text-2xl font-bold tracking-tight text-ink">Ready to create</h1>
+        <section key="review" className="space-y-6 animate-fadeUp">
+          {header(<>Ready to <span className="text-brand">create</span></>, "Check the details, then hit create. Use Edit to change anything.")}
           <ReviewStep config={config} mode={mode} prefs={{ ...activePrefs, qrUrl: normalizeUrl(activePrefs.qrUrl) }} options={options} summary={summary()} problems={problems} onEdit={editFrom} />
           {submitError && <Alert tone="error" title="Could not start your ad">{submitError}</Alert>}
-          <div className="flex justify-between">
-            <Button variant="ghost" onClick={back} disabled={submitting}>Back</Button>
-            <Button onClick={create} loading={submitting} disabled={problems.length > 0}>Create my ad</Button>
+          <div className="flex items-center justify-between">
+            <Button variant="ghost" onClick={back} disabled={submitting}>← Back</Button>
+            <Button onClick={create} loading={submitting} disabled={problems.length > 0} className="min-w-48 py-4 text-base">🚀 Create my ad</Button>
           </div>
         </section>
       )}

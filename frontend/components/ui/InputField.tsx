@@ -18,7 +18,7 @@ interface InputFieldProps {
 }
 
 const BASE =
-  "w-full rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink shadow-sm transition-all placeholder:text-muted/70 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-60";
+  "w-full rounded-2xl border border-line bg-surface/90 px-4 py-3 text-sm text-ink shadow-sm transition-all placeholder:text-muted/70 hover:border-accent/50 focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/15 disabled:opacity-60";
 
 // Labelled text input or textarea with help and error text.
 export function InputField({

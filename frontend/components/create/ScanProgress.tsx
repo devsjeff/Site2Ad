@@ -18,7 +18,7 @@ export function ScanProgress({ job }: { job: JobResponse | null }) {
   const position = ORDER.indexOf(stage);
   const morePages = job?.phase2.state === "running" && job.phase2.pages_total > 0;
   return (
-    <div className="space-y-4 rounded-xl border border-line bg-surface p-5 animate-fadeUp" aria-live="polite">
+    <div className="space-y-4 rounded-2xl border border-line bg-surface/85 p-5 animate-fadeUp" aria-live="polite">
       <div className="flex items-center gap-3 text-sm font-medium text-ink">
         {!job?.is_final && <Spinner />}
         <span>{job?.message || "Starting the scan…"}</span>
@@ -29,7 +29,7 @@ export function ScanProgress({ job }: { job: JobResponse | null }) {
           const done = ORDER.indexOf(step.stage) < position || (step.stage === "ad_ready" && position >= ORDER.indexOf("ad_ready"));
           return (
             <li key={step.stage} className={done ? "text-ink" : "text-muted"}>
-              <span className="mr-2" aria-hidden="true">{done ? "✓" : "•"}</span>
+              <span className={`mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] ${done ? "bg-ok text-white" : "bg-line text-muted"}`} aria-hidden="true">{done ? "✓" : "•"}</span>
               {step.label}
             </li>
           );

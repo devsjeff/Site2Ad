@@ -15,7 +15,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Optional
 
-from PIL import Image, ImageChops, ImageDraw, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 from .base import VideoError, ffmpeg_path, probe_video, run_tool
 from .palette import DEFAULT_PALETTE, Palette, palette_from_frames, sample_frames
@@ -177,9 +177,51 @@ class OverlayLayer:
     attention_at: Optional[float] = None  # a small bounce at this time to pull the eye back (CTA near the end)
 
 
-def _text(draw: ImageDraw.ImageDraw, xy: tuple[float, float], text: str, font, fill, palette: Palette, size: int) -> None:
-    """Text with a soft dark outline, readable on any footage even over a see-through panel."""
-    draw.text(xy, text, font=font, fill=fill, stroke_width=max(1, round(size / 22)), stroke_fill=palette.outline)
+Colour = tuple[int, int, int, int]
+
+
+def _gradient(width: int, height: int, colours: tuple[Colour, ...] | list[Colour], vertical: bool = False) -> Image.Image:
+    """An RGBA image that blends through the colours from left to right (or top to bottom)."""
+    stops = list(colours) or [(255, 255, 255, 255)]
+    if len(stops) == 1:
+        return Image.new("RGBA", (max(1, width), max(1, height)), stops[0])
+    length = max(2, height if vertical else width)
+    strip = Image.new("RGBA", (length, 1))
+    for i in range(length):
+        position = i / (length - 1) * (len(stops) - 1)
+        low = min(int(position), len(stops) - 2)
+        frac = position - low
+        strip.putpixel((i, 0), tuple(round(a + (b - a) * frac) for a, b in zip(stops[low], stops[low + 1])))
+    if vertical:
+        strip = strip.rotate(-90, expand=True)
+    return strip.resize((max(1, width), max(1, height)), Image.Resampling.BILINEAR)
+
+
+def _text(image: Image.Image, xy: tuple[float, float], text: str, font, fill, palette: Palette, size: int) -> None:
+    """Text that pops on any footage: a soft drop shadow, a thin outline, and a solid colour or a colour gradient
+    (`fill` may be one RGBA colour or a tuple of them), so no heavy panel is needed behind it."""
+    stroke = max(1, round(size / 24))
+    mask = Image.new("L", image.size, 0)
+    ImageDraw.Draw(mask).text(xy, text, font=font, fill=255, stroke_width=stroke + max(1, size // 16), stroke_fill=255)
+    offset = max(1, round(size * 0.06))
+    blurred = mask.filter(ImageFilter.GaussianBlur(max(2, size / 9))).point(lambda v: v * palette.shadow_alpha // 255)
+    shifted = Image.new("L", image.size, 0)
+    shifted.paste(blurred, (offset, offset))  # the shadow falls slightly down-right
+    shadow = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    shadow.putalpha(shifted)
+    image.alpha_composite(shadow)
+    draw = ImageDraw.Draw(image)
+    colours = fill if fill and isinstance(fill[0], tuple) else (fill,)
+    draw.text(xy, text, font=font, fill=colours[0], stroke_width=stroke, stroke_fill=palette.outline)
+    if len(colours) > 1:
+        box = draw.textbbox(xy, text, font=font)
+        width, height = max(1, round(box[2] - box[0])), max(1, round(box[3] - box[1]))
+        glyphs = Image.new("L", image.size, 0)
+        ImageDraw.Draw(glyphs).text(xy, text, font=font, fill=255)
+        layer = Image.new("RGBA", image.size, (0, 0, 0, 0))
+        layer.paste(_gradient(width, height, colours), (round(box[0]), round(box[1])))
+        layer.putalpha(ImageChops.multiply(layer.getchannel("A"), glyphs))
+        image.alpha_composite(layer)
 
 
 def _gradient_panel(width: int, height: int, palette: Palette, radius: int) -> Image.Image:
@@ -224,11 +266,12 @@ def render_layers(
         except QrUnavailable as exc:
             warnings.append(str(exc))
 
-    entries: list[tuple[str, bool, int, tuple[int, int, int, int]]] = []  # (text, bold, size, colour)
+    entries: list[tuple[str, bool, int, object]] = []  # (text, bold, size, colour or gradient colours)
+    c0, c1, c2 = (list(palette.colors) + [palette.highlight] * 3)[:3]
     if spec.name.strip():
-        entries.append((spec.name.strip(), True, round(unit * 0.066), palette.text))
+        entries.append((spec.name.strip(), True, round(unit * 0.066), (palette.text, c0, c1)))
     if spec.offer.strip():
-        entries.append((spec.offer.strip(), True, round(unit * 0.047), palette.highlight))
+        entries.append((spec.offer.strip(), True, round(unit * 0.047), (c1, c2)))
     if spec.phone.strip():
         entries.append((spec.phone.strip(), False, round(unit * 0.040), palette.soft_text))
     if spec.address.strip():
@@ -239,7 +282,7 @@ def render_layers(
         right_limit = width - margin - (qr_size + gap * 3 if qr_size else 0)
         panel_max = max(140, min(right_limit - margin, round(width * 0.62 if qr_size else width * 0.8)))
         text_width = panel_max - 2 * pad - bar
-        blocks: list[tuple[list[str], object, tuple[int, int, int, int], int, int]] = []
+        blocks: list[tuple[list[str], object, object, int, int]] = []
         for text_value, bold, size, colour in entries:
             font = load_font(max(12, size), bold, text_value, spec.font_path)
             lines = wrap_text(measure, text_value, font, text_width, 2 if bold else 2)
@@ -253,20 +296,27 @@ def render_layers(
         text_h = sum(len(lines) * lh for lines, _, _, lh, _ in blocks) + gap * max(0, len(blocks) - 1)
         panel_h = 2 * pad + text_h + (gap + cta_h if cta else 0)
         panel = _gradient_panel(panel_w, panel_h, palette, max(10, pad // 2))
-        draw = ImageDraw.Draw(panel)
-        draw.rounded_rectangle((0, 0, bar, panel_h - 1), radius=bar // 2, fill=palette.accent)
+        accent_bar = _gradient(bar, panel_h, (palette.accent, palette.accent_2, c2), vertical=True)
+        bar_mask = Image.new("L", (bar, panel_h), 0)
+        ImageDraw.Draw(bar_mask).rounded_rectangle((0, 0, bar - 1, panel_h - 1), radius=bar // 2, fill=255)
+        panel.paste(accent_bar, (0, 0), bar_mask)
         cursor = pad
         for lines, font, colour, line_height, size in blocks:
             for line in lines:
-                _text(draw, (bar + pad, cursor), line, font, colour, palette, size)
+                _text(panel, (bar + pad, cursor), line, font, colour, palette, size)
                 cursor += line_height
             cursor += gap
         panel_x, panel_y = margin, height - margin - panel_h
         layers.append(OverlayLayer("panel", _save_layer(panel, folder, "panel"), panel_x, panel_y, 0.35, 0.7, dx=round(panel_w * 0.3), motion="overshoot"))
         if cta:
+            pill_mask = Image.new("L", (cta_w, cta_h), 0)
+            ImageDraw.Draw(pill_mask).rounded_rectangle((0, 0, cta_w - 1, cta_h - 1), radius=cta_h // 2, fill=255)
             pill = Image.new("RGBA", (cta_w, cta_h), (0, 0, 0, 0))
+            pill.paste(_gradient(cta_w, cta_h, (palette.accent, palette.accent_2)), (0, 0), pill_mask)
+            gloss = Image.new("L", (cta_w, cta_h), 0)  # a soft light band across the top half
+            ImageDraw.Draw(gloss).rounded_rectangle((2, 2, cta_w - 3, cta_h // 2), radius=cta_h // 3, fill=46)
+            pill.alpha_composite(Image.merge("RGBA", (*Image.new("RGB", (cta_w, cta_h), (255, 255, 255)).split(), ImageChops.multiply(gloss, pill_mask))))
             pill_draw = ImageDraw.Draw(pill)
-            pill_draw.rounded_rectangle((0, 0, cta_w - 1, cta_h - 1), radius=cta_h // 2, fill=palette.accent)
             box = pill_draw.textbbox((0, 0), cta_text, font=cta_font)
             pill_draw.text(((cta_w - (box[2] - box[0])) / 2 - box[0], (cta_h - (box[3] - box[1])) / 2 - box[1]), cta_text, font=cta_font, fill=palette.accent_text)
             cta_y = panel_y + panel_h - pad - cta_h
@@ -321,9 +371,15 @@ def _caption_layers(
         draw = ImageDraw.Draw(box)
         palette = spec.palette or DEFAULT_PALETTE
         draw.rounded_rectangle((0, 0, box.width - 1, box.height - 1), radius=max(10, pad // 2), fill=(*palette.panel, palette.caption_alpha))
-        draw.rectangle((pad, box.height - max(3, pad // 4), pad + min(text_w, round(unit * 0.12)), box.height - 2), fill=palette.accent)
+        # each caption starts its colour blend at a different hue, so the sequence feels multicoloured
+        hues = list(palette.colors) or [palette.highlight]
+        turn = index % len(hues)
+        colours = (palette.text, *hues[turn:], *hues[:turn])[:3]
+        underline_w = min(text_w, round(unit * 0.16))
+        underline_h = max(3, pad // 4)
+        box.paste(_gradient(underline_w, underline_h, (palette.accent, palette.accent_2)), (pad, box.height - underline_h - 2))
         for row, line in enumerate(lines):
-            _text(draw, (pad, pad // 2 + row * line_h), line, font, palette.text, palette, max(14, size))
+            _text(box, (pad, pad // 2 + row * line_h), line, font, colours, palette, max(14, size))
         # captions share the whole ad (a message on screen at all times); the last one stays to the end
         count = len(spec.captions[:4])
         each = max(CAPTION_SECONDS, (duration - CAPTION_FIRST_START) / count) if duration else CAPTION_SECONDS

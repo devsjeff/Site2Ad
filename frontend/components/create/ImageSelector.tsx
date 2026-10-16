@@ -16,7 +16,7 @@ export function ImageSelector({ images, selected, max, onChange, title, hint }: 
   const [broken, setBroken] = useState<ReadonlySet<string>>(new Set());
   const visible = images.filter((url) => !broken.has(url) && !/\.(svg|gif)(\?|$)/i.test(url));
   if (visible.length === 0) {
-    return <p className="rounded-xl border border-line bg-surface p-4 text-sm text-muted">The website scan found no usable images.</p>;
+    return <p className="rounded-2xl border border-line bg-surface/85 p-4 text-sm text-muted">The website scan found no usable images.</p>;
   }
 
   // Add or remove one image (the order of clicks is the play order).
@@ -43,11 +43,11 @@ export function ImageSelector({ images, selected, max, onChange, title, hint }: 
                 onClick={() => toggle(url)}
                 aria-pressed={active}
                 aria-label={active ? `Website image, number ${position + 1} (selected)` : "Website image (not selected)"}
-                className={`relative block aspect-square w-full overflow-hidden rounded-lg border-2 transition-all ${active ? "border-accent ring-2 ring-accent/30" : "border-line opacity-80 hover:border-accent/60 hover:opacity-100"}`}
+                className={`relative block aspect-square w-full overflow-hidden rounded-xl border-2 transition-all duration-200 ${active ? "scale-[0.97] border-accent ring-4 ring-accent/25" : "border-line opacity-80 hover:scale-[1.03] hover:border-accent/60 hover:opacity-100"}`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={url} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover" onError={() => setBroken((prev) => new Set(prev).add(url))} />
-                {active && <span className="absolute left-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[11px] font-semibold text-white">{position + 1}</span>}
+                {active && <span className="absolute left-1 top-1 flex h-5 w-5 items-center justify-center bg-brand animate-popIn rounded-full text-[11px] font-bold text-white">{position + 1}</span>}
               </button>
             </li>
           );

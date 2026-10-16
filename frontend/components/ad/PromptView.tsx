@@ -19,7 +19,7 @@ export function PromptView({ prompt }: { prompt: AdPrompt }) {
   }
 
   return (
-    <details className="rounded-xl border border-line bg-surface p-4 text-sm">
+    <details className="rounded-2xl border border-line bg-surface/85 p-4 text-sm">
       <summary className="cursor-pointer font-medium text-ink">
         The prompt behind this ad
         <span className="ml-2 text-xs font-normal text-muted">

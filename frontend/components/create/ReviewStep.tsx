@@ -41,10 +41,10 @@ function Row({ label, value, missing }: { label: string; value: string; missing?
 // A titled box with an Edit link.
 function Card({ title, onEdit, children }: { title: string; onEdit?: () => void; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-line bg-surface p-5">
+    <div className="rounded-2xl border border-line bg-surface/85 p-5">
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-ink">{title}</h3>
-        {onEdit && <button type="button" onClick={onEdit} className="text-xs font-medium text-accent hover:underline">Edit</button>}
+        <h3 className="text-sm font-bold text-ink">{title}</h3>
+        {onEdit && <button type="button" onClick={onEdit} className="rounded-full bg-accent-soft px-3 py-1 text-xs font-bold text-accent transition-colors hover:bg-accent hover:text-white">Edit</button>}
       </div>
       {children}
     </div>
