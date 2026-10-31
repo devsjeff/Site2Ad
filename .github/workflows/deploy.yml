@@ -1,0 +1,47 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::233082642758:role/visiondrive-github-deploy
+          aws-region: ap-south-1
+      - name: Build and roll Site2Ad
+        run: |
+          set -eu
+          REGION=ap-south-1
+          SHA="${GITHUB_SHA}"
+          ACCOUNT="$(aws sts get-caller-identity --query Account --output text)"
+          REG="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com"
+          aws ecr get-login-password --region "$REGION" | docker login --username AWS --password-stdin "$REG"
+          docker build --platform linux/amd64 -f backend/Dockerfile -t "$REG/visiondrive-site2ad:$SHA" backend
+          docker push "$REG/visiondrive-site2ad:$SHA"
+          STATUS="$(aws ecs describe-services --cluster visiondrive --services visiondrive-site2ad --region "$REGION" --query 'services[0].status' --output text)"
+          if [ "$STATUS" != "ACTIVE" ]; then
+            echo "visiondrive-site2ad is not active yet. Image pushed."
+            exit 0
+          fi
+          CURRENT="$(aws ecs describe-services --cluster visiondrive --services visiondrive-site2ad --region "$REGION" --query 'services[0].taskDefinition' --output text)"
+          aws ecs describe-task-definition --task-definition "$CURRENT" --region "$REGION" --query taskDefinition > /tmp/task.json
+          jq --arg image "$REG/visiondrive-site2ad:$SHA" \
+            'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)
+             | .containerDefinitions[0].image = $image' \
+            /tmp/task.json > /tmp/task-new.json
+          NEXT="$(aws ecs register-task-definition --cli-input-json file:///tmp/task-new.json --region "$REGION" --query 'taskDefinition.taskDefinitionArn' --output text)"
+          aws ecs update-service --cluster visiondrive --service visiondrive-site2ad --task-definition "$NEXT" --region "$REGION" >/dev/null
+          aws ecs wait services-stable --cluster visiondrive --services visiondrive-site2ad --region "$REGION"
