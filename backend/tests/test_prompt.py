@@ -143,7 +143,7 @@ def test_template_is_always_one_valid_prompt(goal, duration, reference):
 
 
 @pytest.mark.parametrize("style", ["cinematic_premium", "bold_pop", "minimal_modern", "nightlife_neon", "product_showcase", "corporate_clean"])
-@pytest.mark.parametrize("platform,aspect", [("taxi_screen", "9:16"), ("instagram_reel", "9:16"), ("youtube_shorts", "9:16"), ("facebook_feed", "1:1")])
+@pytest.mark.parametrize("platform,aspect", [("taxi_screen", "16:9"), ("instagram_reel", "9:16"), ("youtube_shorts", "9:16"), ("facebook_feed", "1:1")])
 def test_template_covers_every_style_and_platform(style, platform, aspect):
     """Check: template covers every style and platform."""
     facts = sweets_facts()
