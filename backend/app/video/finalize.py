@@ -62,6 +62,8 @@ class OverlaySpec:
     brand_colors: list[str] = field(default_factory=list)  # website colours; the first usable one becomes the accent
     palette: Optional[Palette] = None  # set by finalize_video from the footage; None = defaults
     font_path: str = ""  # optional TTF used for all text (OVERLAY_FONT_PATH)
+    qr_label: str = ""  # a QR ad: bigger code with this label under it
+    emphasis: str = ""  # panel line in the biggest type: offer | phone (else the name)
 
     @property
     def has_any(self) -> bool:
@@ -224,6 +226,19 @@ def _text(image: Image.Image, xy: tuple[float, float], text: str, font, fill, pa
         image.alpha_composite(layer)
 
 
+def _branded_line(image: Image.Image, xy: tuple[float, float], line: str, brand_words: set[str], font, colours, palette: Palette, size: int) -> None:
+    """One caption line. In a caption that names the brand, only the brand's words carry the colours (also when it wraps)."""
+    if not brand_words:
+        _text(image, xy, line, font, colours, palette, size)
+        return
+    x, y = xy
+    measure = ImageDraw.Draw(image)
+    for word in re.findall(r"\S+\s*", line):
+        branded = word.strip(" ,.!?;:").lower() in brand_words
+        _text(image, (x, y), word, font, (colours[1:] or colours) if branded else palette.text, palette, size)
+        x += measure.textlength(word, font=font)
+
+
 def _gradient_panel(width: int, height: int, palette: Palette, radius: int) -> Image.Image:
     """A rounded panel tinted with the accent hue that fades from left to right, so the video shows through."""
     mask = Image.new("L", (width, height), 0)
@@ -262,18 +277,20 @@ def render_layers(
     if spec.qr_url.strip():
         try:
             qr_image = _make_qr(spec.qr_url.strip())
-            qr_size = max(96, round(unit * 0.24))
+            qr_size = max(96, round(unit * (0.3 if spec.qr_label else 0.24)))
         except QrUnavailable as exc:
             warnings.append(str(exc))
 
     entries: list[tuple[str, bool, int, object]] = []  # (text, bold, size, colour or gradient colours)
     c0, c1, c2 = (list(palette.colors) + [palette.highlight] * 3)[:3]
+    big_offer = spec.emphasis == "offer" and bool(spec.offer.strip())
+    big_phone = spec.emphasis == "phone" and bool(spec.phone.strip())
     if spec.name.strip():
-        entries.append((spec.name.strip(), True, round(unit * 0.066), (palette.text, c0, c1)))
+        entries.append((spec.name.strip(), True, round(unit * (0.052 if big_offer or big_phone else 0.066)), (palette.text, c0, c1)))
     if spec.offer.strip():
-        entries.append((spec.offer.strip(), True, round(unit * 0.047), (c1, c2)))
+        entries.append((spec.offer.strip(), True, round(unit * (0.072 if big_offer else 0.047)), (c1, c2)))
     if spec.phone.strip():
-        entries.append((spec.phone.strip(), False, round(unit * 0.040), palette.soft_text))
+        entries.append((spec.phone.strip(), big_phone, round(unit * (0.07 if big_phone else 0.040)), (c0, c2) if big_phone else palette.soft_text))
     if spec.address.strip():
         entries.append((spec.address.strip(), False, round(unit * 0.034), palette.soft_text))
     cta = spec.cta.strip()
@@ -327,10 +344,16 @@ def render_layers(
 
     if qr_image is not None:
         backing = max(6, round(unit * 0.012))
-        tile = Image.new("RGBA", (qr_size + 2 * backing, qr_size + 2 * backing), (0, 0, 0, 0))
+        label_h = round(unit * 0.06) if spec.qr_label else 0
+        tile = Image.new("RGBA", (qr_size + 2 * backing, qr_size + 2 * backing + label_h), (0, 0, 0, 0))
         ImageDraw.Draw(tile).rounded_rectangle((0, 0, tile.width - 1, tile.height - 1), radius=8, fill=(255, 255, 255, 255))
         tile.alpha_composite(qr_image.resize((qr_size, qr_size), Image.Resampling.NEAREST), (backing, backing))
-        qx, qy = width - margin - qr_size - backing, height - margin - qr_size - backing
+        if label_h:
+            label_font = load_font(max(12, round(unit * 0.036)), True, spec.qr_label, spec.font_path)
+            label = ImageDraw.Draw(tile)
+            box = label.textbbox((0, 0), spec.qr_label, font=label_font)
+            label.text(((tile.width - box[2] + box[0]) / 2 - box[0], qr_size + backing + (label_h + backing - box[3] + box[1]) / 2 - box[1]), spec.qr_label, font=label_font, fill=(20, 20, 24, 255))
+        qx, qy = width - margin - qr_size - backing, height - margin - qr_size - backing - label_h
         layers.append(OverlayLayer("qr", _save_layer(tile, folder, "qr"), qx, qy, 0.7, 0.55, dy=round(unit * 0.06), motion="spring"))
 
     if spec.logo_path:
@@ -350,8 +373,27 @@ def render_layers(
     return layers, warnings
 
 
-CAPTION_SECONDS = 2.6
-CAPTION_FIRST_START = 0.5
+CAPTION_SECONDS = 2.1  # the least time a message stays on screen
+CAPTION_FIRST_START = 0.3
+
+
+def visible_captions(captions: list[str], duration: float) -> list[str]:
+    """The captions that fit the ad: each stays on screen for at least CAPTION_SECONDS (at most five)."""
+    room = max(1, int((duration - CAPTION_FIRST_START) / CAPTION_SECONDS)) if duration else 4
+    return captions[:min(5, room)]
+
+
+def caption_schedule(count: int, duration: float) -> list[tuple[float, float]]:
+    """(start, end) of each caption, sharing the whole ad evenly; the last one stays to the end.
+
+    The voiceover uses the same timeline, so every line is spoken exactly while it is on screen.
+    """
+    if count <= 0:
+        return []
+    if not duration:
+        return [(CAPTION_FIRST_START + i * CAPTION_SECONDS, CAPTION_FIRST_START + (i + 1) * CAPTION_SECONDS) for i in range(count)]
+    each = max(CAPTION_SECONDS, (duration - CAPTION_FIRST_START) / count)
+    return [(CAPTION_FIRST_START + i * each, duration if i == count - 1 else CAPTION_FIRST_START + (i + 1) * each) for i in range(count)]
 
 
 def _caption_layers(
@@ -361,7 +403,10 @@ def _caption_layers(
     layers: list[OverlayLayer] = []
     measure = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
     max_width = round(width * 0.82)
-    for index, caption in enumerate(spec.captions[:4]):
+    # only as many messages as can be read: each stays on screen for at least CAPTION_SECONDS
+    captions = visible_captions(spec.captions, duration)
+    schedule = caption_schedule(len(captions), duration)
+    for index, caption in enumerate(captions):
         size = round(unit * (0.075 if index == 0 else 0.062))
         font = load_font(max(14, size), True, caption, spec.font_path)
         lines = wrap_text(measure, caption, font, max_width - 2 * pad, 2)
@@ -371,6 +416,8 @@ def _caption_layers(
         draw = ImageDraw.Draw(box)
         palette = spec.palette or DEFAULT_PALETTE
         draw.rounded_rectangle((0, 0, box.width - 1, box.height - 1), radius=max(10, pad // 2), fill=(*palette.panel, palette.caption_alpha))
+        brand = spec.name.strip().lower()
+        words = set(brand.split()) if brand and brand in caption.lower() else set()
         # each caption starts its colour blend at a different hue, so the sequence feels multicoloured
         hues = list(palette.colors) or [palette.highlight]
         turn = index % len(hues)
@@ -379,15 +426,14 @@ def _caption_layers(
         underline_h = max(3, pad // 4)
         box.paste(_gradient(underline_w, underline_h, (palette.accent, palette.accent_2)), (pad, box.height - underline_h - 2))
         for row, line in enumerate(lines):
-            _text(box, (pad, pad // 2 + row * line_h), line, font, colours, palette, max(14, size))
+            _branded_line(box, (pad, pad // 2 + row * line_h), line, words, font, colours, palette, max(14, size))
         # captions share the whole ad (a message on screen at all times); the last one stays to the end
-        count = len(spec.captions[:4])
-        each = max(CAPTION_SECONDS, (duration - CAPTION_FIRST_START) / count) if duration else CAPTION_SECONDS
-        start = CAPTION_FIRST_START + index * each
+        count = len(captions)
+        start, finish = schedule[index]
         layers.append(OverlayLayer(
             "caption", _save_layer(box, folder, f"caption-{index}"), (width - box.width) // 2, margin + round(unit * 0.02),
             start, 0.5, dx=(0, round(unit * 0.12), -round(unit * 0.12))[index % 3], dy=round(unit * 0.05) if index % 3 == 0 else 0,
-            end=None if index == count - 1 else start + each - 0.3, motion="overshoot",
+            end=None if index == count - 1 else finish - 0.25, motion="overshoot",
         ))
     return layers
 
@@ -428,7 +474,8 @@ def animated_overlay_args(src: Path, layers: list[OverlayLayer], duration: float
     """FFmpeg arguments that fade and slide each layer into place over the video (logo, panel, QR, then the CTA)."""
     args = [ffmpeg_path(), "-y", "-loglevel", "error", "-i", str(src)]
     for layer in layers:
-        args += ["-loop", "1", "-framerate", "24", "-i", str(layer.path)]
+        # every looping picture is capped to the video's length: endless inputs make FFmpeg stall when there are several of them
+        args += ["-loop", "1", "-framerate", "24", "-t", f"{duration + 0.5:.3f}", "-i", str(layer.path)]
     graph: list[str] = []
     previous = "0:v"
     for index, layer in enumerate(layers, start=1):
@@ -438,12 +485,13 @@ def animated_overlay_args(src: Path, layers: list[OverlayLayer], duration: float
         y = f"{layer.y}+{layer.dy}*{_ease(layer)}" if layer.dy else str(layer.y)
         if layer.attention_at is not None:
             y = f"{y}-{_attention(layer, max(4, abs(layer.dy) // 2))}"
-        graph.append(f"[{previous}][l{index}]overlay=x='{x}':y='{y}':eval=frame:format=auto[b{index}]")
+        window = f"between(t,{layer.start:.3f},{layer.end + 0.35:.3f})" if layer.end is not None else f"gte(t,{layer.start:.3f})"
+        graph.append(f"[{previous}][l{index}]overlay=x='{x}':y='{y}':eval=frame:format=auto:enable='{window}'[b{index}]")  # off = no work outside its window
         previous = f"b{index}"
     graph.append(f"[{previous}]format=yuv420p[v]")
     return args + [
         "-filter_complex", ";".join(graph), "-map", "[v]", "-map", "0:a?", "-t", f"{duration:.3f}",
-        "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-c:a", "aac", "-movflags", "+faststart", str(out),
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "aac", "-movflags", "+faststart", str(out),
     ]
 
 
@@ -471,7 +519,7 @@ async def finalize_video(src: Path, dst: Path, spec: OverlaySpec, *, timeout: fl
                     [
                         ffmpeg_path(), "-y", "-loglevel", "error", "-i", str(src), "-i", str(overlay),
                         "-filter_complex", "[0:v][1:v]overlay=0:0:format=auto,format=yuv420p[v]",
-                        "-map", "[v]", "-map", "0:a?", "-c:v", "libx264", "-preset", "medium", "-crf", "20",
+                        "-map", "[v]", "-map", "0:a?", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
                         "-c:a", "aac", "-movflags", "+faststart", str(temp),
                     ],
                     timeout=timeout,

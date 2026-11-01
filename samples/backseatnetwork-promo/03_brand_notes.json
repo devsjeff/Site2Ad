@@ -1,0 +1,102 @@
+{
+  "colors": {
+    "mode": "light",
+    "primary": "#ff6600",
+    "accent": "#25d366",
+    "background_light": "#faf8f5",
+    "background_dark": "#18181b",
+    "ink": "#171717",
+    "on_primary": "#ffffff",
+    "candidates": [
+      {
+        "hex": "#ff6600",
+        "sources": [
+          "button \"Launch\"",
+          "button \"Build your cab ad\"",
+          "large background area"
+        ]
+      },
+      {
+        "hex": "#ffffff",
+        "sources": [
+          "large background area",
+          "screenshots",
+          "link colour"
+        ]
+      },
+      {
+        "hex": "#f4efe8",
+        "sources": [
+          "large background area",
+          "screenshots"
+        ]
+      },
+      {
+        "hex": "#18181b",
+        "sources": [
+          "large background area",
+          "screenshots"
+        ]
+      },
+      {
+        "hex": "#f7f4ef",
+        "sources": [
+          "large background area",
+          "screenshots"
+        ]
+      },
+      {
+        "hex": "#efe8dc",
+        "sources": [
+          "large background area"
+        ]
+      },
+      {
+        "hex": "#242326",
+        "sources": [
+          "screenshots"
+        ]
+      },
+      {
+        "hex": "#e8e4dc",
+        "sources": [
+          "large background area"
+        ]
+      },
+      {
+        "hex": "#e5e3df",
+        "sources": [
+          "large background area"
+        ]
+      },
+      {
+        "hex": "#897567",
+        "sources": [
+          "screenshots"
+        ]
+      }
+    ]
+  },
+  "fonts": {
+    "heading": "Outfit",
+    "body": "Inter",
+    "heading_weight": "500",
+    "h1_size_px": "60px",
+    "body_size_px": "16px"
+  },
+  "shapes": {
+    "button_radius_px": 999,
+    "card_radius_px": 24,
+    "shadows": false,
+    "summary": "pill-shaped buttons, rounded cards (24px), flat, shadowless surfaces"
+  },
+  "photo_stats": "average brightness 0.67 (bright), neutral colour cast, muted",
+  "image_count": 40,
+  "tone": "Direct and trustworthy, addressing busy professionals with short, factual sentences that emphasize results and ROI.",
+  "tone_words": [
+    "professional",
+    "data-driven",
+    "reliable"
+  ],
+  "photo_style": "Realistic urban India scenes captured at eye level in moving cabs, featuring muted colours and neutral brightness showing passengers interacting with QR codes and tablet ads in Mumbai, Delhi and Bengaluru."
+}

@@ -195,6 +195,9 @@ class AdOptions(ApiModel):
     """Creative options for ONE ad. For another ad, call the pipeline again with different options."""
 
     goal: str = "awareness"
+    ad_type: str = "auto"
+    voice: str = "none"  # voice package that reads the on-screen text; "auto" picks one for the business (see GET /api/config)
+    music: str = "none"  # soft background music; "auto" picks one for the business
     platform: str = "taxi_screen"
     duration_seconds: int = Field(default=5, ge=3, le=30)
     style: str = "cinematic_premium"
@@ -208,6 +211,30 @@ class AdOptions(ApiModel):
         """Accept only known goals."""
         if value not in catalog.GOALS:
             raise ValueError(f"goal must be one of {sorted(catalog.GOALS)}")
+        return value
+
+    @field_validator("ad_type")
+    @classmethod
+    def _ad_type(cls, value: str) -> str:
+        """Accept only known ad types."""
+        if value not in catalog.AD_TYPES:
+            raise ValueError(f"ad_type must be one of {sorted(catalog.AD_TYPES)}")
+        return value
+
+    @field_validator("voice")
+    @classmethod
+    def _voice(cls, value: str) -> str:
+        """Accept only known voices."""
+        if value not in catalog.VOICES:
+            raise ValueError(f"voice must be one of {sorted(catalog.VOICES)}")
+        return value
+
+    @field_validator("music")
+    @classmethod
+    def _music(cls, value: str) -> str:
+        """Accept only known music beds."""
+        if value not in catalog.MUSIC:
+            raise ValueError(f"music must be one of {sorted(catalog.MUSIC)}")
         return value
 
     @field_validator("platform")
@@ -555,6 +582,8 @@ class AdResponse(ApiModel):
     composition: list[CompositionSegment] = Field(default_factory=list)
     brief: Optional[AdBrief] = None  # the plan the AI video was made from (AI modes only)
     provider_error: Optional[str] = None  # why the video provider failed (kept even when a fallback clip was used)
+    site_summary: str = ""  # what the AI understood the business does
+    overlay_text: list[str] = Field(default_factory=list)  # the messages shown on the video, in order
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
 
@@ -584,6 +613,9 @@ class ConfigResponse(ApiModel):
     durations: list[int]
     platforms: list[dict]
     goals: list[dict]
+    ad_types: list[dict]
+    voices: list[dict]
+    music: list[dict]
     styles: list[dict]
     tones: list[dict]
     categories: list[dict]

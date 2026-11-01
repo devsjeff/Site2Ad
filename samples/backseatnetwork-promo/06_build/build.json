@@ -1,0 +1,84 @@
+{
+  "size": [
+    1280,
+    720
+  ],
+  "fps": 24,
+  "seconds": 20.0,
+  "has_audio": true,
+  "shots": [
+    {
+      "n": 1,
+      "frames": 106,
+      "overflow": []
+    },
+    {
+      "n": 2,
+      "frames": 118,
+      "overflow": []
+    },
+    {
+      "n": 3,
+      "frames": 106,
+      "overflow": []
+    },
+    {
+      "n": 4,
+      "frames": 106,
+      "overflow": []
+    },
+    {
+      "n": 5,
+      "frames": 84,
+      "overflow": []
+    }
+  ],
+  "sound": {
+    "voice": "neerja",
+    "music": "upbeat",
+    "warnings": [],
+    "script": "Silent screens in airport and city cabs. Passengers watch for 20 to 45 minutes. Every play counted on a live GPS map. Media is 4,000 rupees per cab per month. Launch a campaign.",
+    "cues": [
+      {
+        "start": 0.18,
+        "end": 3.92,
+        "tempo": 1.0,
+        "trimmed": false,
+        "text": "Silent screens in airport and city cabs",
+        "made": true
+      },
+      {
+        "start": 4.18,
+        "end": 8.42,
+        "tempo": 1.0,
+        "trimmed": false,
+        "text": "Passengers watch for 20 to 45 minutes",
+        "made": true
+      },
+      {
+        "start": 8.68,
+        "end": 12.42,
+        "tempo": 1.0,
+        "trimmed": false,
+        "text": "Every play counted on a live GPS map",
+        "made": true
+      },
+      {
+        "start": 12.68,
+        "end": 16.42,
+        "tempo": 1.02,
+        "trimmed": false,
+        "text": "Media is 4,000 rupees per cab per month",
+        "made": true
+      },
+      {
+        "start": 16.68,
+        "end": 19.92,
+        "tempo": 1.0,
+        "trimmed": false,
+        "text": "Launch a campaign",
+        "made": true
+      }
+    ]
+  }
+}

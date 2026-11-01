@@ -15,6 +15,7 @@ from .base import VideoError, VideoRequest, VideoResult, scrub
 logger = logging.getLogger(__name__)
 
 
+LOWEST_RESOLUTION = "480p"  # the only resolution a free Magic Hour plan allows
 RETRYABLE_STATUSES = {429, 502, 503, 504}  # rejected before any work started, so a retry cannot double-charge
 
 
@@ -32,6 +33,14 @@ def classify_error(exc: Exception, secret: str) -> VideoError:
             f"Magic Hour rejected the API key (HTTP {status}). Create a new key at magichour.ai/developer, set "
             "VIDEO_MODEL_API_KEY in backend/.env and restart the backend.", kind="auth", status=status,
         )
+    if status == 402 and ("plan_upgrade_required" in str(exc) or "subscription tier" in str(exc)):
+        # not an empty account: the plan does not include what was asked for (a free plan allows only 480p and some models)
+        if "esolution" in reason:
+            return VideoError(
+                f"Your Magic Hour plan does not allow this video resolution ({reason}). Set VIDEO_RESOLUTION=480p, or upgrade the plan.",
+                kind="plan_resolution", status=status,
+            )
+        return VideoError(f"Your Magic Hour plan does not include this ({reason}). Upgrade the plan or set MAGIC_HOUR_MODEL to another model.", kind="plan", status=status)
     if status == 402:
         return VideoError("Magic Hour says the account has no credits left (HTTP 402). Add credits, then try again.", kind="credits", status=status)
     if status == 429:
@@ -97,7 +106,19 @@ class MagicHourProvider:
             shutil.rmtree(work_dir, ignore_errors=True)
 
     def _run(self, request: VideoRequest, work_dir: Path) -> VideoResult:
-        """Blocking SDK call (runs in a thread); the SDK waits for completion and downloads the file."""
+        """Blocking SDK call (runs in a thread). A plan that does not allow the resolution is retried once at the free plan's 480p."""
+        try:
+            return self._run_once(request, work_dir, request.resolution)
+        except VideoError as exc:
+            if exc.kind != "plan_resolution" or request.resolution == LOWEST_RESOLUTION:
+                raise
+            logger.warning("Magic Hour plan does not allow %s; retrying at %s", request.resolution, LOWEST_RESOLUTION)
+            result = self._run_once(request, work_dir, LOWEST_RESOLUTION)
+            result.notes = (*result.notes, f"Your Magic Hour plan does not include {request.resolution}, so the AI video was made at {LOWEST_RESOLUTION}.")
+            return result
+
+    def _run_once(self, request: VideoRequest, work_dir: Path, resolution: str) -> VideoResult:
+        """One SDK call at this resolution; the SDK waits for completion and downloads the file."""
         secret = self.settings.video_model_api_key
         client = self._factory(secret)
         seconds = max(1, min(int(request.duration_seconds), self.settings.video_max_seconds))
@@ -105,7 +126,7 @@ class MagicHourProvider:
             name=f"Ad {request.business_name or request.ad_id}"[:100],
             model=self.settings.magic_hour_model,
             end_seconds=seconds,
-            resolution=request.resolution,
+            resolution=resolution,
             wait_for_completion=True,
             download_outputs=True,
             download_directory=str(work_dir),

@@ -1,0 +1,156 @@
+{
+  "what_it_is": "India's self-serve in-cab advertising network that runs silent digital screens on headrest tablets in airport and city cabs across Mumbai, Delhi NCR, Bengaluru and other Indian cities.",
+  "who_for": "Brands and agencies seeking to reach captive passengers in Indian cities, and fleet owners or drivers who can earn from referring campaigns.",
+  "claims": [
+    {
+      "text": "Backseat Network is India's self-serve in-cab advertising network with silent passenger screens in airport cabs and city fleets across Mumbai, Delhi NCR, Bengaluru and beyond.",
+      "kind": "feature",
+      "source": "page.md line 34",
+      "evidence": "Backseat Network is India's self-serve in-cab advertising network. Silent passenger screens run in airport cabs and city fleets in Mumbai, Delhi NCR, Bengaluru and beyond",
+      "id": "C1"
+    },
+    {
+      "text": "Advertising starts at ₹4,000 per cab per month plus GST, payable by UPI or card through the platform.",
+      "kind": "price",
+      "source": "page.md line 34",
+      "evidence": "Backseat Network is India's self-serve in-cab advertising network. Silent passenger screens run in airport cabs and city fleets in Mumbai, Delhi NCR, Bengaluru and beyond, from ₹4,000 per cab per month plus GST, paid by UPI or car",
+      "id": "C2"
+    },
+    {
+      "text": "Campaigns can be booked from a single cab for one month with a minimum spend of ₹4,000 plus GST.",
+      "kind": "availability",
+      "source": "page.md line 542",
+      "evidence": "You can book from a single cab for one month (₹4,000 plus GST). Add cabs and months for more reach; the pricing calculator shows the total as you go.",
+      "id": "C3"
+    },
+    {
+      "text": "GST at 18% is added on the invoice and emailed automatically after payment.",
+      "kind": "price",
+      "source": "page.md line 320",
+      "evidence": "One price in every city. GST at 18% is added on the invoice, which is emailed as soon as you pay.",
+      "id": "C4"
+    },
+    {
+      "text": "Estimated total cost including GST for a Mumbai campaign is ₹1,41,600 covering 10 vehicles for 3 months.",
+      "kind": "price",
+      "source": "screenshot 07",
+      "evidence": "10 vehicles × ₹4,000 × 3 months ₹1,20,000 GST 18 % ₹21,600 Total ₹1,41,600",
+      "id": "C5"
+    },
+    {
+      "text": "Each passenger watches the ad for 20 to 45 minutes with no skip button and the creative carries a QR code they can scan before the ride ends.",
+      "kind": "benefit",
+      "source": "screenshot 05",
+      "evidence": "Taxi advertising your customer watches for 20 to 45 minutes Your ad plays on a headrest tablet at eye level. There is no skip button, and every creative carries a QR code the passenger can scan before the ride ends.",
+      "id": "C6"
+    },
+    {
+      "text": "Ad plays are counted and tracked live by GPS map showing where cabs carrying the ad are running.",
+      "kind": "proof",
+      "source": "page.md lines 490-494",
+      "evidence": "Every play is counted, a live GPS map shows the cabs carrying your ad, and QR scans land in your own analytics.",
+      "id": "C7"
+    },
+    {
+      "text": "QR codes on every ad allow passengers to scan and the scans land in the advertiser's own analytics through a tagged link.",
+      "kind": "feature",
+      "source": "page.md line 502",
+      "evidence": "Put a UTM-tagged link in your QR code and every scan shows up in Google Analytics or your own tools.",
+      "id": "C8"
+    },
+    {
+      "text": "Campaign launch happens in 4 steps: Brief Vira, Review the creative, Pick cabs and months, Pay and go live.",
+      "kind": "how_it_works",
+      "source": "page.md lines 294-312",
+      "evidence": "Most online advertising platforms stop at the phone screen. This one books real cabs, with the same card-and-UPI checkout. Brief Vira Review the creative Pick cabs and months Pay and go live",
+      "id": "C9"
+    },
+    {
+      "text": "Advertisers can pick cities including Mumbai, Delhi NCR, Bengaluru, Hyderabad, Chennai and Pune where cabs are live or onboarding.",
+      "kind": "audience",
+      "source": "page.md lines 528-530",
+      "evidence": "Which Indian cities can I buy? Mumbai, Delhi NCR and Bengaluru are live. Hyderabad, Chennai and Pune are onboarding, with more cities to follow.",
+      "id": "C10"
+    },
+    {
+      "text": "Real testimonials show passengers watching one silent loop, opening the site from the QR and later typing the brand into search, demonstrating real brand search lift.",
+      "kind": "quote",
+      "source": "screenshot 03",
+      "evidence": "A passenger watches one silent loop, opens the site from the QR, and later types the brand into search. These are real testimonials from brands using our platform. Priya Sharma VerifyStack Rahul Mehta DeepChq Chief Marketing Officer Enterpr",
+      "id": "C11"
+    },
+    {
+      "text": "Referrers earn 10% of the total sales on any deal where a brand they introduce books a campaign.",
+      "kind": "offer",
+      "source": "page.md lines 152-170",
+      "evidence": "Your phone Your email 10% of the total sales on the deal you bring in Who you are of the total sales on the deal you bring in",
+      "id": "C12"
+    },
+    {
+      "text": "Drivers apply with their RC, driving licence and vehicle photos; our team verifies papers and a GPS installer mounts the company tablet before campaigns play silently.",
+      "kind": "feature",
+      "source": "page.md line 554",
+      "evidence": "Drivers apply with their RC, driving licence and vehicle photos. Our team verifies the papers, a GPS installer mounts the company tablet, and campaigns then play silently for passengers.",
+      "id": "C13"
+    },
+    {
+      "text": "The platform measures every play, GPS-tracked playouts and QR scans in one console with automatic GST invoices emailed after payment.",
+      "kind": "feature",
+      "source": "page.md lines 488-508",
+      "evidence": "Every play is reported by the tablet with the cab's GPS position, so you can see where your ad is running. Put a UTM-tagged link in your QR code and every scan shows up in Google Analytics or your own tools. Plan, review creative and track ",
+      "id": "C14"
+    },
+    {
+      "text": "Ad formats include silent 15s loops on cab screens with QR codes, designed to be silent by design so drivers stay focused and passengers keep watching.",
+      "kind": "feature",
+      "source": "screenshot 05",
+      "evidence": "Chai brand Silent 15s loop Scan-to-act QR Silent by design A QR on every ad No audio, so drivers stay focused and passengers keep watching A ride becomes an install, an order or a booking",
+      "id": "C15"
+    },
+    {
+      "text": "Cab screen advertising reaches one passenger at arm's length for the length of a ride, far longer than a glance at a hoarding or digital billboard as traffic passes.",
+      "kind": "benefit",
+      "source": "page.md lines 250-266",
+      "evidence": "Cab screen Hoarding advertising Digital billboards Time with the ad 20 to 45 minutes per ride A glance as traffic passes A glance, on a loop shared with other advertisers",
+      "id": "C16"
+    },
+    {
+      "text": "Screen sits at arm's length at eye level behind the driver's headrest, 60 cm away from the passenger.",
+      "kind": "feature",
+      "source": "screenshot 05",
+      "evidence": "- The screen sits at arm's length, at eye level, behind the driver's headrest. - 60 cm away",
+      "id": "C17"
+    },
+    {
+      "text": "Airport cabs have 45-minute average rides and business travellers in the back seat, while city cabs cover dense lanes and high-street junctions across Bengaluru, Mumbai, Delhi NCR and Hyderabad.",
+      "kind": "audience",
+      "source": "page.md lines 426-430",
+      "evidence": "Airport MUVs with 45-minute average rides and business travellers in the back seat. Ride-hail hatchbacks and sedans across Bengaluru, Mumbai, Delhi NCR and Hyderabad, each with a headrest tablet.",
+      "id": "C18"
+    },
+    {
+      "text": "Two-wheelers, tempos and vans and trucks are also available as five vehicle classes for advertising beyond city cabs and airport cabs.",
+      "kind": "availability",
+      "source": "page.md lines 418-448",
+      "evidence": "City cabs: Swift and Dzire 11,000+ Airport cabs: Innova and Ertiga 4,000+ Two-wheelers 3,500+ Tempos and vans: Ace and Eeco 1,750+ Trucks 420+ Food and quick-commerce riders covering dense lanes and high-street junctions.",
+      "id": "C19"
+    }
+  ],
+  "rejected": [
+    {
+      "text": "The platform reaches 3,60,000 vehicles with cost per 1,000 views at ₹333 and screen hours between 5,400–7,200 per campaign.",
+      "source": "page.md line 378-380",
+      "reason": "the quoted evidence is not in the cited source"
+    },
+    {
+      "text": "Creative can be built automatically by Vira from the brand's website or uploaded as a silent landscape MP4 of about 15 seconds or JPG/PNG/WebP still up to 40 MB.",
+      "source": "page.md line 306-308",
+      "reason": "figure not in the evidence: 15, 40"
+    },
+    {
+      "text": "Trusted by leading brands across India including IndigoGo, PhonePe, Swiggy, Titan, Ather, Zomato, HDFC, Meesho, Nykaa, Flipkart and VerifyStack.",
+      "source": "page.md line 66-98",
+      "reason": "the quoted evidence is not in the cited source"
+    }
+  ]
+}

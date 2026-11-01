@@ -13,13 +13,21 @@ logger = logging.getLogger(__name__)
 
 # Old env names from the first prototype keep working so existing .env files do not break.
 LEGACY_ENV_ALIASES = {
-    "AI_PROMPT_API_KEY": ("OPENROUTER_API_KEY", "OPENAI_API_KEY"),
+    "AI_PROMPT_API_KEY": ("GEMINI_API_KEY", "OPENROUTER_API_KEY", "OPENAI_API_KEY"),
     "AI_PROMPT_BASE_URL": ("OPENAI_BASE_URL",),
-    "AI_PROMPT_MODEL": ("OPENROUTER_MODEL",),
+    "AI_PROMPT_MODEL": ("GEMINI_MODEL", "OPENROUTER_MODEL"),
     "VIDEO_MODEL_API_KEY": ("MAGIC_HOUR_API_KEY",),
 }
 
 PLACEHOLDER_MARKERS = ("your-key-here", "your_key_here", "changeme", "xxxx")
+
+
+def _one(env: Mapping[str, str], name: str) -> str:
+    """Read one variable only, with the same comment and placeholder cleaning as _get, and no legacy aliases."""
+    value = env.get(name)
+    if value is None:
+        return ""
+    return _get({name: value}, name)
 
 
 def _get(env: Mapping[str, str], name: str, default: str = "") -> str:
@@ -105,14 +113,18 @@ class Settings:
     browser_recycle_jobs: int = 100
     render_timeout_seconds: float = 12.0
 
-    # --- AI prompt builder (OpenAI compatible, e.g. OpenRouter)
+    # --- AI prompt builder (Gemini generateContent, or any OpenAI-compatible gateway)
     ai_prompt_api_key: str = ""
-    ai_prompt_base_url: str = "https://openrouter.ai/api/v1"
-    ai_prompt_model: str = "openrouter/free"
+    ai_prompt_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
+    ai_prompt_model: str = "gemini-flash-latest"
     ai_prompt_timeout_seconds: float = 40.0
+    ai_copy_model: str = ""  # model for the short on-screen copy; empty = a fast one (Gemini flash-lite) or the prompt model
+    ai_copy_timeout_seconds: float = 20.0  # the copy is a bonus: never make the ad wait long for it
+    gemini_api_key: str = ""
+    gemini_video_model: str = "gemini-omni-1.1-flash"
 
     # --- video generation
-    video_provider: str = "auto"  # auto | magic_hour | mock
+    video_provider: str = "auto"  # auto | gemini | magic_hour | mock
     video_model_api_key: str = ""
     magic_hour_model: str = "ltx-2.5"
     video_resolution: str = "480p"
@@ -159,6 +171,37 @@ class Settings:
             d.max_scrape_seconds = 120.0
             d.max_crawl_pages = 3
             d.max_concurrent_ads = 1
+        gemini_api_key = _one(env, "GEMINI_API_KEY")
+        explicit_base = _one(env, "AI_PROMPT_BASE_URL") or _one(env, "OPENAI_BASE_URL")
+        explicit_model = _one(env, "AI_PROMPT_MODEL")
+        gemini_model = _one(env, "GEMINI_MODEL")
+        openrouter_key = _one(env, "OPENROUTER_API_KEY")
+        openai_key = _one(env, "OPENAI_API_KEY")
+        explicit_prompt = _one(env, "AI_PROMPT_API_KEY")
+        prompt_key = gemini_api_key or explicit_prompt or openrouter_key or openai_key
+        # A Gemini key replaces an old OpenRouter URL. An OpenRouter key with no URL keeps the OpenRouter host.
+        if explicit_base and not (gemini_api_key and "openrouter.ai" in explicit_base):
+            prompt_base = explicit_base.rstrip("/")
+        elif gemini_api_key or not (openrouter_key or explicit_prompt or openai_key):
+            prompt_base = d.ai_prompt_base_url
+        elif openai_key and not openrouter_key and not explicit_prompt:
+            prompt_base = "https://api.openai.com/v1"
+        else:
+            prompt_base = "https://openrouter.ai/api/v1"
+        if gemini_api_key and gemini_model:
+            prompt_model = gemini_model
+        elif gemini_api_key and explicit_model in {"", "openrouter/free"}:
+            prompt_model = d.ai_prompt_model
+        elif explicit_model:
+            prompt_model = explicit_model
+        elif gemini_model:
+            prompt_model = gemini_model
+        elif _one(env, "OPENROUTER_MODEL"):
+            prompt_model = _one(env, "OPENROUTER_MODEL")
+        elif openrouter_key or explicit_prompt:
+            prompt_model = "openrouter/free"
+        else:
+            prompt_model = d.ai_prompt_model
         return cls(
             env=g("APP_ENV", d.env),
             log_level=g("LOG_LEVEL", d.log_level).upper(),
@@ -188,10 +231,14 @@ class Settings:
             max_concurrent_renders=_int(g("MAX_CONCURRENT_RENDERS"), d.max_concurrent_renders),
             browser_recycle_jobs=_int(g("BROWSER_RECYCLE_JOBS"), d.browser_recycle_jobs),
             render_timeout_seconds=_float(g("RENDER_TIMEOUT_SECONDS"), d.render_timeout_seconds),
-            ai_prompt_api_key=g("AI_PROMPT_API_KEY"),
-            ai_prompt_base_url=g("AI_PROMPT_BASE_URL", d.ai_prompt_base_url).rstrip("/"),
-            ai_prompt_model=g("AI_PROMPT_MODEL", d.ai_prompt_model),
+            ai_prompt_api_key=prompt_key,
+            ai_prompt_base_url=prompt_base,
+            ai_prompt_model=prompt_model,
             ai_prompt_timeout_seconds=_float(g("AI_PROMPT_TIMEOUT_SECONDS"), d.ai_prompt_timeout_seconds),
+            ai_copy_model=g("AI_COPY_MODEL") or d.ai_copy_model,
+            ai_copy_timeout_seconds=_float(g("AI_COPY_TIMEOUT_SECONDS"), d.ai_copy_timeout_seconds),
+            gemini_api_key=gemini_api_key,
+            gemini_video_model=g("GEMINI_VIDEO_MODEL", d.gemini_video_model),
             video_provider=g("VIDEO_PROVIDER", d.video_provider).lower(),
             video_model_api_key=g("VIDEO_MODEL_API_KEY"),
             magic_hour_model=g("MAGIC_HOUR_MODEL", d.magic_hour_model),
@@ -219,9 +266,16 @@ class Settings:
 
     # ---- derived helpers
     @property
+    def gemini_key(self) -> str:
+        """Key for Gemini video. An OpenRouter prompt key is never sent to Gemini."""
+        return self.gemini_api_key
+
+    @property
     def effective_video_provider(self) -> str:
-        """Resolve 'auto' to magic_hour when a key exists, otherwise the offline mock provider."""
+        """Resolve 'auto' to Gemini when that key exists, else Magic Hour, else the offline mock provider."""
         if self.video_provider == "auto":
+            if self.gemini_key:
+                return "gemini"
             return "magic_hour" if self.video_model_api_key else "mock"
         return self.video_provider
 
@@ -245,8 +299,10 @@ class Settings:
             problems.append(f"PLAYWRIGHT_BROWSER must be firefox, chromium or webkit (got {self.playwright_browser!r})")
         if self.phase2_mode not in {"always", "auto", "never"}:
             problems.append(f"PHASE2_MODE must be always, auto or never (got {self.phase2_mode!r})")
-        if self.video_provider not in {"auto", "magic_hour", "mock"}:
-            problems.append(f"VIDEO_PROVIDER must be auto, magic_hour or mock (got {self.video_provider!r})")
+        if self.video_provider not in {"auto", "gemini", "magic_hour", "mock"}:
+            problems.append(f"VIDEO_PROVIDER must be auto, gemini, magic_hour or mock (got {self.video_provider!r})")
+        if self.effective_video_provider == "gemini" and not self.gemini_key:
+            problems.append("VIDEO_PROVIDER=gemini needs GEMINI_API_KEY")
         if self.effective_video_provider == "magic_hour" and not self.video_model_api_key:
             problems.append("VIDEO_PROVIDER=magic_hour needs VIDEO_MODEL_API_KEY")
         if "*" in self.cors_origins and len(self.cors_origins) > 1:

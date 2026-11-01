@@ -45,6 +45,24 @@ def test_placeholders_are_ignored_and_legacy_names_still_work():
     assert settings.video_model_api_key == "mh-key-2" and settings.effective_video_provider == "magic_hour"
 
 
+def test_gemini_key_drives_prompts_and_video_and_replaces_openrouter():
+    """GEMINI_API_KEY writes prompts with gemini-flash-latest and generates video, even if an old OpenRouter .env is still present."""
+    env = {
+        "GEMINI_API_KEY": "gemini-key",
+        "GEMINI_MODEL": "gemini-flash-latest",
+        "AI_PROMPT_API_KEY": "old-openrouter-key",
+        "AI_PROMPT_BASE_URL": "https://openrouter.ai/api/v1",
+        "AI_PROMPT_MODEL": "openrouter/free",
+        "MAGIC_HOUR_API_KEY": "mh-key-2",
+    }
+    settings = Settings.from_env(env, load_dotenv_file=False)
+    assert settings.gemini_key == "gemini-key" and settings.ai_prompt_api_key == "gemini-key"
+    assert settings.ai_prompt_model == "gemini-flash-latest"
+    assert settings.ai_prompt_base_url == "https://generativelanguage.googleapis.com/v1beta"
+    assert settings.effective_video_provider == "gemini" and settings.gemini_video_model == "gemini-omni-1.1-flash"
+    assert settings.validate() == []
+
+
 def test_validation_reports_bad_values_in_plain_words():
     """Typos in enum-like settings are reported at startup instead of failing later."""
     settings = Settings.from_env({"PLAYWRIGHT_BROWSER": "netscape", "PHASE2_MODE": "sometimes", "VIDEO_PROVIDER": "dalle", "DATABASE_URL": "postgresql://x/y"}, load_dotenv_file=False)

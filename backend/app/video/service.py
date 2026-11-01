@@ -8,6 +8,7 @@ from typing import Optional
 
 from ..config import Settings
 from .base import VideoError, VideoProvider, VideoRequest, VideoResult
+from .gemini import GeminiVideoProvider
 from .magic_hour import MagicHourProvider
 from .mock import MockVideoProvider
 
@@ -25,11 +26,13 @@ class GenerationOutcome:
 
 
 # Failures a demo clip cannot fix: the user must act (new key, credits, a valid request), so they fail the ad clearly.
-NO_FALLBACK_KINDS = {"auth", "credits", "request"}
+NO_FALLBACK_KINDS = {"auth", "credits", "request", "plan", "plan_resolution"}
 
 
 def make_provider(settings: Settings) -> VideoProvider:
-    """Build the provider chosen by VIDEO_PROVIDER (auto = Magic Hour if a key exists, else the offline demo)."""
+    """Build the provider chosen by VIDEO_PROVIDER (auto = Gemini, else Magic Hour, else the offline demo)."""
+    if settings.effective_video_provider == "gemini":
+        return GeminiVideoProvider(settings)
     if settings.effective_video_provider == "magic_hour":
         return MagicHourProvider(settings)
     return MockVideoProvider(settings)
@@ -54,7 +57,8 @@ class VideoService:
     async def generate(self, request: VideoRequest) -> GenerationOutcome:
         """Run the primary provider; on failure use the fallback (flagged) or raise VideoError."""
         try:
-            return GenerationOutcome(await self.primary.generate(request))
+            result = await self.primary.generate(request)
+            return GenerationOutcome(result, warnings=list(result.notes))
         except VideoError as exc:
             reason = str(exc)
             logger.warning("video provider %s failed (%s): %s", self.primary.name, getattr(exc, "kind", "error"), reason)

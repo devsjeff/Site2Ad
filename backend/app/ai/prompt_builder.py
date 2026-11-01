@@ -14,7 +14,10 @@ from .guard import PROMPT_MAX_CHARS, find_unsupported_facts, validate_llm_prompt
 from .llm import SYSTEM_PROMPT, LlmClient, LlmError, build_user_message
 from .director import DIRECTOR_SYSTEM_PROMPT, build_director_request, film_problems, finish_clip_prompt, parse_film
 from .brief import BRIEF_SYSTEM_PROMPT, build_brief_request, build_template_brief, merge_llm_brief, parse_llm_brief
-from .scene import SCENE_AVOID, build_scene_prompt
+from .captions import TextPlan, place_of, plan_captions
+from .copywriter import COPY_SYSTEM_PROMPT, OverlayCopy, build_copy_request, parse_copy
+from .playbook import Playbook
+from .scene import SCENE_AVOID, about_line, build_scene_prompt, visual_items
 from .template import build_template_prompt, shot_count_for
 
 logger = logging.getLogger(__name__)
@@ -186,6 +189,39 @@ class PromptBuilder:
             return base, ["The AI writer's brief was malformed. Used the built-in ad brief instead."]
         return merge_llm_brief(base, draft, facts)
 
+    async def write_overlay(
+        self, facts: FactSheet, options: AdOptions, brand: str, plan: TextPlan, book: Playbook,
+    ) -> tuple[Optional[OverlayCopy], list[str]]:
+        """On-screen text written by the AI from what the website says; (None, notes) when it is not available or fails the checks."""
+        if not self.llm.enabled:
+            return None, []
+        examples = plan_captions(
+            options.ad_type, book, plan=plan, name=brand, about=about_line(facts), services=visual_items(facts, 6), offer="", phone=facts.phone,
+            website=facts.website, place=place_of(facts.address), instructions="",
+        )
+        request = build_copy_request(facts, options, brand, plan, book, examples[:3])
+        failure = ""
+        for _ in range(2):  # free models sometimes answer with nothing
+            try:
+                copy = parse_copy(
+                    await self.llm.complete(
+                        COPY_SYSTEM_PROMPT, request, max_tokens=1200, model=self.llm.copy_model, timeout=self.settings.ai_copy_timeout_seconds,
+                    ), facts, brand, plan,
+                )
+            except LlmError as exc:
+                failure = str(exc)
+                if "too long" in failure or "rejected" in failure or "credit" in failure or "rate limited" in failure:
+                    break  # a second try will not help (and would only make the ad slower)
+                continue
+            except Exception as exc:  # defensive: the ad must not fail because of the writer
+                logger.warning("AI copywriter crashed: %r", exc)
+                failure = "The AI writer failed."
+                break
+            if copy:
+                return copy, []
+            failure = "The AI writer's text did not pass the checks."
+        return None, [f"{failure} Used the standard on-screen text instead."]
+
     async def build_film(
         self, facts: FactSheet, options: AdOptions, brief: Optional[AdBrief], *, clips: int, clip_seconds: int,
         reference: Optional[ReferenceImage] = None,
@@ -238,7 +274,7 @@ class PromptBuilder:
         limit = self.video_prompt_limit or PROMPT_MAX_CHARS
         text = build_scene_prompt(
             facts, style=options.style, aspect_ratio=options.aspect_ratio, has_reference=reference is not None,
-            looping=loop_seconds > duration, notes=facts.user_notes, visual=brief.concept.visual,
+            looping=loop_seconds > duration, notes=facts.user_notes, visual=brief.concept.visual, ad_style=catalog.ad_type_line(options.ad_type), placement=catalog.PLATFORMS[options.platform]["shoot"],
             mood=catalog.TONES.get(options.tone, {}).get("mood", ""),
         )
         if len(text) > limit:

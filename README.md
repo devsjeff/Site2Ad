@@ -8,18 +8,35 @@ Paste a business website, pick a goal and a style, and get **one short video ad*
      ▼
  ┌──────────┐   real facts only    ┌───────────────┐   1 prompt + 1 hero image   ┌────────────┐   name / offer / phone
  │ Scanner  │ ───────────────────▶ │ Prompt writer │ ──────────────────────────▶ │ Video model│ ──▶ added as clean text ──▶ MP4
- │ httpx →  │   (never invented)   │ AI or built-in│   (image-to-video)          │ Magic Hour │     with FFmpeg overlay
+ │ httpx →  │   (never invented)   │ AI or built-in│   (image-to-video)          │ Gemini Omni│     with FFmpeg overlay
  │ Firefox  │                      │ + fact guard  │                             │ or demo    │
  └──────────┘                      └───────────────┘                             └────────────┘
 ```
 
 * **Next.js** website (`frontend/`) and **FastAPI** backend (`backend/`).
 * Works **out of the box without any API key** (demo mode: the scan is real, the video is a simple zoom clip made with FFmpeg).
-* Add a Magic Hour key for real AI video, and an OpenRouter/OpenAI-compatible key for an AI-written prompt. Both are optional.
+* Add a Gemini API key for real AI video and an AI-written prompt. Without it the app stays in demo mode.
 
 > **Security first:** the `backend/env.example` in the original upload contained **live OpenRouter and Magic Hour keys**.
 > Treat them as leaked: **revoke/rotate both keys** in their dashboards and put the new ones only in `backend/.env`.
 > This project never contains keys; `.env` is git-ignored.
+
+---
+
+## Studio: typed videos in seven stages
+
+Besides the one-prompt ad above, `backend/app/studio/` makes a video of a chosen type (**promo, hook ad, pitch, showcase, explainer,
+testimonial, launch**) in seven stages that each save a file you can read and correct: capture (page text and about ten screenshots),
+product notes (every claim cites its source), brand notes, assumptions, storyboard, build (voice, music, motion graphics in the brand
+colours) and check (every figure compared with the notes). Example:
+
+```bash
+cd backend
+python -m playwright install chromium
+python -m app.studio run --url https://backseatnetwork.com --type promo --length 20 --platform 16:9
+```
+
+See [backend/app/studio/README.md](backend/app/studio/README.md) to run each stage, and [samples/backseatnetwork-promo](samples/backseatnetwork-promo/NOTES.md) for a finished run.
 
 ---
 
@@ -94,11 +111,10 @@ Edit `backend/.env`, then restart the backend. Run `python -m app.cli doctor` to
 
 | You want | Set | Notes |
 |---|---|---|
-| Real AI video | `VIDEO_MODEL_API_KEY=` your **Magic Hour** key | Uses image-to-video with the hero image as the first frame. Costs credits. |
-| AI-written prompt | `AI_PROMPT_API_KEY=` your **OpenRouter** (or any OpenAI-compatible) key | Optional. Without it a built-in writer makes the prompt. `AI_PROMPT_BASE_URL` / `AI_PROMPT_MODEL` choose the service and model. |
+| Real AI video and AI-written prompt | `GEMINI_API_KEY=` your **Gemini** key | One key does both. Prompts use `GEMINI_MODEL` (`gemini-flash-latest`). Video uses `GEMINI_VIDEO_MODEL` (`gemini-omni-1.1-flash`), because the flash model does not generate video. Costs credits. |
 | Protect your credits | `MAX_ADS_PER_DAY`, `RATE_LIMIT_PER_MINUTE`, `MAX_CONCURRENT_ADS` | The API has **no login**. Keep it private or put it behind your own auth before exposing it publicly (see §8). |
 
-The old variable names (`OPENROUTER_API_KEY`, `OPENAI_BASE_URL`, `OPENROUTER_MODEL`, `MAGIC_HOUR_API_KEY`) still work.
+`AI_PROMPT_BASE_URL` / `AI_PROMPT_MODEL` still override the prompt writer. The old names (`OPENROUTER_API_KEY`, `OPENAI_BASE_URL`, `OPENROUTER_MODEL`, `MAGIC_HOUR_API_KEY`) still work. `VIDEO_PROVIDER=magic_hour` keeps the previous video provider.
 
 If the video model fails, the ad is finished with a demo clip and flagged `completed_with_fallback` (switch off with `VIDEO_FALLBACK_ON_ERROR=false`).
 The video model makes clips of up to `VIDEO_MAX_SECONDS` (default 5). A longer request is shortened and the user is told.
@@ -146,7 +162,7 @@ Scan statuses: `queued` · `running` · `ok` · `partial` · `blocked` (Cloudfla
 
 **Video** (`backend/app/video/`)
 * One hero image (your choice → your uploads → best scraped image) is downloaded through the safe fetcher, checked, auto-rotated, flattened and cropped (never stretched) to the platform's aspect ratio.
-* **Magic Hour** image-to-video, or the **demo provider** (FFmpeg zoom clip) when there is no key.
+* **Gemini Omni** text-to-video or image-to-video, or the **demo provider** (FFmpeg zoom clip) when there is no key.
 * **Finalize:** business name, offer, call to action, phone and address (plus optional logo and QR code) are drawn with Pillow and burned in with FFmpeg — video models draw digits badly, so these are always real text from real facts. Non-Latin text (Devanagari, Arabic, Tamil) uses Noto fonts when installed.
 
 **Jobs:** scans and ads run as in-process asyncio tasks stored in SQLite; unfinished work is closed cleanly after a restart. Old data is deleted after `DATA_RETENTION_HOURS` (72).
@@ -181,8 +197,10 @@ Every setting is documented in **`backend/.env.example`** (copy it to `backend/.
 | Variable | Default | Meaning |
 |---|---|---|
 | `CORS_ORIGINS` | `http://localhost:3000` | Frontend address(es) allowed to call the API (comma separated) |
-| `VIDEO_MODEL_API_KEY` | empty | Magic Hour key; empty = demo mode |
-| `AI_PROMPT_API_KEY` | empty | OpenRouter/OpenAI-compatible key; empty = built-in prompt writer |
+| `GEMINI_API_KEY` | empty | Gemini key for prompts and video; empty = demo mode |
+| `GEMINI_MODEL` | `gemini-flash-latest` | Model that writes the ad prompt |
+| `GEMINI_VIDEO_MODEL` | `gemini-omni-1.1-flash` | Model that generates the video |
+| `VIDEO_MODEL_API_KEY` | empty | Legacy Magic Hour key, used only when that provider is selected |
 | `PLAYWRIGHT_BROWSER` | `firefox` | `firefox` (default), `chromium` or `webkit` |
 | `REDIS_URL` | empty | Optional shared scan cache; memory cache otherwise |
 | `MAX_ADS_PER_DAY` | `100` | Hard daily cap on ads (protects credits) |
@@ -205,7 +223,7 @@ adsify/
 │   │   ├── api/               routes.py (thin) · core.py (all logic, framework-free) · ranges.py
 │   │   ├── scraper/           safety · fetch · detect · render · extract · crawl · service
 │   │   ├── ai/                facts · template · llm · guard · prompt_builder
-│   │   ├── video/             images · magic_hour · mock · finalize · service
+│   │   ├── video/             images · gemini · magic_hour · mock · finalize · service
 │   │   ├── services/          scrape_jobs · ads · assets · maintenance
 │   │   ├── store/             SQLite + cache (Redis or memory)
 │   │   └── config.py  schemas.py  catalog.py  cli.py

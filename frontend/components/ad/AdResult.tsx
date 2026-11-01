@@ -57,6 +57,12 @@ function MadeOf({ ad }: { ad: AdResponse }) {
         {ad.composition.map((segment, index) => <li key={`${segment.kind}-${index}`}>{SEGMENT_LABELS[segment.kind]} · {segment.seconds.toFixed(1)} s</li>)}
       </ol>
       {qr && <p className="mt-2 text-xs text-muted">{qr}</p>}
+      {ad.site_summary && <p className="mt-3 text-xs text-muted"><span className="font-semibold text-ink">What the AI understood:</span> {ad.site_summary}</p>}
+      {ad.overlay_text.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Text on the video">
+          {ad.overlay_text.map((line) => <span key={line} className="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-ink">{line}</span>)}
+        </div>
+      )}
     </div>
   );
 }

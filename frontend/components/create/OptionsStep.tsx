@@ -53,11 +53,35 @@ export function OptionsStep({
             </div>
             {durationNote && <p className="mt-2 text-xs text-muted">{durationNote}</p>}
           </section>
+          {config.voices.length > 0 && <section>
+            <h3 className="mb-3 text-sm font-bold text-ink">Voice</h3>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {config.voices.map((voice) => (
+                <OptionCard key={voice.id} compact icon={voice.id === "none" ? "🔇" : "🎙️"} title={voice.label} description={voice.hint} selected={options.voice === voice.id} onClick={() => set("voice", voice.id)} />
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-muted">
+              {options.voice === "auto" ? "Auto picks the voice and music that suit your kind of business. " : ""}
+              The voice speaks each on-screen line exactly when it appears.
+              {options.platform === "taxi_screen" ? " Cab tablets are often silent, so your text carries the ad even without sound." : ""}
+            </p>
+          </section>}
+          {config.music.length > 0 && <section>
+            <h3 className="mb-3 text-sm font-bold text-ink">Music</h3>
+            <div className="inline-flex flex-wrap gap-1 rounded-2xl border border-line bg-surface/80 p-1" role="group" aria-label="Background music">
+              {config.music.map((track) => (
+                <button key={track.id} type="button" aria-pressed={options.music === track.id} onClick={() => set("music", track.id)}
+                  className={`rounded-xl px-4 py-2 text-sm font-bold transition-all duration-200 ${options.music === track.id ? "bg-brand animate-gradient text-white shadow-glow" : "text-muted hover:bg-accent-soft hover:text-ink"}`}>
+                  {track.label}
+                </button>
+              ))}
+            </div>
+          </section>}
         </>
       )}
       {advanced && (
         <>
-          {aiControls && (
+          {aiControls && options.ad_type === "auto" && (
             <section>
               <h3 className="mb-3 text-sm font-bold text-ink">What is the goal?</h3>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -71,8 +95,8 @@ export function OptionsStep({
             <SelectField label="Look and feel" value={options.style} onChange={(v) => set("style", v || options.style)} options={config.styles.map((s) => ({ value: s.id, label: s.label }))} helpText={aiControls ? undefined : "Sets the speed of the motion over your images."} />
             {aiControls && <SelectField label="Tone" value={options.tone} onChange={(v) => set("tone", v || options.tone)} options={config.tones.map((t) => ({ value: t.id, label: t.label }))} />}
           </section>
-          {aiControls && (
-            <InputField label="Creative instructions (optional)" multiline value={options.special_instructions} onChange={(v) => set("special_instructions", v)} maxLength={600} placeholder="e.g. Show the gift boxes on a festive table" helpText="Short hints for the AI prompt writer. Do not put phone numbers or prices here; use the business details instead." />
+          {(aiControls || options.ad_type !== "auto") && (
+            <InputField label="Creative instructions (optional)" multiline value={options.special_instructions} onChange={(v) => set("special_instructions", v)} maxLength={600} placeholder="e.g. Show the gift boxes on a festive table" helpText={'Short hints for the ad, e.g. the occasion (Diwali) or a real customer quote in "double quotes". Do not put phone numbers or prices here; use the business details instead.'} />
           )}
           <Toggle checked={options.add_overlays} onChange={(v) => set("add_overlays", v)} title={overlayLabel} help="Added as clean, animated text after the video is made, so spelling and numbers are always correct." />
         </>

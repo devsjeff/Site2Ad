@@ -19,6 +19,7 @@ from .. import catalog
 from ..schemas import AdBrief, AdOptions, BriefConcept, BriefFact
 from .facts import FactSheet
 from .guard import find_unsupported_facts, shot_range
+from .playbook import context_lines
 from .scene import about_line, concept_for, concept_set_for, visual_items
 from .template import sanitize
 
@@ -38,8 +39,23 @@ def _scenes(visual: str, count: int) -> list[str]:
     return [f"Scene {i + 1} of {count}: " + ("establish " if i == 0 else "close on ") + visual[0].lower() + visual[1:] for i in range(count)]
 
 
-def template_concepts(facts: FactSheet, scene_count: int) -> list[BriefConcept]:
-    """Three distinct, filmable ideas for this business (signature scene, product detail, customer moment)."""
+def ad_type_concept(facts: FactSheet, ad_type: str, scene_count: int) -> Optional[BriefConcept]:
+    """The scene that fits the chosen kind of ad, about this business; None for "auto"."""
+    info = catalog.ad_type_info(ad_type)
+    if not info["story"]:
+        return None
+    items = visual_items(facts)
+    item = items[0] if items else (facts.category.lower() or sanitize(facts.name, 80))
+    story = info["story"].replace("{item}", item)
+    visual = f"{story[:1].upper()}{story[1:]}."
+    return BriefConcept(title=f"{info['label']} ad", visual=visual, scenes=_scenes(visual, scene_count))
+
+
+def template_concepts(facts: FactSheet, scene_count: int, ad_type: str = "auto") -> list[BriefConcept]:
+    """Three distinct, filmable ideas (the chosen kind of ad first, then signature scene, product detail, customer moment)."""
+    chosen = ad_type_concept(facts, ad_type, scene_count)
+    if chosen:
+        return [chosen, *template_concepts(facts, scene_count)[:2]]
     tailored = concept_set_for(facts)
     if tailored:  # screens / places: three scenes written like real city footage
         return [
@@ -68,7 +84,7 @@ def build_template_brief(
     """A complete brief from the facts alone (no API key needed)."""
     items = visual_items(facts)
     about = about_line(facts)
-    concepts = template_concepts(facts, shot_range(duration_seconds)[0])
+    concepts = template_concepts(facts, shot_range(duration_seconds)[0], options.ad_type)
     supporting: list[BriefFact] = []
     for field_name in FACT_FIELDS:
         value = getattr(facts, field_name)
@@ -85,7 +101,7 @@ def build_template_brief(
         business_name=facts.name,
         product_focus=", ".join(items) or category or "",
         audience=catalog.PLATFORMS.get(options.platform, {}).get("audience", ""),
-        objective=catalog.GOALS.get(options.goal, catalog.GOALS["awareness"])["focus"],
+        objective=catalog.objective(options.goal, options.ad_type),
         main_message=about or (f"{facts.name}, {category.lower()}" if category else facts.name),
         hook=concepts[0].visual.split(",")[0].split(";")[0],
         cta=facts.cta,
@@ -142,7 +158,9 @@ def build_brief_request(facts: FactSheet, options: AdOptions, duration_seconds: 
     """The user message for the AI brief writer: goal and format, checked facts, then untrusted website text."""
     lines = [
         "Plan the ad now.",
-        f"- objective: {catalog.GOALS.get(options.goal, catalog.GOALS['awareness'])['focus']}",
+        f"- objective: {catalog.objective(options.goal, options.ad_type)}",
+        *([f"- kind of ad (every concept must be this): {catalog.ad_type_line(options.ad_type)}"] if catalog.ad_type_line(options.ad_type) else []),
+        *context_lines(facts, options.platform),
         f"- look: {catalog.STYLES.get(options.style, catalog.STYLES['cinematic_premium'])['visual']}",
         f"- clip length: {duration_seconds} seconds (one continuous scene per concept)",
         "",

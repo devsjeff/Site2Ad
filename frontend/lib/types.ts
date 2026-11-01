@@ -114,6 +114,9 @@ export interface UploadResponse {
 
 export interface AdOptions {
   goal: string;
+  ad_type: string;
+  voice: string;
+  music: string;
   platform: string;
   duration_seconds: number;
   style: string;
@@ -253,6 +256,8 @@ export interface AdResponse {
   composition: CompositionSegment[];
   brief: AdBrief | null;
   provider_error: string | null;
+  site_summary: string;
+  overlay_text: string[];
   created_at: string;
   updated_at: string;
 }
@@ -274,6 +279,8 @@ export interface ConfigOption {
   label: string;
   aspect_ratio?: string;
   audience?: string;
+  hint?: string;
+  note?: string;
 }
 
 export interface ConfigResponse {
@@ -285,6 +292,9 @@ export interface ConfigResponse {
   durations: number[];
   platforms: ConfigOption[];
   goals: ConfigOption[];
+  ad_types: ConfigOption[];
+  voices: ConfigOption[];
+  music: ConfigOption[];
   styles: ConfigOption[];
   tones: ConfigOption[];
   categories: ConfigOption[];

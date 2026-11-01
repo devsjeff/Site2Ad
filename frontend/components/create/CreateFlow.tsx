@@ -17,6 +17,7 @@ import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Advanced } from "../ui/Advanced";
 import { InputField } from "../ui/InputField";
+import { AdTypePicker } from "./AdTypePicker";
 import { CreativeModeStep } from "./CreativeModeStep";
 import { ImageUpload } from "./ImageUpload";
 import { MediaUpload } from "./MediaUpload";
@@ -31,7 +32,7 @@ type StepKey = "start" | "customize" | "review";
 const STEPS: StepKey[] = ["start", "customize", "review"];
 
 const DEFAULT_OPTIONS: AdOptions = {
-  goal: "awareness", platform: "taxi_screen", duration_seconds: 5, style: "cinematic_premium", tone: "friendly",
+  goal: "awareness", ad_type: "auto", voice: "auto", music: "auto", platform: "taxi_screen", duration_seconds: 5, style: "cinematic_premium", tone: "friendly",
   special_instructions: "", add_overlays: true,
 };
 
@@ -167,6 +168,12 @@ export function CreateFlow() {
     setStepError(null);
     if (value === "manual") setPrefs((current) => (current ? switchMode(current, "manual") : defaultPrefs("manual")));
     else startAuto();
+  }
+
+  // Pick the kind of ad. A QR Code ad needs the QR code on.
+  function chooseAdType(value: string) {
+    setOptions((current) => ({ ...current, ad_type: value }));
+    if (value === "qr_code") setPrefs({ ...activePrefs, includeQr: true, qrUrl: activePrefs.qrUrl || websiteUrl });
   }
 
   // Pick an auto creative mode, keeping the user's own choices.
@@ -387,13 +394,14 @@ export function CreateFlow() {
 
       {stepKey === "customize" && (
         <section key="customize" className="space-y-7 animate-fadeUp">
-          {header(<>Make it <span className="text-brand">yours</span></>, manual ? "Pick where it plays and how long it runs." : "Pick a look, where it plays and how long it runs. Everything else is optional.")}
+          {header(<>Make it <span className="text-brand">yours</span></>, manual ? "Pick where it plays and how long it runs." : "Pick the kind of ad, where it plays, its length and its sound. Everything else is optional.")}
           {!manual && (
             <div className="space-y-3">
               <h3 className="text-sm font-bold text-ink">How should it be made?</h3>
               <CreativeModeStep modes={config.creative_modes} value={creativeMode} onChange={chooseCreative} aiAvailable={config.ai_video_available} aiMessage={config.ai_video_message} />
             </div>
           )}
+          <AdTypePicker types={config.ad_types} value={options.ad_type} onChange={chooseAdType} />
           <OptionsStep
             part="essentials" config={config} options={options} onChange={setOptions} durations={durations} aiControls={callsAiVideo(mode)}
             durationNote={
@@ -402,7 +410,7 @@ export function CreateFlow() {
                   : mode === "website" ? "Each website image plays for 3 seconds." : undefined
             }
           />
-          <Advanced hint={callsAiVideo(mode) ? "Images, logo, QR code, goal, tone, style and AI instructions" : "Images, logo, QR code, sound, style and text"}>
+          <Advanced hint={callsAiVideo(mode) ? "Images, logo, QR code, goal, tone, style and AI instructions" : "Images, logo, QR code, style and text"}>
             <PreferencesStep
               mode={mode} prefs={activePrefs} onChange={setPrefs} websiteImages={scraped} photos={[]}
               hasLogo={logo.length > 0} hasVideo={mode === "manual" && media.some((m) => m.media_type === "video")} durationSeconds={options.duration_seconds}

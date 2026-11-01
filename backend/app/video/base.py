@@ -52,6 +52,7 @@ class VideoResult:
     provider: str
     duration_seconds: float = 0.0
     credits_charged: Optional[float] = None
+    notes: tuple[str, ...] = ()  # things the user should know (for example: made at a lower resolution than asked)
 
 
 class VideoProvider(Protocol):
@@ -152,6 +153,18 @@ class MediaInfo:
     video_codec: str
     has_audio: bool
     format_name: str
+
+
+async def probe_seconds(path: Path) -> float:
+    """Length of any media file, including audio-only ones. Raises VideoError when it cannot be read."""
+    ffprobe = shutil.which("ffprobe")
+    if not ffprobe:
+        raise VideoError("ffprobe is not installed on the server (it comes with FFmpeg).")
+    out, _ = await run_tool([ffprobe, "-v", "error", "-show_entries", "format=duration", "-of", "json", str(path)], timeout=30)
+    try:
+        return float(json.loads(out)["format"]["duration"])
+    except (ValueError, KeyError, TypeError):
+        raise VideoError("The audio file could not be read.") from None
 
 
 async def probe_media(path: Path) -> MediaInfo:

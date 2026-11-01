@@ -1,9 +1,10 @@
-"""Small OpenAI-compatible chat client (OpenRouter, OpenAI, Groq, local gateways) used by the prompt builder."""
+"""Chat client for the prompt writer: Gemini generateContent, or any OpenAI-compatible gateway."""
 
 from __future__ import annotations
 
 import logging
 from typing import Optional
+from urllib.parse import quote
 
 import httpx
 
@@ -12,6 +13,7 @@ from ..config import Settings
 from ..schemas import AdOptions
 from .facts import FactSheet
 from .guard import MAX_SHOTS, MIN_SHOTS, PROMPT_MAX_CHARS
+from .playbook import context_lines
 from .template import color_names, sanitize
 
 logger = logging.getLogger(__name__)
@@ -60,7 +62,9 @@ def build_user_message(
         f"- aspect ratio: {options.aspect_ratio}",
         f"- platform: {platform['label']} ({platform['audience']})",
         f"- shots: exactly {shots}",
-        f"- goal: {catalog.GOALS[options.goal]['focus']}",
+        f"- goal: {catalog.objective(options.goal, options.ad_type)}",
+        *([f"- kind of ad: {catalog.ad_type_line(options.ad_type)}"] if catalog.ad_type_line(options.ad_type) else []),
+        *context_lines(facts, options.platform),
         f"- visual style: {catalog.STYLES[options.style]['visual']}",
         f"- tone: {catalog.TONES[options.tone]['mood']}; music: {catalog.TONES[options.tone]['music']}",
         f"- reference image attached: {'yes' if has_reference else 'no (text-to-video: describe realistic scenes of this business, no invented logos or brand names)'}",
@@ -99,6 +103,10 @@ def build_user_message(
     return "\n".join(lines)
 
 
+EMPTY_ANSWER = "The AI writer sent an empty answer."
+REASONING_MIN_TOKENS = 4000
+
+
 class LlmClient:
     """Chat-completions client. `enabled` is False without an API key, so callers go straight to the template."""
 
@@ -117,19 +125,65 @@ class LlmClient:
         """The configured model id."""
         return self.settings.ai_prompt_model
 
-    async def complete(self, system: str, user: str, max_tokens: int = 1400) -> str:
+    @property
+    def copy_model(self) -> str:
+        """The model for short on-screen copy: AI_COPY_MODEL, else a fast Gemini model, else the prompt model."""
+        if self.settings.ai_copy_model:
+            return self.settings.ai_copy_model
+        return "gemini-flash-lite-latest" if self._uses_gemini() else self.settings.ai_prompt_model
+
+    async def complete(
+        self, system: str, user: str, max_tokens: int = 1400, *, model: str = "", timeout: float = 0.0, reasoning: Optional[dict] = None,
+    ) -> str:
+        """One chat answer. An empty answer is retried once (free routes switch model per call). Raises LlmError on failure.
+
+        `model` and `timeout` override the configured prompt model and timeout (the short on-screen copy uses a faster model).
+        `reasoning` replaces the OpenRouter reasoning setting, e.g. {"enabled": False} for long JSON answers that a thinking
+        model would otherwise spend its whole token budget on.
+        """
+        try:
+            return await self._complete(system, user, max_tokens, model, timeout, reasoning)
+        except LlmError as exc:
+            message = str(exc)
+            if message != EMPTY_ANSWER and "status 503" not in message and "rate limited" not in message:
+                raise
+            logger.info("AI writer needs another try (%s)", message)
+            return await self._complete(system, user, max_tokens, model, timeout, reasoning)
+
+    def _uses_gemini(self) -> bool:
+        """True when the configured host is the Gemini API (not its OpenAI-compatible shim)."""
+        url = self.settings.ai_prompt_base_url
+        return "generativelanguage.googleapis.com" in url and "/openai" not in url
+
+    async def _complete(
+        self, system: str, user: str, max_tokens: int, model_override: str = "", timeout_override: float = 0.0, reasoning: Optional[dict] = None,
+    ) -> str:
         """Send one chat request and return the answer text. Raises LlmError with a safe message on any failure."""
         if not self.enabled:
             raise LlmError("The AI writer is not configured.")
-        url = f"{self.settings.ai_prompt_base_url}/chat/completions"
-        headers = {"Authorization": f"Bearer {self.settings.ai_prompt_api_key}", "Content-Type": "application/json"}
-        body = {
-            "model": self.settings.ai_prompt_model,
-            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
-            "temperature": 0.6,
-            "max_tokens": max_tokens,
-        }
-        timeout = httpx.Timeout(self.settings.ai_prompt_timeout_seconds, connect=10.0)
+        if self._uses_gemini():
+            model = (model_override or self.settings.ai_prompt_model).removeprefix("models/")
+            url = f"{self.settings.ai_prompt_base_url}/models/{quote(model, safe='')}:generateContent"
+            headers = {"x-goog-api-key": self.settings.ai_prompt_api_key, "Content-Type": "application/json"}
+            body = {
+                "systemInstruction": {"parts": [{"text": system}]},
+                "contents": [{"role": "user", "parts": [{"text": user}]}],
+                "generationConfig": {"temperature": 0.6, "maxOutputTokens": max(max_tokens, REASONING_MIN_TOKENS)},
+            }
+        else:
+            url = f"{self.settings.ai_prompt_base_url}/chat/completions"
+            headers = {"Authorization": f"Bearer {self.settings.ai_prompt_api_key}", "Content-Type": "application/json"}
+            body = {
+                "model": model_override or self.settings.ai_prompt_model,
+                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+                "temperature": 0.6,
+                "max_tokens": max_tokens,
+            }
+            if "openrouter" in self.settings.ai_prompt_base_url:
+                # reasoning models spend max_tokens on thinking first, which otherwise leaves an empty answer
+                body["reasoning"] = reasoning or {"effort": "low", "exclude": True}
+                body["max_tokens"] = max_tokens if reasoning else max(max_tokens, REASONING_MIN_TOKENS)
+        timeout = httpx.Timeout(timeout_override or self.settings.ai_prompt_timeout_seconds, connect=10.0)
         owns_client = self._client is None
         client = self._client or httpx.AsyncClient(timeout=timeout)
         try:
@@ -142,20 +196,49 @@ class LlmClient:
         finally:
             if owns_client:
                 await client.aclose()
+        self._raise_for_status(response)
+        try:
+            payload = response.json()
+        except ValueError:
+            raise LlmError("The AI writer sent an unreadable answer.") from None
+        content = self._answer_text(payload)
+        if not content.strip():
+            raise LlmError(EMPTY_ANSWER)
+        return content
+
+    def _raise_for_status(self, response: httpx.Response) -> None:
+        """Turn an HTTP error into an LlmError. The API key is never included."""
+        if response.status_code < 400:
+            return
         if response.status_code in (401, 403):
             raise LlmError("The AI writer rejected the API key.")
         if response.status_code == 402:
             raise LlmError("The AI writer account has no credit left.")
         if response.status_code == 429:
+            if "per-day" in response.text or "daily" in response.text.lower():
+                raise LlmError("The AI writer's free daily limit is used up. Add credits at the provider, or wait for the daily reset.")
             raise LlmError("The AI writer is rate limited.")
-        if response.status_code >= 400:
-            raise LlmError(f"The AI writer answered with status {response.status_code}.")
+        raise LlmError(f"The AI writer answered with status {response.status_code}.")
+
+    def _answer_text(self, payload: dict) -> str:
+        """Text from a Gemini generateContent body or an OpenAI chat-completions body."""
+        if "candidates" in payload:
+            try:
+                candidate = payload["candidates"][0]
+                parts = candidate["content"]["parts"]
+            except (KeyError, IndexError, TypeError):
+                raise LlmError("The AI writer sent an unreadable answer.") from None
+            if candidate.get("finishReason") in {"SAFETY", "RECITATION", "BLOCKLIST"}:
+                raise LlmError("The AI writer blocked the answer.")
+            return "".join(
+                part.get("text", "") for part in parts if isinstance(part, dict) and not part.get("thought") and isinstance(part.get("text"), str)
+            )
         try:
-            content = response.json()["choices"][0]["message"]["content"]
-        except (ValueError, KeyError, IndexError, TypeError):
+            content = payload["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError):
             raise LlmError("The AI writer sent an unreadable answer.") from None
         if isinstance(content, list):  # some gateways return a list of parts
             content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
-        if not isinstance(content, str) or not content.strip():
-            raise LlmError("The AI writer sent an empty answer.")
+        if not isinstance(content, str):
+            raise LlmError("The AI writer sent an unreadable answer.")
         return content

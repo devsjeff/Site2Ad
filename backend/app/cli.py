@@ -97,7 +97,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     settings = _settings()
     print("Settings (secrets hidden):")
     for key, value in redact(settings).items():
-        if key in {"env", "database_url", "redis_url", "cors_origins", "playwright_browser", "video_provider", "ai_prompt_model", "magic_hour_model", "video_model_api_key", "ai_prompt_api_key"}:
+        if key in {"env", "database_url", "redis_url", "cors_origins", "playwright_browser", "video_provider", "ai_prompt_model", "ai_prompt_base_url", "gemini_video_model", "magic_hour_model", "video_model_api_key", "ai_prompt_api_key", "gemini_api_key"}:
             print(f"  {key} = {value}")
     problems = settings.validate()
 
@@ -110,7 +110,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         ("ffmpeg", bool(shutil.which("ffmpeg")), "install FFmpeg (needed for every video)"),
         ("ffprobe", bool(shutil.which("ffprobe")), "ffprobe ships with FFmpeg"),
         (f"{settings.playwright_browser} browser", ok, detail),
-        ("video model key", bool(settings.video_model_api_key), "optional: without it videos are simple zoom clips (demo mode)"),
+        ("video model key", bool(settings.gemini_key or settings.video_model_api_key), "optional: without a Gemini key, videos are simple zoom clips (demo mode)"),
         ("AI prompt key", bool(settings.ai_prompt_api_key), "optional: without it the built-in prompt writer is used"),
     ]
     print("\nChecks:")

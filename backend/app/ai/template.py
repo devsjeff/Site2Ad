@@ -342,7 +342,9 @@ def build_template_prompt(
     colours = color_names(facts.brand_colors)
     if colours:
         optional["colours"] = "BRAND COLOURS: " + ", ".join(colours) + " (use as accents; never recolour the product)."
-    style_lines = [f"GOAL: {goal['focus']}.", f"STYLE: {style['visual']}.", f"TONE: {tone['mood']}."]
+    style_lines = [f"GOAL: {catalog.objective(options.goal, options.ad_type)}.", f"STYLE: {style['visual']}.", f"TONE: {tone['mood']}."]
+    if catalog.ad_type_line(options.ad_type):
+        style_lines.insert(1, f"KIND OF AD: {catalog.ad_type_line(options.ad_type)}.")
     roles = _roles(options.goal, shots)
     windows = shot_windows(duration_seconds, shots)
     tech = STYLE_SHOTS[options.style]

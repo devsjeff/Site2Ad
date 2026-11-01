@@ -151,7 +151,7 @@ def concept_for(facts: FactSheet) -> tuple[str, str]:
 
 def build_scene_prompt(
     facts: FactSheet, *, style: str, aspect_ratio: str, has_reference: bool, looping: bool, notes: str = "", visual: str = "",
-    mood: str = "",
+    mood: str = "", ad_style: str = "", placement: str = "",
 ) -> str:
     """ONE flowing present-tense paragraph that opens on the hero visual, then setting, camera, light and limits.
 
@@ -174,6 +174,10 @@ def build_scene_prompt(
         "Say it visually: with the sound off, the first second makes clear what is advertised"
         + (f" ({focus})" if focus else "") + ", shown in use and clearly in frame."
     )
+    if ad_style:
+        parts.append(f"This is a {ad_style}.")
+    if placement:
+        parts.append(f"Composition: {placement}.")
     parts.append(f"Camera: {formula.camera if formula else camera}. Light: {lighting}.")
     if tailored:
         parts.append(f"It looks like real footage: {REAL_FOOTAGE}.")

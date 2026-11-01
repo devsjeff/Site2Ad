@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import base64
 import io
+import json
 import sys
 import types
 from pathlib import Path
 
+import httpx
 import pytest
 from PIL import Image
 
@@ -14,6 +17,7 @@ from app.scraper.fetch import Fetcher
 from app.scraper.safety import build_http_client
 from app.video.base import VideoError, VideoRequest, output_size, probe_video, scrub
 from app.video.finalize import OverlaySpec, finalize_video, render_overlay, wrap_text
+from app.video.gemini import GeminiVideoProvider, classify_http, omni_aspect, omni_resolution
 from app.video.images import ImageProblem, cover_crop, download_image, prepare_hero, prepare_logo, sniff_extension
 from app.video.magic_hour import MagicHourProvider
 from app.video.mock import MockVideoProvider
@@ -238,6 +242,103 @@ async def test_magic_hour_failures_become_safe_video_errors(magic_hour):
     no_key = MagicHourProvider(make_settings(tmp_path), FakeMagicHourClient)
     with pytest.raises(VideoError, match="VIDEO_MODEL_API_KEY"):
         await no_key.generate(make_request(tmp_path, hero))
+
+
+def gemini_settings(tmp_path):
+    """Settings that select the Gemini video provider without calling the network."""
+    return make_settings(tmp_path, video_provider="gemini", gemini_api_key="not-a-real-key-123", video_retry_attempts=0)
+
+
+def gemini_provider(tmp_path, handler) -> GeminiVideoProvider:
+    """A Gemini provider whose HTTP calls go to `handler`."""
+    http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    return GeminiVideoProvider(gemini_settings(tmp_path), http)
+
+
+async def test_gemini_text_to_video_sends_omni_and_saves_the_file(tmp_path):
+    """Text-to-video posts one Interactions request and writes the returned mp4."""
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        """Handler."""
+        seen["url"] = str(request.url)
+        seen["key"] = request.headers["x-goog-api-key"]
+        seen["body"] = json.loads(request.content)
+        encoded = base64.b64encode(b"fake-mp4-bytes-that-are-long-enough").decode()
+        return httpx.Response(200, json={"status": "completed", "steps": [
+            {"type": "model_output", "content": [{"type": "video", "mime_type": "video/mp4", "data": encoded}]},
+        ]})
+
+    result = await gemini_provider(tmp_path, handler).generate(make_request(tmp_path, None, duration_seconds=20))
+    assert result.provider == "gemini" and result.path.read_bytes().startswith(b"fake-mp4") and result.duration_seconds == 5
+    assert seen["url"].endswith("/interactions") and seen["key"] == "not-a-real-key-123"
+    body = seen["body"]
+    assert body["model"] == "gemini-omni-1.1-flash" and isinstance(body["input"], str)
+    assert "exactly 5 seconds" in body["input"] and "FIRST_FRAME" not in body["input"]
+    assert body["response_format"] == {"type": "video", "aspect_ratio": "16:9", "resolution": "720p", "delivery": "uri"}
+
+
+async def test_gemini_image_to_video_sends_the_first_frame(tmp_path):
+    """A hero image is the first frame, and 9:16 is passed through."""
+    seen = {}
+    hero = tmp_path / "hero.jpg"
+    Image.new("RGB", (480, 854), (10, 20, 30)).save(hero)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        """Handler."""
+        seen["body"] = json.loads(request.content)
+        encoded = base64.b64encode(b"fake-mp4-bytes-that-are-long-enough").decode()
+        return httpx.Response(200, json={"output_video": {"data": encoded}})
+
+    await gemini_provider(tmp_path, handler).generate(make_request(tmp_path, hero, aspect_ratio="9:16", resolution="1080p"))
+    image, text = seen["body"]["input"]
+    assert image["type"] == "image" and image["mime_type"] == "image/jpeg" and image["data"]
+    assert text["type"] == "text" and "<FIRST_FRAME>" in text["text"]
+    assert seen["body"]["response_format"]["aspect_ratio"] == "9:16"
+    assert seen["body"]["response_format"]["resolution"] == "1080p"
+
+
+async def test_gemini_downloads_a_file_uri_and_hides_the_key(tmp_path):
+    """URI delivery is polled until ACTIVE, then downloaded. Auth failures never include the key."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        """Handler."""
+        path = request.url.path
+        if path.endswith("/interactions"):
+            return httpx.Response(200, json={
+                "id": "v1_abc", "status": "completed",
+                "steps": [{"type": "model_output", "content": [{"type": "video", "uri": "https://generativelanguage.googleapis.com/v1beta/files/abc:download?alt=media"}]}],
+            })
+        if path.endswith("/files/abc"):
+            return httpx.Response(200, json={"state": "ACTIVE"})
+        if path.endswith("/files/abc:download"):
+            assert request.headers["x-goog-api-key"] == "not-a-real-key-123"
+            return httpx.Response(200, content=b"fake-mp4-bytes-that-are-long-enough")
+        return httpx.Response(404, text="nope")
+
+    result = await gemini_provider(tmp_path, handler).generate(make_request(tmp_path, None))
+    assert result.path.read_bytes().startswith(b"fake-mp4")
+
+    def rejected(request: httpx.Request) -> httpx.Response:
+        """Rejected."""
+        return httpx.Response(401, text="bad key not-a-real-key-123")
+
+    with pytest.raises(VideoError, match="rejected the API key") as info:
+        await gemini_provider(tmp_path, rejected).generate(make_request(tmp_path, None, ad_id="ad-auth"))
+    assert "not-a-real-key-123" not in str(info.value)
+    with pytest.raises(VideoError, match="GEMINI_API_KEY"):
+        await GeminiVideoProvider(make_settings(tmp_path, video_provider="gemini")).generate(make_request(tmp_path, None, ad_id="ad-nokey"))
+
+
+def test_gemini_free_tier_with_no_video_quota_is_not_retried():
+    """A free-tier key with a zero video limit must fail clearly instead of being retried as a brief rate limit."""
+    error = classify_http(429, "Rate limit exceeded (limit: 0 input tokens per minute on Free Tier). Please upgrade your tier", "secret-key")
+    assert error.kind == "credits" and error.retryable is False and "free tier" in str(error) and "secret-key" not in str(error)
+
+
+def test_omni_maps_square_and_480p_onto_supported_values():
+    """Omni has no 1:1 or 480p; those map to the closest supported landscape 720p request."""
+    assert omni_aspect("1:1") == "16:9" and omni_aspect("9:16") == "9:16"
+    assert omni_resolution("480p") == "720p" and omni_resolution("4k") == "4k"
 
 
 class FailingProvider:

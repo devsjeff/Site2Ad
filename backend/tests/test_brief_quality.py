@@ -512,7 +512,7 @@ async def test_ai_ad_uses_the_directors_story_across_clips(tmp_path):
     """With OpenRouter on and two clips per ad, each paid video call gets its own part of the director's story."""
     settings = make_settings(tmp_path, video_clips_per_ad=2, video_max_seconds=10)
     provider = CountingProvider()
-    prompts = PromptBuilder(settings, FakeLlm("not a brief (the brief falls back to the built-in one)", _film_answer(2)))
+    prompts = PromptBuilder(settings, FakeLlm("copy: not json", "copy: not json again", "not a brief (the brief falls back to the built-in one)", _film_answer(2)))
     ctx = await AppContext.create(settings, scraper=Scraper(settings, policy=LOCAL_POLICY), prompts=prompts,
                                   video=VideoService(settings, primary=provider), start_background=False)
     try:
@@ -580,6 +580,6 @@ def test_captions_cover_the_whole_ad_and_the_last_one_stays():
 
 def test_long_offers_are_cut_to_their_key_clause():
     """'Cut photoshoot costs by up to 90%—test new outfits…' must not end as '…without boo…' on screen."""
-    from app.services.ads import _short
+    from app.ai.captions import short_caption as _short
 
     assert _short("Cut photoshoot costs by up to 90%—test new outfits, colors, and drops without booking a studio") == "Cut photoshoot costs by up to 90%"

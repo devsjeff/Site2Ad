@@ -51,13 +51,14 @@ class FakeLlm:
 
     enabled = True
     model = "fake/model"
+    copy_model = "fake/copy-model"
 
     def __init__(self, *answers):
         """Each answer is a string to return or an Exception to raise."""
         self.answers = list(answers)
         self.requests: list[tuple[str, str]] = []
 
-    async def complete(self, system: str, user: str, max_tokens: int = 1400) -> str:
+    async def complete(self, system: str, user: str, max_tokens: int = 1400, *, model: str = "", timeout: float = 0.0) -> str:
         """Return or raise the next canned answer."""
         self.requests.append((system, user))
         answer = self.answers.pop(0)
@@ -167,7 +168,7 @@ def test_template_uses_only_known_offer_and_cta():
     text = build_template_prompt(facts, AdOptions(goal="offer"), has_reference=True, duration_seconds=10)
     assert "OFFER:" not in text and "CALL TO ACTION:" not in text
     assert "20%" not in text
-    assert validate_llm_prompt(text, facts, "9:16", 10, True).ok
+    assert validate_llm_prompt(text, facts, "16:9", 10, True).ok
 
 
 def test_template_reference_instruction_only_when_a_hero_exists():
@@ -196,7 +197,7 @@ def test_website_text_cannot_inject_sections_or_extra_concepts():
     assert text.count("NEGATIVE PROMPT:") == 1
     assert len(re.findall(r"(?im)^\s*SHOT\s+\d+", text)) == shot_count_for(5)  # injected "SHOT 9" adds no shot
     assert "`" not in text and "<script" not in text
-    assert validate_llm_prompt(text, facts, "9:16", 5, True).ok
+    assert validate_llm_prompt(text, facts, "16:9", 5, True).ok
 
 
 def test_long_inputs_still_fit_the_length_cap():
@@ -260,22 +261,22 @@ def test_validator_rejects_wrong_shapes():
     """Check: validator rejects wrong shapes."""
     facts = sweets_facts()
     good = build_template_prompt(facts, AdOptions(), has_reference=True, duration_seconds=5)
-    assert validate_llm_prompt(good, facts, "9:16", 5, True).ok
-    assert not validate_llm_prompt("", facts, "9:16", 5, True).ok
-    assert not validate_llm_prompt("```\n" + good + "\n```", facts, "9:16", 5, True).ok
-    assert not validate_llm_prompt(json.dumps({"prompt": good}), facts, "9:16", 5, True).ok
-    assert not validate_llm_prompt(good + "\nOption 2: another idea", facts, "9:16", 5, True).ok
-    assert not validate_llm_prompt(good.replace("NEGATIVE PROMPT:", "AVOID:"), facts, "9:16", 5, True).ok
-    assert not validate_llm_prompt(good, facts, "16:9", 5, True).ok  # wrong aspect ratio
-    assert not validate_llm_prompt(good, facts, "9:16", 8, True).ok  # wrong duration
-    assert not validate_llm_prompt(good.replace("Sharma Sweets", "Someone Else"), facts, "9:16", 5, True).ok
+    assert validate_llm_prompt(good, facts, "16:9", 5, True).ok
+    assert not validate_llm_prompt("", facts, "16:9", 5, True).ok
+    assert not validate_llm_prompt("```\n" + good + "\n```", facts, "16:9", 5, True).ok
+    assert not validate_llm_prompt(json.dumps({"prompt": good}), facts, "16:9", 5, True).ok
+    assert not validate_llm_prompt(good + "\nOption 2: another idea", facts, "16:9", 5, True).ok
+    assert not validate_llm_prompt(good.replace("NEGATIVE PROMPT:", "AVOID:"), facts, "16:9", 5, True).ok
+    assert not validate_llm_prompt(good, facts, "9:16", 5, True).ok  # wrong aspect ratio
+    assert not validate_llm_prompt(good, facts, "16:9", 8, True).ok  # wrong duration
+    assert not validate_llm_prompt(good.replace("Sharma Sweets", "Someone Else"), facts, "16:9", 5, True).ok
     no_ref = build_template_prompt(facts, AdOptions(), has_reference=False, duration_seconds=5)
-    assert not validate_llm_prompt(no_ref, facts, "9:16", 5, True).ok  # reference promised but not described
+    assert not validate_llm_prompt(no_ref, facts, "16:9", 5, True).ok  # reference promised but not described
     long = build_template_prompt(facts, AdOptions(duration_seconds=20), has_reference=True, duration_seconds=20)
-    assert validate_llm_prompt(long, facts, "9:16", 20, True).ok
+    assert validate_llm_prompt(long, facts, "16:9", 20, True).ok
     one_shot = "\n".join(line for line in long.splitlines() if not line.startswith(("SHOT 2", "SHOT 3")))
-    assert not validate_llm_prompt(one_shot, facts, "9:16", 20, True).ok  # a 20 s clip needs 2-4 shots
-    assert not validate_llm_prompt(good.replace("Camera:", "Lens:"), facts, "9:16", 5, True).ok
+    assert not validate_llm_prompt(one_shot, facts, "16:9", 20, True).ok  # a 20 s clip needs 2-4 shots
+    assert not validate_llm_prompt(good.replace("Camera:", "Lens:"), facts, "16:9", 5, True).ok
 
 
 # --------------------------------------------------------------------------- builder
@@ -378,6 +379,31 @@ def client_with(handler, **settings) -> LlmClient:
     """An LlmClient whose HTTP calls go to `handler` instead of the network."""
     http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     return LlmClient(make_settings(ai_prompt_api_key="test-key-123", ai_prompt_base_url="https://llm.test/v1", **settings), http)
+
+
+async def test_llm_client_calls_gemini_generate_content_and_skips_thoughts():
+    """A Gemini base URL uses generateContent, the x-goog-api-key header, and ignores thought parts."""
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        """Handler."""
+        seen["url"] = str(request.url)
+        seen["key"] = request.headers["x-goog-api-key"]
+        seen["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [
+            {"text": "thinking", "thought": True}, {"text": "hello"},
+        ]}, "finishReason": "STOP"}]})
+
+    http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    client = LlmClient(make_settings(
+        ai_prompt_api_key="test-key-123", ai_prompt_base_url="https://generativelanguage.googleapis.com/v1beta",
+        ai_prompt_model="gemini-flash-latest",
+    ), http)
+    assert await client.complete("sys", "usr") == "hello"
+    assert seen["url"] == "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent"
+    assert seen["key"] == "test-key-123"
+    assert seen["body"]["systemInstruction"]["parts"][0]["text"] == "sys"
+    assert seen["body"]["generationConfig"]["maxOutputTokens"] >= 4000
 
 
 async def test_llm_client_sends_openai_compatible_request():

@@ -1,4 +1,4 @@
-"""AI director: an OpenRouter-written, shot-by-shot prose prompt for every AI clip of an ad.
+"""AI director: a Gemini-written, shot-by-shot prose prompt for every AI clip of an ad.
 
 Modelled on how a commercial director briefs a video model: first pin down WHAT the subject physically is (form,
 material, how it can and cannot behave on camera, the key visual detail), then tell ONE story across the clips with a
@@ -24,6 +24,7 @@ from .. import catalog
 from ..schemas import AdBrief, AdOptions
 from .brief import text_problems
 from .facts import FactSheet
+from .playbook import context_lines
 from .scene import SCENE_AVOID, about_line, visual_items
 from .template import sanitize
 
@@ -52,7 +53,7 @@ WHAT MAKES A GOOD AD (follow it)
   monitor. Interfaces, if shown, are abstract shapes with no readable text.
 - Services: before -> the service being delivered -> after, with the relieved customer.
 
-HOW TO WRITE EACH CLIP PROMPT (for LTX / Magic Hour video models)
+HOW TO WRITE EACH CLIP PROMPT (for the Gemini Omni video model)
 - 60-200 words of flowing present-tense prose. Put the most important visual FIRST: the model weights early words most.
 - Spell out every motion (what moves, how, in which direction); anything not described stays still.
 - Plain prose, written as numbered shots with timings that add up to the clip length, e.g. "Shot 1 (0-5s): ... Shot 2 (5-10s): ...".
@@ -108,7 +109,9 @@ def build_director_request(
         f"- clips: exactly {clips}, each {clip_seconds} seconds long (the ad plays them in order)",
         f"- aspect ratio: {options.aspect_ratio} (set by the API; do not mention it)",
         f"- where it plays: {platform['label']} ({platform['audience']})",
-        f"- objective: {catalog.GOALS.get(options.goal, catalog.GOALS['awareness'])['focus']}",
+        f"- objective: {catalog.objective(options.goal, options.ad_type)}",
+        *([f"- kind of ad (the whole film must be this): {catalog.ad_type_line(options.ad_type)}"] if catalog.ad_type_line(options.ad_type) else []),
+        *context_lines(facts, options.platform),
         f"- look: {catalog.STYLES.get(options.style, catalog.STYLES['cinematic_premium'])['visual']}",
         f"- mood: {catalog.TONES.get(options.tone, catalog.TONES['friendly'])['mood']}",
         "- clip 1 starts from an attached reference image: describe it as the exact first frame" if has_reference else "- no reference image",

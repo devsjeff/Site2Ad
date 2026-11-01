@@ -899,6 +899,21 @@
             "title": "Goal",
             "default": "awareness"
           },
+          "ad_type": {
+            "type": "string",
+            "title": "Ad Type",
+            "default": "auto"
+          },
+          "voice": {
+            "type": "string",
+            "title": "Voice",
+            "default": "none"
+          },
+          "music": {
+            "type": "string",
+            "title": "Music",
+            "default": "none"
+          },
           "platform": {
             "type": "string",
             "title": "Platform",
@@ -1177,6 +1192,18 @@
               }
             ],
             "title": "Provider Error"
+          },
+          "site_summary": {
+            "type": "string",
+            "title": "Site Summary",
+            "default": ""
+          },
+          "overlay_text": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Overlay Text"
           },
           "created_at": {
             "type": "string",
@@ -1509,6 +1536,30 @@
             "type": "array",
             "title": "Goals"
           },
+          "ad_types": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Ad Types"
+          },
+          "voices": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Voices"
+          },
+          "music": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Music"
+          },
           "styles": {
             "items": {
               "additionalProperties": true,
@@ -1594,6 +1645,9 @@
           "durations",
           "platforms",
           "goals",
+          "ad_types",
+          "voices",
+          "music",
           "styles",
           "tones",
           "categories",

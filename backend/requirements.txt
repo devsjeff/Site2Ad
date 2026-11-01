@@ -10,7 +10,8 @@ lxml>=5.0                        # fast HTML parser (the scanner falls back to h
 playwright>=1.47,<2.0            # headless browser for JavaScript sites; run: python -m playwright install firefox
 pillow>=10.4                     # image checks, hero crop, text overlay
 python-dotenv>=1.0               # loads backend/.env
-magic-hour>=0.40                 # Magic Hour video SDK (only used when VIDEO_MODEL_API_KEY is set)
+magic-hour>=0.40                 # legacy Magic Hour SDK (only used when VIDEO_PROVIDER=magic_hour)
+edge-tts>=7.0,<8.0              # human-sounding voiceover (no API key; the ad script goes to Microsoft's speech service)
 qrcode>=7.4                      # optional QR code on the video
 phonenumbers>=8.13               # optional: better phone number detection
 redis>=5.0                       # optional: shared scan cache when REDIS_URL is set

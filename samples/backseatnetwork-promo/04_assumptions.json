@@ -1,0 +1,42 @@
+{
+  "video_type": "promo",
+  "audience": "Brand marketers targeting Indian urban commuters during peak travel hours",
+  "key_message": "Reach captive passengers with silent 15s cab ads starting at ₹4,000 per cab per month",
+  "tone": "Direct, trustworthy, data-driven for busy professionals",
+  "voice": "neerja",
+  "voice_reason": "Warm female Indian English builds rapport with Indian brand marketers while delivering factual information clearly",
+  "music": "upbeat",
+  "music_reason": "Upbeat energy matches the active, results-driven brand tone and keeps viewers engaged throughout the short promo",
+  "cta": {
+    "text": "Launch a Campaign",
+    "target": "Backseat Network platform"
+  },
+  "must_include": [
+    {
+      "what": "Silent 15s ad loops on cab screens with QR codes",
+      "claims": [
+        "C15"
+      ]
+    },
+    {
+      "what": "Advertising starts at ₹4,000 per cab per month plus GST",
+      "claims": [
+        "C2"
+      ]
+    },
+    {
+      "what": "Live GPS-tracked playouts and QR scan analytics in one console",
+      "claims": [
+        "C7",
+        "C8",
+        "C14"
+      ]
+    }
+  ],
+  "must_avoid": [
+    "Misleading duration claims without GPS verification",
+    "Other advertising companies or platforms",
+    "Claims about skippable ads or short glances",
+    "Unverified audience reach figures not in claims"
+  ]
+}

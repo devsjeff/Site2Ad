@@ -22,8 +22,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
+from .. import catalog
+from ..ai.captions import ad_captions, brand_name, fill_captions, place_of, plan_captions, real_quote, short_caption, text_plan
 from ..ai.facts import FactSheet, build_fact_sheet
 from ..ai.scene import about_line, visual_items
+from ..ai.playbook import playbook_for
 from ..ai.prompt_builder import PromptBuilder
 from ..config import Settings
 from ..schemas import (
@@ -33,11 +36,12 @@ from ..scraper.fetch import Deadline
 from ..scraper.service import Scraper
 from ..store.db import Database
 from ..video.base import VideoError, VideoRequest, output_size, probe_media
-from ..video.compose import Segment, compose
-from ..video.finalize import OverlaySpec, finalize_video
-from ..video.images import ImageProblem, PreparedImage, download_image, prepare_frame, prepare_hero, prepare_logo
+from ..video.compose import Segment, compose, look_for
+from ..video.finalize import OverlaySpec, caption_schedule, finalize_video, visible_captions
+from ..video.images import ImageProblem, PreparedImage, download_image, prepare_frame, prepare_hero, prepare_logo, rank_frames
 from ..video.quality import check_output
 from ..video.service import VideoService
+from ..video.voice import add_sound, build_cues
 from .assets import AssetStore
 from .scrape_jobs import ScrapeJobs
 
@@ -52,6 +56,7 @@ WEBSITE_SLOT_SECONDS = 3.0  # website-content ads show each image for 3 seconds
 MIN_IMAGE_SECONDS = 1.5  # shortest time one image is shown
 UPLOAD_IMAGE_SECONDS_WITH_VIDEO = 3.0  # uploaded photos shown next to an uploaded video
 MAX_WEBSITE_IMAGES = {"website": 8, "mixed": 4}
+COPY_WAIT_SECONDS = 30.0  # the longest the finished video waits for the AI copywriter
 CANCELLED_MESSAGE = "You cancelled this ad."
 
 
@@ -155,41 +160,29 @@ class Made:
     provider: str = "ffmpeg"
 
 
-CAPTION_MAX_CHARS = 70
-DANGLING_WORDS = {"in", "on", "at", "of", "for", "to", "and", "or", "the", "a", "an", "with", "from", "by", "across", "your", "our", "every", "each", "that", "which", "who", "more", "very"}
-
-
-def _short(text: str) -> str:
-    """One readable caption: the first sentence, cut at a clause or word boundary when it is long."""
-    sentence = re.split(r"(?<=[.!?])\s+", " ".join(text.split()))[0].rstrip(".")
-    if len(sentence) <= CAPTION_MAX_CHARS:
-        return sentence
-    clause = re.split(r"\s*[–—]\s*|[,;:]\s|\s-\s", sentence)[0]  # em/en dashes split even without spaces
-    if 12 <= len(clause) <= CAPTION_MAX_CHARS:
-        return clause
-    # cut before a trailing phrase ("... in Mumbai, Delhi"), never leaving a dangling "in", "and", "the" at the end
-    words = sentence[:CAPTION_MAX_CHARS].rsplit(" ", 1)[0].split()
-    for joiner in (" in ", " across ", " for ", " with ", " at ", " from "):
-        head = " ".join(words).rsplit(joiner, 1)[0]
-        if head != " ".join(words) and len(head) >= 20:
-            words = head.split()
-            break
-    while len(words) > 3 and words[-1].lower() in DANGLING_WORDS:
-        words.pop()
-    return " ".join(words).rstrip(",;:")
-
-
 def key_messages(facts: FactSheet, brief: Optional[AdBrief] = None) -> list[str]:
     """Up to three short on-screen messages that say what the ad is about (main message, then real services)."""
     messages: list[str] = []
     main = (brief.main_message if brief else "") or about_line(facts)
     if main:
-        messages.append(_short(main))
+        messages.append(short_caption(main))
     for item in visual_items(facts)[:2]:
         caption = item[:1].upper() + item[1:]
         if caption.lower() not in {m.lower() for m in messages}:
             messages.append(caption)
     return [m for m in messages if m][:3]
+
+
+def overlay_captions(options: AdOptions, facts: FactSheet, brief: Optional[AdBrief], name: str) -> list[str]:
+    """The on-screen messages: one line per beat for the ad's length (2 lines at 5 s ... 5 at 20 s), written for the kind of ad and
+    the category of the business, each naming a different real service."""
+    emphasised = catalog.ad_type_info(options.ad_type)["emphasis"] == "offer"  # that offer is shown big in the panel instead
+    lines = plan_captions(
+        options.ad_type, playbook_for(facts), plan=text_plan(options.duration_seconds, options.platform), name=name,
+        about=(brief.main_message if brief else "") or about_line(facts), services=visual_items(facts, 6), offer="" if emphasised else facts.offer,
+        phone=facts.phone, website=facts.website, place=place_of(facts.address), instructions=options.special_instructions,
+    )
+    return lines or key_messages(facts, brief)
 
 
 def _skippable(url: str) -> bool:
@@ -240,6 +233,7 @@ class Ads:
         self._task_by_ad: dict[str, asyncio.Task] = {}
         self._cancel_requested: set[str] = set()
         self._video_slots = asyncio.Semaphore(max(1, settings.max_concurrent_ads))
+        self._source_sides: dict[Path, int] = {}  # prepared frame -> shortest side of the original picture (for ranking)
 
     @property
     def ai_video_available(self) -> bool:
@@ -385,7 +379,7 @@ class Ads:
                 raise InvalidCreative("Only images found by the website scan can be selected. Scan the website again and pick from its images.", "unknown_image")
             chosen = [url for url in creative.selected_image_urls if not _skippable(url)]
         else:
-            default_count = len(website_slots(duration)) if mode == "website" else 2
+            default_count = len(website_slots(duration)) + 2 if mode == "website" else 2  # spare candidates: the best are kept later
             chosen = [url for url in found if not _skippable(url)][:default_count]
         return chosen[:limit]
 
@@ -529,6 +523,7 @@ class Ads:
                 self._warn(ad, f"A website image was skipped ({exc}).")
                 continue
             self._warn(ad, *prepared.warnings)
+            self._source_sides[prepared.path] = min(prepared.source_width, prepared.source_height)
             frames.append((url, prepared.path))
         return frames
 
@@ -582,18 +577,80 @@ class Ads:
                 qr_url=facts.website if facts.website.startswith(("http://", "https://")) else "", logo_path=logo, font_path=font,
             )
         spec = OverlaySpec(qr_url=creative.qr_url if creative.include_qr else "", logo_path=logo if creative.include_logo else None, font_path=font)
+        info = catalog.ad_type_info(options.ad_type)
+        spec.qr_label = "Scan me" if options.ad_type == "qr_code" else ""
         if options.add_overlays and facts is not None:
-            spec.captions = key_messages(facts, brief)
+            spec.captions = overlay_captions(options, facts, brief, brand_name(facts.name))
         if facts is not None:
             spec.brand_colors = list(facts.brand_colors)  # the overlay accent follows the brand, else the footage
         if options.add_overlays:
             if facts is not None:
-                spec.name, spec.offer, spec.cta, spec.phone, spec.address = facts.name, _short(facts.offer) if facts.offer else "", facts.cta, facts.phone, facts.address
+                spec.name, spec.offer, spec.cta, spec.phone, spec.address = brand_name(facts.name), short_caption(facts.offer) if facts.offer else "", facts.cta, facts.phone, facts.address
             else:  # manual: only what the user typed
                 business = plan.request.business
                 spec.name, spec.offer, spec.cta = business.name.strip(), business.offer.strip(), business.cta.strip()
                 spec.phone, spec.address = business.phone.strip(), business.address.strip()
+                if spec.name:
+                    spec.captions = ad_captions(options.ad_type, name=spec.name, offer=spec.offer, phone=spec.phone, place=place_of(spec.address), instructions=options.special_instructions)
+            spec.cta = spec.cta or info["cta"] or (playbook_for(facts).cta if facts is not None else "")
+            spec.emphasis = info["emphasis"]
+            if spec.offer and spec.emphasis == "offer":  # the offer stays on screen in big type for the whole ad
+                spec.captions = [caption for caption in spec.captions if spec.offer not in caption]
+            elif spec.offer and any(spec.offer in caption for caption in spec.captions):
+                spec.offer = ""  # already on screen as a caption: never the same line twice
         return spec
+
+    def _start_copy(self, plan: AdPlan) -> Optional["asyncio.Task"]:
+        """Start the AI copywriter now, so it works while the video is being made instead of after it."""
+        options, facts = plan.request.options, plan.facts
+        if plan.creative is None or facts is None or not options.add_overlays or not self.prompts.llm.enabled:
+            return None
+        name = brand_name(facts.name)
+        text = text_plan(options.duration_seconds, options.platform)
+        return asyncio.create_task(self.prompts.write_overlay(facts, options, name, text, playbook_for(facts)))
+
+    async def _write_overlay_text(self, ad: AdResponse, plan: AdPlan, spec: OverlaySpec, task: Optional["asyncio.Task"] = None) -> None:
+        """Use the AI copywriter's lines (it has read the website) when they arrived in time. Without them the pattern captions stay."""
+        options, facts = plan.request.options, plan.facts
+        if task is not None and spec.name:
+            try:
+                copy, notes = await asyncio.wait_for(task, timeout=COPY_WAIT_SECONDS)
+            except (asyncio.TimeoutError, Exception) as exc:  # the ad must never wait on, or fail because of, the writer
+                logger.info("AI copy not used: %r", exc)
+                copy, notes = None, ["The AI writer was too slow. Used the standard on-screen text instead."]
+            text = text_plan(options.duration_seconds, options.platform)
+            self._warn(ad, *notes)
+            if copy:
+                quote = real_quote(options.special_instructions)  # a real customer quote always comes first
+                written = [c for c in copy.captions if not (spec.offer and spec.offer in c)]  # the panel already shows the offer
+                spec.captions = fill_captions(([quote] if quote else []) + written, spec.captions, text.count)
+                spec.cta = facts.cta or copy.cta or spec.cta
+                ad.site_summary = copy.understanding
+        ad.overlay_text = visible_captions(spec.captions, options.duration_seconds)
+
+    async def _add_sound(self, ad: AdResponse, plan: AdPlan, spec: OverlaySpec, final_path: Path) -> None:
+        """Voiceover and music on the finished ad. "Keep the sound" off means a silent MP4; a failure only adds a warning."""
+        options, creative = plan.request.options, plan.creative
+        book = playbook_for(plan.facts)
+        voice_id = book.voice if options.voice == "auto" else options.voice  # "auto": the voice that suits the category
+        music_id = book.music if options.music == "auto" else options.music
+        if creative is None or not creative.keep_audio or (voice_id == "none" and music_id == "none"):
+            return
+        info = await probe_media(final_path)
+        captions = visible_captions(spec.captions, info.duration)
+        cues = build_cues(spec.name, captions, spec.cta, spec.offer, info.duration, caption_schedule(len(captions), info.duration)) if voice_id != "none" else []
+        folder = final_path.with_suffix(".sound")
+        try:
+            sound = await add_sound(final_path, folder, voice_id=voice_id, music_id=music_id, cues=cues, rate=book.rate)
+        except (VideoError, OSError) as exc:
+            logger.warning("ad %s: sound step failed: %s", ad.ad_id, exc)
+            self._warn(ad, "The sound could not be added, so the ad is silent.")
+            return
+        finally:
+            shutil.rmtree(folder, ignore_errors=True)
+        if sound.script:
+            logger.info("ad %s voiceover: %s", ad.ad_id, sound.script)
+        self._warn(ad, *sound.warnings)
 
     # ------------------------------------------------------------------ the pipeline
 
@@ -615,6 +672,7 @@ class Ads:
         folder = self.work_dir / ad_id
         final_path = self.videos_dir / f"{ad_id}.mp4"
         started = time.monotonic()
+        copy_task = self._start_copy(plan)  # the AI copywriter works while the video is being made
         try:
             await self.scrape_jobs.release_browser()
             folder.mkdir(parents=True, exist_ok=True)
@@ -630,8 +688,10 @@ class Ads:
             want_logo = plan.request.options.add_overlays if plan.creative is None else plan.creative.include_logo
             logo = await self._prepare_logo(plan, folder, ad) if want_logo else None
             spec = self._overlay_spec(plan, logo, ad.brief)
+            await self._write_overlay_text(ad, plan, spec, copy_task)
             finished = await finalize_video(made.path, final_path, spec)
             self._warn(ad, *finished.warnings)
+            await self._add_sound(ad, plan, spec, final_path)
 
             # never report success for a file that is not a playable video of about the planned length
             planned = sum(segment.seconds for segment in made.segments) or None
@@ -672,6 +732,8 @@ class Ads:
             final_path.unlink(missing_ok=True)
             await self._set(ad, status="failed", stage="failed", progress=100, error=GENERIC_ERROR, message="The ad could not be created.")
         finally:
+            if copy_task is not None and not copy_task.done():
+                copy_task.cancel()
             self._cancel_requested.discard(ad_id)
             self._prompt_ready[ad_id].set()
             self._prompt_ready.pop(ad_id, None)
@@ -716,10 +778,13 @@ class Ads:
         await self._set(ad, status="running", stage="preparing", progress=10, message="Downloading your website images…")
         website = [("website_image", url, path) for url, path in await self._website_frames(ad, plan.website_images, folder, options.aspect_ratio, size)]
         uploads = [("uploaded_image", asset_id, path) for asset_id, path in await self._upload_frames(ad, plan, folder, options.aspect_ratio, size)]
+        slots = website_slots(options.duration_seconds)
+        if not plan.creative.selected_image_urls and len(website) > len(slots):  # the user did not choose: keep the best pictures
+            sides = {path: self._source_sides.pop(path, 0) for _, _, path in website}
+            website = await asyncio.to_thread(rank_frames, website, len(slots), sides)
         pictures = website + uploads if plan.creative.prefer_website_images else uploads + website
         if not pictures:
             raise VideoError("None of the selected images could be downloaded or used, so the ad was not made. Pick other images or upload photos.")
-        slots = website_slots(options.duration_seconds)
         if len(pictures) > len(slots):
             self._warn(ad, f"Each image plays for 3 seconds, so only the first {len(slots)} images fit in {options.duration_seconds} seconds.")
             pictures = pictures[:len(slots)]
@@ -731,7 +796,8 @@ class Ads:
             kind, source, path = pictures[index % len(pictures)]
             segments.append(Segment(kind, path, True, seconds, source))
         await self._set(ad, stage="composing", progress=45, message="Building your ad from your website images…")
-        result = await compose(segments, folder / "composed.mp4", size=size, style=options.style, keep_audio=False, work_dir=folder)
+        look = look_for(playbook_for(plan.facts).look)  # motion, joins and colour that suit the category
+        result = await compose(segments, folder / "composed.mp4", size=size, style=options.style, keep_audio=False, work_dir=folder, look=look)
         return Made(result.path, _segments(result))
 
     async def _extra_clips(
@@ -834,7 +900,7 @@ class Ads:
                 facts, options, brief, clips=clips_wanted, clip_seconds=plan.duration, reference=hero.reference,
             )
             self._warn(ad, *film_notes)
-            if film:  # OpenRouter wrote a shot-by-shot prose prompt for every clip
+            if film:  # the AI director wrote a shot-by-shot prose prompt for every clip
                 prompt, film_prompts = film[0], [p.final_prompt for p in film[1:]]
                 for index, extra in enumerate(film_prompts, start=2):
                     logger.info("ad %s FILM CLIP %s PROMPT:\n%s", ad.ad_id, index, extra)

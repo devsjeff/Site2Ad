@@ -1,0 +1,24 @@
+{
+  "problems": [],
+  "notes": [],
+  "audio": {
+    "mean_db": -20.4,
+    "peak_db": -2.8
+  },
+  "seconds": 20.0,
+  "frames": [
+    "frame_01.jpg",
+    "frame_02.jpg",
+    "frame_03.jpg",
+    "frame_04.jpg",
+    "frame_05.jpg"
+  ],
+  "rounds": [
+    {
+      "round": 0,
+      "problems": []
+    }
+  ],
+  "passed": true,
+  "fixed_in_rounds": 0
+}

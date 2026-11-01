@@ -63,7 +63,11 @@ function postJson<T>(path: string, body: unknown): Promise<T> {
 
 export const api = {
   /** GET /api/config: options and limits of this server. */
-  getConfig: () => request<ConfigResponse>("/api/config"),
+  /** An older backend has no ad types or sound options: the lists are then empty and those sections stay hidden. */
+  getConfig: async () => {
+    const config = await request<ConfigResponse>("/api/config");
+    return { ...config, ad_types: config.ad_types ?? [], voices: config.voices ?? [], music: config.music ?? [] };
+  },
 
   /** POST /api/scrape: start scanning a website. */
   startScrape: (url: string, refresh = false) => postJson<JobResponse>("/api/scrape", { url, refresh }),

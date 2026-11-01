@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from PIL import Image, ImageEnhance, ImageFilter, ImageOps, UnidentifiedImageError
+from PIL import Image, ImageChops, ImageEnhance, ImageFilter, ImageOps, ImageStat, UnidentifiedImageError
 
 from .. import catalog
 from ..scraper.fetch import Deadline, Fetcher
@@ -145,6 +145,66 @@ def prepare_frame(raw: bytes, out_path: Path, aspect_ratio: str, *, size: tuple[
     out_path.parent.mkdir(parents=True, exist_ok=True)
     frame.save(out_path, "JPEG", quality=92, optimize=True)
     return PreparedImage(out_path, frame.width, frame.height, source_w, source_h, warnings)
+
+
+def frame_quality(path: Path) -> float:
+    """How good a prepared frame looks as a video picture: real detail and colour score high; gradients, plain cards and
+    washed-out pictures score low (a smooth banner has strong brightness steps but almost no edges)."""
+    with Image.open(path) as image:
+        small = ImageOps.exif_transpose(image).convert("RGB").resize((192, 108))
+    gray = small.convert("L")
+    edges = gray.filter(ImageFilter.GaussianBlur(1)).filter(ImageFilter.FIND_EDGES)
+    density = sum(1 for value in edges.getdata() if value > 18) / (192 * 108)  # share of the picture that has real edges
+    contrast = ImageStat.Stat(gray).stddev[0]
+    brightness = ImageStat.Stat(gray).mean[0]
+    r, g, b = small.split()
+    colour = ImageStat.Stat(ImageChops.difference(r, g)).mean[0] + ImageStat.Stat(ImageChops.difference(g, b)).mean[0]
+    score = min(density * 100, 25) * 1.6 + min(contrast, 60) * 0.3 + min(colour, 40) * 0.5
+    if density < 0.012:
+        score -= 40  # a gradient, a plain card or a blank banner
+    if contrast < 14:
+        score -= 15
+    if brightness < 35 or brightness > 225:
+        score -= 15
+    return score
+
+
+def _picture_hash(path: Path) -> int:
+    """A 64-bit average hash: two near-identical pictures differ in only a few bits."""
+    with Image.open(path) as image:
+        tiny = ImageOps.exif_transpose(image).convert("L").resize((8, 8), Image.Resampling.BILINEAR)
+    pixels = list(tiny.getdata())
+    average = sum(pixels) / len(pixels)
+    return sum(1 << index for index, value in enumerate(pixels) if value >= average)
+
+
+def rank_frames(frames: list[tuple], keep: int, source_sides: Optional[dict] = None) -> list[tuple]:
+    """The best `keep` pictures, best first: near-duplicates dropped, flat or washed-out pictures last, the rest in page order.
+
+    Each item is a tuple whose LAST element is the picture's file path (any leading fields are kept as they are).
+    The strongest picture opens the ad (it is the hook), then the others follow in the order the website shows them.
+    """
+    scored = []
+    for position, item in enumerate(frames):
+        try:
+            side = (source_sides or {}).get(item[-1], 0)
+            small = max(0.0, (800 - side) / 800 * 40) if side else 0.0  # a small original looks soft and noisy when enlarged
+            scored.append((frame_quality(item[-1]) - small, position, item, _picture_hash(item[-1])))
+        except (OSError, ValueError):
+            scored.append((-100.0, position, item, position))
+    unique: list[tuple] = []
+    for entry in sorted(scored, key=lambda s: -s[0]):
+        if all(bin(entry[3] ^ other[3]).count("1") > 5 for other in unique):
+            unique.append(entry)
+    chosen = unique[:keep]
+    for entry in sorted(scored, key=lambda s: -s[0]):  # too few distinct pictures: allow repeats rather than a short ad
+        if len(chosen) >= min(keep, len(scored)):
+            break
+        if entry not in chosen:
+            chosen.append(entry)
+    chosen.sort(key=lambda s: s[1])
+    best = max(chosen, key=lambda s: s[0])
+    return [best[2]] + [entry[2] for entry in chosen if entry is not best]
 
 
 def prepare_logo(raw: bytes, out_path: Path, max_side: int = 512) -> PreparedImage:

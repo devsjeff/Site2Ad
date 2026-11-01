@@ -80,6 +80,8 @@ export function ReviewStep({ config, mode, prefs, options, summary, problems, on
           <Row label="Format" value={platform ? `${platform.label} (${platform.aspect_ratio})` : options.platform} />
           <Row label="Length" value={`About ${summary.estimatedSeconds} seconds`} />
           <Row label="Style" value={label(config.styles, options.style)} />
+          {config.ad_types.length > 0 && <Row label="Kind of ad" value={label(config.ad_types, options.ad_type)} />}
+          {config.voices.length > 0 && <Row label="Sound" value={[options.voice !== "none" ? `${label(config.voices, options.voice)} voice` : "", options.music !== "none" ? `${label(config.music, options.music)} music` : ""].filter(Boolean).join(" with ")} missing="Silent" />}
           <Row label="QR code" value={prefs.includeQr ? `Opens ${prefs.qrUrl.trim()}` : ""} missing="No QR code" />
           <Row label="Logo" value={prefs.includeLogo ? summary.logo : ""} missing="No logo" />
           <Row label="Business name" value={textOn ? summary.name : ""} missing={textOn ? "None" : "Text overlays are off"} />

@@ -91,12 +91,60 @@ TRANSITION_SECONDS = 0.5
 IMAGE_GRADE = "eq=contrast=1.05:saturation=1.12,vignette=angle=PI/5"
 
 
-def image_filter(index: int, seconds: float, size: tuple[int, int], style: str, framed: bool, fades: str = "") -> str:
+@dataclass(frozen=True)
+class Look:
+    """How a category moves and feels: which camera moves are used in which order, how fast, how segments join, the colour grade."""
+
+    name: str
+    motions: tuple[str, ...]  # names from IMAGE_MOTIONS, in order of use (the first image gets the first move)
+    zoom: float = 1.0  # multiplier of the style's zoom speed
+    transitions: tuple[str, ...] = TRANSITIONS
+    transition_seconds: float = TRANSITION_SECONDS
+    grade: str = IMAGE_GRADE
+
+
+_ALL_MOTIONS = tuple(motion[0] for motion in IMAGE_MOTIONS)
+DEFAULT_LOOK = Look("default", _ALL_MOTIONS)
+LOOKS: dict[str, Look] = {
+    "default": DEFAULT_LOOK,
+    # food: slow appetising push-ins, warm and saturated, soft dissolves
+    "warm_food": Look("warm_food", ("zoom_in", "pan_right", "tilt_up", "diagonal", "zoom_out", "pan_left"), 1.25, ("fade", "dissolve", "smoothleft", "fade"), 0.6,
+                      "eq=contrast=1.07:saturation=1.3,colorbalance=rs=.05:gs=.01:bs=-.05,vignette=angle=PI/6"),
+    # hotels, spa, health: slow and soft, gentle light
+    "soft_calm": Look("soft_calm", ("zoom_in", "zoom_out", "pan_right", "tilt_up"), 0.7, ("dissolve", "fade", "smoothleft"), 0.7,
+                      "eq=contrast=1.02:saturation=1.06:brightness=0.02,colorbalance=rs=.03:bs=-.02,vignette=angle=PI/5"),
+    # fitness: fast, punchy cuts, high contrast
+    "punchy": Look("punchy", ("zoom_in", "diagonal", "pan_left", "zoom_in_left", "tilt_down"), 1.7, ("slideleft", "wipeup", "radial", "slideup"), 0.35,
+                   "eq=contrast=1.14:saturation=1.22,vignette=angle=PI/5"),
+    # retail and packaged goods: bright, colourful, playful joins
+    "bright_pop": Look("bright_pop", ("zoom_in", "pan_right", "zoom_out", "diagonal"), 1.3, ("slideleft", "circleopen", "slideup", "fade"), 0.4,
+                       "eq=contrast=1.06:saturation=1.28:brightness=0.02,vignette=angle=PI/7"),
+    # tech, auto, property: sleek and cool, confident glides
+    "cool_sleek": Look("cool_sleek", ("zoom_in", "pan_right", "tilt_up", "diagonal"), 1.0, ("smoothleft", "fade", "slideleft", "wipeup"), 0.45,
+                       "eq=contrast=1.1:saturation=1.08,colorbalance=rs=-.03:bs=.05,vignette=angle=PI/5"),
+    # services, finance, education: clean, bright, steady
+    "clean_trust": Look("clean_trust", ("zoom_in", "pan_right", "zoom_out", "pan_left"), 0.8, ("fade", "slideleft", "dissolve"), 0.5,
+                        "eq=contrast=1.04:saturation=1.08:brightness=0.01,vignette=angle=PI/6"),
+    # events: vibrant and fast
+    "festive": Look("festive", ("zoom_in", "diagonal", "zoom_out", "pan_left", "tilt_up"), 1.5, ("circleopen", "radial", "slideleft", "wipeup"), 0.4,
+                    "eq=contrast=1.1:saturation=1.32,vignette=angle=PI/5"),
+}
+
+
+def look_for(name: str) -> Look:
+    """The look with this name; the default one when unknown."""
+    return LOOKS.get(name, DEFAULT_LOOK)
+
+
+def image_filter(
+    index: int, seconds: float, size: tuple[int, int], style: str, framed: bool, fades: str = "", look: Look = DEFAULT_LOOK,
+) -> str:
     """A camera move over a still image (zoom in/out, pans, tilts, diagonal drift: a different one per segment)."""
     width, height = size
     frames = max(1, round(seconds * FPS))
-    rate = ZOOM_RATE.get(style, DEFAULT_ZOOM_RATE)
-    _, zoom, x, y = (part.format(r=rate, f=frames, m=MAX_ZOOM) for part in IMAGE_MOTIONS[index % len(IMAGE_MOTIONS)])
+    rate = ZOOM_RATE.get(style, DEFAULT_ZOOM_RATE) * look.zoom
+    by_name = {motion[0]: motion for motion in IMAGE_MOTIONS}
+    _, zoom, x, y = (part.format(r=rate, f=frames, m=MAX_ZOOM) for part in by_name[look.motions[index % len(look.motions)]])
     border = ""
     if framed:
         thickness = max(4, round(min(width, height) * 0.012))
@@ -104,7 +152,7 @@ def image_filter(index: int, seconds: float, size: tuple[int, int], style: str, 
     # drawn at 2x first so the zoom stays smooth (zoompan on small inputs jitters)
     return (
         f"scale={width * 2}:{height * 2},zoompan=z='{zoom}':x='{x}':y='{y}'"
-        f":d={frames}:s={width}x{height}:fps={FPS},setsar=1{border},{IMAGE_GRADE},format=yuv420p{fades}"
+        f":d={frames}:s={width}x{height}:fps={FPS},setsar=1{border},{look.grade},format=yuv420p{fades}"
     )
 
 
@@ -174,7 +222,7 @@ SILENCE = ["-f", "lavfi", "-i", f"anullsrc=r={AUDIO_RATE}:cl=stereo"]
 
 async def render_segment(
     segment: Segment, index: int, out: Path, *, size: tuple[int, int], style: str, with_audio: bool, keep_source_audio: bool,
-    first: bool = True, last: bool = True,
+    first: bool = True, last: bool = True, look: Look = DEFAULT_LOOK,
 ) -> ComposedSegment:
     """Render one segment to a uniform MP4 (same size, fps, pixel format and audio layout as every other segment).
 
@@ -188,7 +236,7 @@ async def render_segment(
         if with_audio:
             args += SILENCE
         fades = _fades(seconds, fade_in=not first, fade_out=not last)
-        args += ["-vf", image_filter(index, seconds, size, style, segment.framed, fades), "-frames:v", str(round(seconds * FPS))]
+        args += ["-vf", image_filter(index, seconds, size, style, segment.framed, fades, look), "-frames:v", str(round(seconds * FPS))]
         args += ["-map", "0:v:0"] + (["-map", "1:a:0", *AUDIO_CODEC] if with_audio else ["-an"])
         args += ["-t", f"{seconds:.3f}", *VIDEO_CODEC, str(out)]
     else:
@@ -237,21 +285,21 @@ async def render_segment(
     return ComposedSegment(segment.kind, segment.source, round(seconds, 2))
 
 
-def transition_graph(durations: list[float], with_audio: bool) -> str:
+def transition_graph(durations: list[float], with_audio: bool, look: Look = DEFAULT_LOOK) -> str:
     """Join parts with a different xfade transition at each cut (and audio crossfades), as one filter graph."""
     graph = [f"[{i}:v:0]fps={FPS},settb=AVTB,format=yuv420p[p{i}]" for i in range(len(durations))]
     previous, elapsed = "p0", durations[0]
     for index in range(1, len(durations)):
-        overlap = min(TRANSITION_SECONDS, durations[index - 1] / 2, durations[index] / 2)
+        overlap = min(look.transition_seconds, durations[index - 1] / 2, durations[index] / 2)
         offset = elapsed - overlap
-        kind = TRANSITIONS[(index - 1) % len(TRANSITIONS)]
+        kind = look.transitions[(index - 1) % len(look.transitions)]
         graph.append(f"[{previous}][p{index}]xfade=transition={kind}:duration={overlap:.3f}:offset={offset:.3f}[x{index}]")
         previous, elapsed = f"x{index}", offset + durations[index]
     graph.append(f"[{previous}]format=yuv420p[v]")
     if with_audio:
         audio = "0:a:0"
         for index in range(1, len(durations)):
-            overlap = min(TRANSITION_SECONDS, durations[index - 1] / 2, durations[index] / 2)
+            overlap = min(look.transition_seconds, durations[index - 1] / 2, durations[index] / 2)
             graph.append(f"[{audio}][{index}:a:0]acrossfade=d={overlap:.3f}[ax{index}]")
             audio = f"ax{index}"
         graph.append(f"[{audio}]anull[a]")
@@ -259,7 +307,7 @@ def transition_graph(durations: list[float], with_audio: bool) -> str:
 
 
 async def compose(
-    segments: list[Segment], out: Path, *, size: tuple[int, int], style: str, keep_audio: bool, work_dir: Path,
+    segments: list[Segment], out: Path, *, size: tuple[int, int], style: str, keep_audio: bool, work_dir: Path, look: Look = DEFAULT_LOOK,
 ) -> ComposeResult:
     """Render every segment, then join them in order into `out`. Raises VideoError (temporary files are always removed)."""
     if not segments:
@@ -283,15 +331,15 @@ async def compose(
             planned = segment
             if joined and index < len(segments) - 1:  # the next transition overlaps this part: make it that much longer
                 if segment.is_image:
-                    planned = replace(segment, seconds=max(1.0, segment.seconds) + TRANSITION_SECONDS)
+                    planned = replace(segment, seconds=max(1.0, segment.seconds) + look.transition_seconds)
                 elif segment.loop_to:
-                    planned = replace(segment, loop_to=segment.loop_to + TRANSITION_SECONDS)
+                    planned = replace(segment, loop_to=segment.loop_to + look.transition_seconds)
             rendered = await render_segment(
                 planned, index, part, size=size, style=style, with_audio=with_audio, keep_source_audio=keep_audio,
-                first=True, last=True,  # transitions come from xfade below, not from fades inside each part
+                first=True, last=True, look=look,  # transitions come from xfade below, not from fades inside each part
             )
             if planned is not segment:
-                rendered.seconds = round(rendered.seconds - TRANSITION_SECONDS, 2)
+                rendered.seconds = round(rendered.seconds - look.transition_seconds, 2)
             composed.append(rendered)
             parts.append(part)
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -302,7 +350,7 @@ async def compose(
             args = [ffmpeg, "-y", "-loglevel", "error"]
             for part in parts:
                 args += ["-i", str(part)]
-            args += ["-filter_complex", transition_graph(durations, with_audio), "-map", "[v]"]
+            args += ["-filter_complex", transition_graph(durations, with_audio, look), "-map", "[v]"]
             args += ["-map", "[a]", *AUDIO_CODEC] if with_audio else ["-an"]
             args += [*VIDEO_CODEC, "-movflags", "+faststart", str(out)]
             await run_tool(args, timeout=max(120.0, sum(durations) * 8))
