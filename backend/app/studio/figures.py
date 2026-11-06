@@ -68,6 +68,16 @@ def grounded(text: str, source_text: str) -> float:
     return sum(1 for w in words if w in have) / len(words)
 
 
+def ungrounded_words(text: str, source_text: str) -> list[str]:
+    """The content words of `text` that `source_text` does not contain (so a retry can name exactly what to remove)."""
+    have = set(content_words(source_text))
+    seen: list[str] = []
+    for word in content_words(text):
+        if word not in have and word not in seen:
+            seen.append(word)
+    return seen
+
+
 def missing_symbols(text: str, allowed_text: str) -> list[str]:
     """Figures written without the currency symbol the source gives them: on screen it must say '₹4,000', not '4000'."""
     symbols: dict[str, str] = {}

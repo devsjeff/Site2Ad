@@ -131,3 +131,13 @@ final.mp4                        the video
 * **Fonts.** Brand fonts are fetched from Google Fonts while rendering; without a network the scenes fall back to a system font.
 * **Screenshots are real.** They are taken from the live page, so the video never shows a picture of the product that is not the product.
 * **Tests.** `python -m pytest tests/test_studio.py` (uses a fake AI writer; it renders real scenes in Chromium and runs FFmpeg).
+
+
+## Language, voice and sound effects
+
+`request.json` takes `language` (`en`, `hi`, `ta`, `te`, `bn`, `mr`, `gu`, `kn`, `ml`, `es`, `fr`, `de`, `ar`, `pt`), `voice` (`auto` or a voice id that speaks
+that language, see `app/catalog.py`) and `sound_effects` (default `true`). The assumptions stage picks the voice among those that speak the
+language (ElevenLabs voices only while `ELEVENLABS_API_KEY` works); `04_assumptions.json` keeps `language`, `voice` and `sound_effects`, so
+you can change them there. The build stage translates the voice lines of the English storyboard (`voice_local` in `05_storyboard.json`,
+`voice_src` is the English line it came from), speaks them, and mixes the effects (`app/video/sfx.py`). If the AI writer cannot translate, the
+video is spoken in English and `06_build/build.json` says why (`sound.warnings`).

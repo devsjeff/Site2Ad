@@ -1,4 +1,4 @@
-Title: DOOH & Taxi Cab Advertising in India | Backseat Network
+Title: In-cab advertising in India | Backseat Network
 URL: https://backseatnetwork.com
 
 [Solutions]
@@ -45,21 +45,11 @@ Book a demo
 
 ₹4,000
 
-Planning a cab campaign?
-
-I can plan and price one with you in under a minute.
-
 Indian cities live or onboarding
 
 airport and city cabs
 
 per cab per month, plus GST
-
-[Plan my campaign]
-
-[Ask a question]
-
-[Ask Vira]
 
 ## Trusted by leading brands across India
 
@@ -201,7 +191,7 @@ Passenger POV
 
 Your ad plays on a headrest tablet at eye level. There is no skip button, and every creative carries a QR code the passenger can scan before the ride ends.
 
-Airport cabs · weekend
+Mumbai · 6 PM rush
 
 Ad
 
@@ -209,11 +199,11 @@ Live in-cab
 
 Passenger POV
 
-Goa this weekend
+Chai break?
 
-Flights + stay from ₹4,999
+Real chai. Real good.
 
-Scan to book
+Scan to sip
 
 Cab screen
 
@@ -221,15 +211,15 @@ Cab screen
 
 - 60 cm away
 
-Mumbai
-
-Marine Drive, golden hour
-
 - Of dwell time on a single ride, far longer than any indoor advertising panel a commuter walks past.
 
 - The screen sits at arm's length, at eye level, behind the driver's headrest.
 
-Chai brand
+Mumbai airport
+
+Terminal pickup
+
+Travel brand
 
 Silent 15s loop
 

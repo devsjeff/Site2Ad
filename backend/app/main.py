@@ -60,7 +60,7 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     )
     app.add_middleware(
         CORSMiddleware, allow_origins=settings.cors_origins, allow_credentials=False,
-        allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["*"], expose_headers=["Content-Range", "Accept-Ranges"],
+        allow_methods=["GET", "POST", "PUT", "OPTIONS"], allow_headers=["*"], expose_headers=["Content-Range", "Accept-Ranges"],
     )
 
     @app.exception_handler(ApiError)

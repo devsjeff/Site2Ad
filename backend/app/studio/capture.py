@@ -12,7 +12,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from ..scraper.safety import DEFAULT_POLICY, SafetyPolicy
 from .config import Run, StageError
+from .imaging import is_empty
+from .netguard import check_page_url, request_allowed
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +94,47 @@ HIDE_FLOATING_JS = r"""
     if (!nearTop && overlay && !el.closest('nav,header')) { el.style.setProperty('visibility', 'hidden', 'important'); hidden++; }
   }
   return hidden;
+}
+"""
+
+# Marks the site's logo and its biggest real pictures (not icons, avatars or navigation art) so they can be saved as images.
+ASSETS_JS = r"""
+() => {
+  const bad = /sprite|avatar|icon|emoji|badge|pixel|tracking|spacer|flag|payment|captcha/i;
+  const logoWord = /logo|brand|wordmark/i;
+  const rect = (el) => el.getBoundingClientRect();
+  const shown = (el) => {
+    const r = rect(el), cs = getComputedStyle(el);
+    return r.width > 1 && r.height > 1 && cs.visibility !== 'hidden' && cs.display !== 'none' && parseFloat(cs.opacity) !== 0;
+  };
+  const hint = (el) => [el.getAttribute('class'), el.id, el.getAttribute('alt'), el.getAttribute('src'), el.getAttribute('aria-label'), el.parentElement && el.parentElement.getAttribute('class')].filter(Boolean).join(' ');
+  let logo = null, best = 0;
+  for (const el of document.querySelectorAll('img, svg')) {
+    if (!shown(el)) continue;
+    const r = rect(el), top = r.top + scrollY;
+    if (top > 260 || r.width < 40 || r.width > 460 || r.height < 14 || r.height > 170) continue;
+    const link = el.closest('a');
+    let score = 0;
+    if (logoWord.test(hint(el))) score += 4;
+    if (el.closest('header, nav, [role=banner]')) score += 2;
+    if (link && (link.getAttribute('href') === '/' || link.getAttribute('href') === location.origin + '/')) score += 3;
+    if (score >= 4 && score > best) { best = score; logo = el; }
+  }
+  if (logo) logo.setAttribute('data-studio', 'logo');
+  const seen = new Set(), art = [];
+  for (const el of document.querySelectorAll('img')) {
+    if (el === logo || !shown(el) || el.closest('header, nav, footer, [role=banner], [role=navigation]')) continue;
+    const r = rect(el), ratio = r.width / r.height;
+    if (r.width < 260 || r.height < 150 || ratio < 0.5 || ratio > 2.4 || el.naturalWidth < 300) continue;
+    if (bad.test(hint(el)) || logoWord.test(hint(el))) continue;
+    const key = el.currentSrc || el.src;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    art.push({el, area: r.width * r.height});
+  }
+  art.sort((a, b) => b.area - a.area);
+  const out = art.slice(0, 4).map((a, i) => { a.el.setAttribute('data-studio', 'art' + (i + 1)); return {key: 'art' + (i + 1), alt: (a.el.getAttribute('alt') || '').slice(0, 120)}; });
+  return {logo: !!logo, art: out};
 }
 """
 
@@ -289,6 +333,43 @@ def pick_clips(bands: list[dict], texts: list[str], total: int) -> list[dict]:
     return chosen
 
 
+def save_assets(page, run: Run) -> dict:
+    """Save the site's logo and its best pictures as PNG files (what the site itself draws, so nothing is fetched again)."""
+    for old in run.assets_dir.glob("*.png"):
+        old.unlink()
+    assets: dict[str, Any] = {"logo": None, "images": []}
+    try:
+        found = page.evaluate(ASSETS_JS)
+    except Exception as exc:  # assets are a bonus; the capture never fails because of them
+        logger.info("assets not found: %s", exc)
+        return assets
+    jobs = ([("logo", "logo", "")] if found.get("logo") else []) + [(a["key"], a["key"], a.get("alt", "")) for a in found.get("art", [])]
+    failures = 0
+    for key, name, alt in jobs:
+        if failures >= 2:  # pictures that cannot be photographed (carousels, hidden layers) will not start working: do not wait for each one
+            break
+        target = run.assets_dir / f"{name}.png"
+        try:
+            page.locator(f'[data-studio="{key}"]').first.screenshot(path=str(target), omit_background=(key == "logo"), timeout=2500)
+        except Exception as exc:
+            failures += 1
+            logger.info("asset %s not saved: %s", key, str(exc).splitlines()[0] if str(exc) else exc)
+            continue
+        failures = 0
+        if is_empty(target):
+            target.unlink(missing_ok=True)
+            continue
+        from PIL import Image
+
+        with Image.open(target) as image:
+            size = image.size
+        if key == "logo":
+            assets["logo"] = {"file": f"assets/{name}.png", "w": size[0], "h": size[1]}
+        else:
+            assets["images"].append({"file": f"assets/{name}.png", "w": size[0], "h": size[1], "alt": alt})
+    return assets
+
+
 def launch_browser(playwright):
     """Chromium when it is installed, else Firefox (the browser the scanner already uses on servers)."""
     try:
@@ -314,8 +395,13 @@ def dismiss_banners(page) -> None:
         logger.info("cookie banner not closed: %s", exc)
 
 
-def capture(run: Run, url: str) -> dict:
-    """Run stage 1. Returns the capture record that is also saved as capture.json."""
+def capture(run: Run, url: str, policy: SafetyPolicy = DEFAULT_POLICY) -> dict:
+    """Run stage 1. Returns the capture record that is also saved as capture.json.
+
+    Only public websites are opened: the address is checked first, and so is every request the page makes (images, scripts,
+    redirects), exactly like the scanner does.
+    """
+    check_page_url(url, policy)
     try:
         from playwright.sync_api import Error as PlaywrightError, sync_playwright
     except ImportError as exc:
@@ -326,7 +412,18 @@ def capture(run: Run, url: str) -> dict:
         with sync_playwright() as p:
             browser = launch_browser(p)
             try:
-                page = browser.new_page(viewport=VIEWPORT, device_scale_factor=1)
+                context = browser.new_context(viewport=VIEWPORT, device_scale_factor=1, service_workers="block", accept_downloads=False)
+                host_cache: dict[str, bool] = {}
+
+                def guard(route) -> None:
+                    """Let public requests through and refuse the rest."""
+                    if request_allowed(route.request.url, policy, host_cache):
+                        route.continue_()
+                    else:
+                        route.abort("blockedbyclient")
+
+                context.route("**/*", guard)
+                page = context.new_page()
                 page.goto(url, wait_until="load", timeout=60000)
                 try:
                     page.wait_for_load_state("networkidle", timeout=8000)
@@ -351,23 +448,33 @@ def capture(run: Run, url: str) -> dict:
                 band_texts = [" ".join(b["text"] for b in blocks if band["top"] - 2 <= b["top"] < band["top"] + band["height"]) for band in bands]
                 clips = pick_clips(bands, band_texts, layout["total"])
                 shots = []
-                for number, clip in enumerate(clips, start=1):
+                for clip in clips:
+                    number = len(shots) + 1
                     name = f"{number:02d}_{clip['kind']}.png"
                     page.screenshot(path=str(run.shots_dir / name), full_page=True,
                                     clip={"x": 0, "y": clip["top"], "width": VIEWPORT["width"], "height": clip["height"]})
+                    if is_empty(run.shots_dir / name):  # a flat, empty region (a blank hero, a sign-in wall) makes a useless shot
+                        (run.shots_dir / name).unlink()
+                        continue
                     inside = [b for b in blocks if clip["top"] - 2 <= b["top"] < clip["top"] + clip["height"] and b["region"] != "nav"]
                     shots.append({
                         "id": f"{number:02d}", "file": name, "kind": clip["kind"], "clip": {k: clip[k] for k in ("top", "height")},
                         "lines": [min(b["line"] for b in inside), max(b["line"] for b in inside)] if inside else [],
                         "text": " | ".join(b["text"] for b in inside)[:900], "summary": _summary(clip["kind"], inside),
                     })
+                assets = save_assets(page, run)
             finally:
                 browser.close()
     except PlaywrightError as exc:
         raise StageError(f"The page could not be captured: {str(exc).splitlines()[0]}") from exc
+    words = sum(len(b["text"].split()) for b in blocks if b["region"] != "nav")
+    if not shots or (words < 40 and len(shots) <= 2):
+        raise StageError(
+            f"{url} shows almost nothing to a visitor who is not signed in ({len(shots)} usable pictures, {words} words): it is blank, empty or asks to sign in. "
+            "Use the address of a public page that shows the product, such as the home page of the business, or add facts of your own.")
     record = {
         "url": url, "title": title, "captured_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "page_height": layout["total"], "blocks": kept_blocks(blocks), "styles": styles, "screenshots": shots,
+        "page_height": layout["total"], "blocks": kept_blocks(blocks), "styles": styles, "screenshots": shots, "assets": assets,
     }
     run.write_json(run.capture_json, record)
     write_screenshots_md(run, record, claims=None)

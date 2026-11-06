@@ -195,17 +195,110 @@ def ad_type_line(ad_type: str) -> str:
     info = ad_type_info(ad_type)
     return f"{info['label']} ad: {info['direction']}" if info["direction"] else ""
 
-# Voice packages (Microsoft neural voices through edge-tts). The script is written in English.
-VOICES: dict[str, dict] = {
-    "auto": {"label": "Auto", "hint": "The best voice for your business", "voice": ""},
-    "none": {"label": "No voice", "hint": "Music or silence only", "voice": ""},
-    "neerja": {"label": "Neerja", "hint": "Warm female, Indian English", "voice": "en-IN-NeerjaExpressiveNeural"},
-    "prabhat": {"label": "Prabhat", "hint": "Clear male, Indian English", "voice": "en-IN-PrabhatNeural"},
-    "swara": {"label": "Swara", "hint": "Female, Hindi accent", "voice": "hi-IN-SwaraNeural"},
-    "madhur": {"label": "Madhur", "hint": "Male, Hindi accent", "voice": "hi-IN-MadhurNeural"},
-    "ava": {"label": "Ava", "hint": "Friendly female, American", "voice": "en-US-AvaNeural"},
-    "andrew": {"label": "Andrew", "hint": "Confident male, American", "voice": "en-US-AndrewNeural"},
+# Languages a Studio video can be spoken in. The picture text stays as the website wrote it; the voiceover is written (translated, with every
+# figure kept) in the chosen language.
+LANGUAGES: dict[str, dict] = {
+    "en": {"label": "English", "native": "English"},
+    "hi": {"label": "Hindi", "native": "हिन्दी"},
+    "ta": {"label": "Tamil", "native": "தமிழ்"},
+    "te": {"label": "Telugu", "native": "తెలుగు"},
+    "bn": {"label": "Bengali", "native": "বাংলা"},
+    "mr": {"label": "Marathi", "native": "मराठी"},
+    "gu": {"label": "Gujarati", "native": "ગુજરાતી"},
+    "kn": {"label": "Kannada", "native": "ಕನ್ನಡ"},
+    "ml": {"label": "Malayalam", "native": "മലയാളം"},
+    "es": {"label": "Spanish", "native": "Español"},
+    "fr": {"label": "French", "native": "Français"},
+    "de": {"label": "German", "native": "Deutsch"},
+    "ar": {"label": "Arabic", "native": "العربية"},
+    "pt": {"label": "Portuguese", "native": "Português"},
 }
+
+# ElevenLabs "multilingual v2" speaks these (any of its voices, in any of them). The other languages use Microsoft voices.
+ELEVEN_LANGUAGES = ["en", "hi", "ta", "es", "fr", "de", "ar", "pt"]
+
+
+def _edge(label: str, hint: str, voice: str, language: str, gender: str) -> dict:
+    return {"label": label, "hint": hint, "voice": voice, "engine": "edge", "languages": [language], "gender": gender}
+
+
+def _eleven(label: str, hint: str, eleven_id: str, gender: str) -> dict:
+    return {"label": f"{label} (ElevenLabs)", "hint": hint, "voice": "", "eleven_id": eleven_id, "engine": "eleven", "languages": list(ELEVEN_LANGUAGES), "gender": gender}
+
+
+# Voice packages. "edge" voices are Microsoft neural voices through edge-tts (free, no key). "eleven" voices are ElevenLabs studio voices; they
+# need ELEVENLABS_API_KEY and quietly fall back to the Microsoft voice of the same language and gender when the key is missing or used up.
+VOICES: dict[str, dict] = {
+    "auto": {"label": "Auto", "hint": "The best voice for your business", "voice": "", "engine": "edge", "languages": list(LANGUAGES), "gender": ""},
+    "none": {"label": "No voice", "hint": "Music or silence only", "voice": "", "engine": "edge", "languages": list(LANGUAGES), "gender": ""},
+    "neerja": _edge("Neerja", "Warm female, Indian English", "en-IN-NeerjaExpressiveNeural", "en", "f"),
+    "prabhat": _edge("Prabhat", "Clear male, Indian English", "en-IN-PrabhatNeural", "en", "m"),
+    "ava": _edge("Ava", "Friendly female, American", "en-US-AvaNeural", "en", "f"),
+    "andrew": _edge("Andrew", "Confident male, American", "en-US-AndrewNeural", "en", "m"),
+    "sonia": _edge("Sonia", "Polished female, British", "en-GB-SoniaNeural", "en", "f"),
+    "ryan": _edge("Ryan", "Clear male, British", "en-GB-RyanNeural", "en", "m"),
+    "swara": _edge("Swara", "Female, Hindi", "hi-IN-SwaraNeural", "hi", "f"),
+    "madhur": _edge("Madhur", "Male, Hindi", "hi-IN-MadhurNeural", "hi", "m"),
+    "pallavi": _edge("Pallavi", "Female, Tamil", "ta-IN-PallaviNeural", "ta", "f"),
+    "valluvar": _edge("Valluvar", "Male, Tamil", "ta-IN-ValluvarNeural", "ta", "m"),
+    "shruti": _edge("Shruti", "Female, Telugu", "te-IN-ShrutiNeural", "te", "f"),
+    "mohan": _edge("Mohan", "Male, Telugu", "te-IN-MohanNeural", "te", "m"),
+    "tanishaa": _edge("Tanishaa", "Female, Bengali", "bn-IN-TanishaaNeural", "bn", "f"),
+    "bashkar": _edge("Bashkar", "Male, Bengali", "bn-IN-BashkarNeural", "bn", "m"),
+    "aarohi": _edge("Aarohi", "Female, Marathi", "mr-IN-AarohiNeural", "mr", "f"),
+    "manohar": _edge("Manohar", "Male, Marathi", "mr-IN-ManoharNeural", "mr", "m"),
+    "dhwani": _edge("Dhwani", "Female, Gujarati", "gu-IN-DhwaniNeural", "gu", "f"),
+    "niranjan": _edge("Niranjan", "Male, Gujarati", "gu-IN-NiranjanNeural", "gu", "m"),
+    "sapna": _edge("Sapna", "Female, Kannada", "kn-IN-SapnaNeural", "kn", "f"),
+    "gagan": _edge("Gagan", "Male, Kannada", "kn-IN-GaganNeural", "kn", "m"),
+    "sobhana": _edge("Sobhana", "Female, Malayalam", "ml-IN-SobhanaNeural", "ml", "f"),
+    "midhun": _edge("Midhun", "Male, Malayalam", "ml-IN-MidhunNeural", "ml", "m"),
+    "elvira": _edge("Elvira", "Female, Spanish", "es-ES-ElviraNeural", "es", "f"),
+    "alvaro": _edge("Alvaro", "Male, Spanish", "es-ES-AlvaroNeural", "es", "m"),
+    "denise": _edge("Denise", "Female, French", "fr-FR-DeniseNeural", "fr", "f"),
+    "henri": _edge("Henri", "Male, French", "fr-FR-HenriNeural", "fr", "m"),
+    "katja": _edge("Katja", "Female, German", "de-DE-KatjaNeural", "de", "f"),
+    "conrad": _edge("Conrad", "Male, German", "de-DE-ConradNeural", "de", "m"),
+    "zariyah": _edge("Zariyah", "Female, Arabic", "ar-SA-ZariyahNeural", "ar", "f"),
+    "hamed": _edge("Hamed", "Male, Arabic", "ar-SA-HamedNeural", "ar", "m"),
+    "francisca": _edge("Francisca", "Female, Portuguese", "pt-BR-FranciscaNeural", "pt", "f"),
+    "antonio": _edge("Antonio", "Male, Portuguese", "pt-BR-AntonioNeural", "pt", "m"),
+    "el_adam": _eleven("Adam", "Dominant and firm: made for ads", "pNInz6obpgDQGcFmaJgB", "m"),
+    "el_liam": _eleven("Liam", "Energetic social-media creator", "TX3LPaxmHKxFdv7VOQHJ", "m"),
+    "el_brian": _eleven("Brian", "Deep, resonant, comforting", "nPczCjzI2devNBz1zQrb", "m"),
+    "el_eric": _eleven("Eric", "Smooth and trustworthy", "cjVigY5qzO86Huf0OWal", "m"),
+    "el_bill": _eleven("Bill", "Wise, balanced, advertising voice", "pqHfZKP75CvOlQylNhV4", "m"),
+    "el_sarah": _eleven("Sarah", "Confident and reassuring", "EXAVITQu4vr4xnSDxMaL", "f"),
+    "el_jessica": _eleven("Jessica", "Playful, bright and warm", "cgSgspJ2msm6clMCkdW9", "f"),
+    "el_laura": _eleven("Laura", "Enthusiastic with attitude", "FGY2WhTYpPnrIDTdsKH5", "f"),
+    "el_alice": _eleven("Alice", "Clear, engaging educator", "Xb7hH8MSUJpSbSDYk0k2", "f"),
+    "el_matilda": _eleven("Matilda", "Professional and knowledgeable", "XrExE9yKIg1WjnnlVkGX", "f"),
+}
+
+def voices_for(language: str, *, eleven: bool = True) -> list[str]:
+    """Voice ids that can speak `language` (without the pseudo voices "auto" and "none"), Microsoft voices first."""
+    ids = [key for key, v in VOICES.items() if key not in {"auto", "none"} and language in v["languages"] and (eleven or v["engine"] != "eleven")]
+    return sorted(ids, key=lambda key: VOICES[key]["engine"] == "eleven")
+
+
+def default_voice(language: str, gender: str = "f") -> str:
+    """A Microsoft voice for `language` with this gender (any gender when there is none)."""
+    edge = [key for key in voices_for(language, eleven=False)]
+    return next((key for key in edge if VOICES[key]["gender"] == gender), edge[0] if edge else "neerja")
+
+
+def fallback_voice(voice_id: str, language: str = "en") -> str:
+    """The Microsoft voice that stands in for `voice_id` when its own engine cannot be used (same language, same gender)."""
+    info = VOICES.get(voice_id, {})
+    if info.get("engine") == "edge" and language in info.get("languages", [language]):
+        return voice_id
+    return default_voice(language, info.get("gender") or "f")
+
+
+def voice_language(voice_id: str) -> str:
+    """The language a Microsoft voice speaks (its first language), "en" for the others."""
+    return (VOICES.get(voice_id, {}).get("languages") or ["en"])[0]
+
 
 # Soft backgrounds synthesised by FFmpeg: two chords (note frequencies), seconds per chord, volume pulses per second.
 MUSIC: dict[str, dict] = {

@@ -56,10 +56,20 @@ export function OptionsStep({
           {config.voices.length > 0 && <section>
             <h3 className="mb-3 text-sm font-bold text-ink">Voice</h3>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {config.voices.map((voice) => (
+              {config.voices.filter((voice) => voice.engine !== "eleven" && (voice.languages ?? ["en"]).includes("en")).map((voice) => (
                 <OptionCard key={voice.id} compact icon={voice.id === "none" ? "🔇" : "🎙️"} title={voice.label} description={voice.hint} selected={options.voice === voice.id} onClick={() => set("voice", voice.id)} />
               ))}
             </div>
+            {config.voices.some((voice) => voice.engine === "eleven") && (
+              <div className="mt-4">
+                <p className="mb-2 text-xs font-bold uppercase tracking-widest text-muted">Studio-quality voices</p>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {config.voices.filter((voice) => voice.engine === "eleven").map((voice) => (
+                    <OptionCard key={voice.id} compact icon="🎧" title={voice.label.replace(" (ElevenLabs)", "")} description={voice.hint} badge="ElevenLabs" selected={options.voice === voice.id} onClick={() => set("voice", voice.id)} />
+                  ))}
+                </div>
+              </div>
+            )}
             <p className="mt-2 text-xs text-muted">
               {options.voice === "auto" ? "Auto picks the voice and music that suit your kind of business. " : ""}
               The voice speaks each on-screen line exactly when it appears.

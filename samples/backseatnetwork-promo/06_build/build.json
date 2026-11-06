@@ -1,35 +1,35 @@
 {
   "size": [
-    1280,
-    720
+    1920,
+    1080
   ],
-  "fps": 24,
+  "fps": 30,
   "seconds": 20.0,
   "has_audio": true,
   "shots": [
     {
       "n": 1,
-      "frames": 106,
+      "frames": 132,
       "overflow": []
     },
     {
       "n": 2,
-      "frames": 118,
+      "frames": 147,
       "overflow": []
     },
     {
       "n": 3,
-      "frames": 106,
+      "frames": 132,
       "overflow": []
     },
     {
       "n": 4,
-      "frames": 106,
+      "frames": 132,
       "overflow": []
     },
     {
       "n": 5,
-      "frames": 84,
+      "frames": 105,
       "overflow": []
     }
   ],

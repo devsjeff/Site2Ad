@@ -17,7 +17,7 @@ from typing import Any
 from .ai import ask_json
 from .assumptions import validate_edited
 from .config import GRAPHIC_TEMPLATES, STRUCTURES, TRANSITIONS, Run, StageError, allocate, min_length, words_allowed, words_limit
-from .figures import grounded, missing_symbols, restore_symbols, unsupported_figures, unsupported_words
+from .figures import grounded, missing_symbols, restore_symbols, unsupported_figures, unsupported_words, ungrounded_words
 from .notes import allowed_text, require_kind
 
 GROUNDED_MIN = 0.5  # at least this share of the content words of every line must come from the claims it cites
@@ -85,6 +85,25 @@ def map_strings(value: Any, fn) -> Any:
     return value
 
 
+TRANSITION_WORDS = (
+    ("zoom", ("zoom", "scale", "punch", "push in", "push-in")),
+    ("slide", ("slide", "wipe", "swipe", "push", "pan", "whip", "swish")),
+    ("cut", ("cut", "none", "hard", "jump", "match", "instant", "straight")),
+    ("fade", ("fade", "dissolve", "cross", "blur", "morph", "soft")),
+)
+
+
+def normalise_transition(value: Any) -> str:
+    """One of the four transitions the builder has, whatever word the writer used ("wipe left" -> slide, "dissolve" -> fade, nothing -> fade)."""
+    word = str(value or "").strip().lower()
+    if word in TRANSITIONS:
+        return word
+    for name, keys in TRANSITION_WORDS:
+        if any(key in word for key in keys):
+            return name
+    return "fade"
+
+
 def normalise_visual(visual: Any) -> dict:
     """Accept the ways a writer spells a visual: {"type": "cta", ...} or {"template": "cta", ...} both mean a graphic."""
     if not isinstance(visual, dict):
@@ -119,6 +138,9 @@ def validate_storyboard(data: dict, video_type: str, seconds: list[float], notes
         if shot.get("beat") != beat.id:
             problems.append(f"{name}: beat must be '{beat.id}'")
         visual = normalise_visual(shot.get("visual"))
+        if visual.get("template") == "cta" and index < len(beats) - 1:  # only the last shot is the call to action: an early one is a plain title (same words)
+            props = visual.get("props") or {}
+            visual = {"type": "graphic", "template": "title", "props": {"headline": str(props.get("headline") or shot.get("caption") or shot.get("voice") or "").strip(), "sub": ""}}
         shot["visual"] = visual
         kind = visual.get("type")
         if kind == "screenshot":
@@ -131,10 +153,11 @@ def validate_storyboard(data: dict, video_type: str, seconds: list[float], notes
                 problems.append(f"{name}: the graphic needs props")
         else:
             problems.append(f"{name}: visual.type must be 'screenshot' or 'graphic'")
+        if visual.get("template") == "quote" and not any(c["kind"] == "quote" and c["id"] in (shot.get("claims") or []) for c in notes["claims"]):
+            problems.append(f"{name}: the quote graphic is only for a real customer quote (cite a claim of kind 'quote'); show other claims as a title, stats or a screenshot, never as a quote")
         if beat.visual == "screenshot" and kind != "screenshot":
             problems.append(f"{name}: this beat must show a real screenshot")
-        if shot.get("transition") not in TRANSITIONS:
-            problems.append(f"{name}: transition must be one of {list(TRANSITIONS)}")
+        shot["transition"] = normalise_transition(shot.get("transition"))  # a different word for the same thing is mapped, never sent back
         refs = shot.get("claims") if isinstance(shot.get("claims"), list) else []
         if not refs and kind != "graphic":
             problems.append(f"{name}: cite the claims behind it")
@@ -160,7 +183,8 @@ def validate_storyboard(data: dict, video_type: str, seconds: list[float], notes
             for text in texts_in(shot):  # everything said or shown must come from the cited claims (no claims about other companies, no embellishment)
                 share = grounded(text, cited_words)
                 if share < GROUNDED_MIN:
-                    problems.append(f"{name}: '{text[:70]}' is not backed by the cited claims ({round(share * 100)}% of its words). Say only what the claims say")
+                    extra = ungrounded_words(text, cited_words)[:5]
+                    problems.append(f"{name}: '{text[:70]}' is not backed by the cited claims ({round(share * 100)}% of its words; the claims never say {extra}). Say only what the claims say")
         for text in texts_in(shot):  # no comparison or superlative that the cited claims do not make
             words = unsupported_words(text, cited)
             if words:
@@ -173,6 +197,15 @@ def validate_storyboard(data: dict, video_type: str, seconds: list[float], notes
     wanted = 0 if all(b.visual == "screenshot" for b in beats[:-1]) else min(2, (len(beats) - 1) // 2)
     if graphics < wanted:
         problems.append(f"use at least {wanted} built graphics (title, big_number, price, stats, steps...) besides the call to action; you used {graphics}")
+    seen_prices: dict[str, int] = {}
+    for number, item in enumerate(shots, start=1):  # a price is shown once: a second shot with the same figure is padding
+        visual_of = normalise_visual(item.get("visual")) if isinstance(item, dict) else {}
+        if visual_of.get("template") == "price":
+            key = re.sub(r"\s+", "", str((visual_of.get("props") or {}).get("price", ""))).lower()
+            if key and key in seen_prices:
+                problems.append(f"shot {number}: the price {key} is already shown in shot {seen_prices[key]}; show it once and use this shot for a different claim")
+            elif key:
+                seen_prices[key] = number
     for earlier, later in zip(shots, shots[1:]):
         if isinstance(earlier, dict) and isinstance(later, dict) and earlier.get("visual") == later.get("visual"):
             problems.append("two shots in a row use the same visual; vary them")
@@ -180,16 +213,38 @@ def validate_storyboard(data: dict, video_type: str, seconds: list[float], notes
     last = shots[-1] if isinstance(shots[-1], dict) else {}
     visual = normalise_visual(last.get("visual"))
     if visual.get("template") != "cta":
-        problems.append("the last shot must be the 'cta' graphic")
-    elif cta_text.lower() not in json.dumps(visual.get("props", {})).lower():
-        problems.append(f"the cta graphic must use the call to action '{cta_text}' as its button")
-    elif len(str((visual.get("props") or {}).get("headline", "")).split()) > 9:
-        problems.append("the cta headline must be at most 9 words")
-    for shot in shots[:-1]:
-        if isinstance(shot, dict) and isinstance(shot.get("visual"), dict) and shot["visual"].get("template") == "cta":
-            problems.append("only the last shot may be a call to action (one idea, one CTA)")
-            break
+        problems.append(f"shot {len(shots)} ({beats[-1].id}): the last shot must be the 'cta' graphic")
+    else:  # the button is always the real call to action and the headline is one short idea: fixed here, not sent back
+        props = dict(visual.get("props") or {})
+        props["button"] = cta_text
+        props["headline"] = " ".join(str(props.get("headline", "")).split()[:9])
+        last["visual"] = {**visual, "props": props}
     return problems
+
+
+def repair_storyboard(data: dict, problems: list[str], seconds: list[float], notes: dict, assumptions: dict) -> dict | None:
+    """When the writer keeps repeating the same mistakes, say the failing shots from their own sourced claims instead (nothing is added).
+
+    Only shots named in the problems are rewritten; the caller checks the result again, so a repair that does not pass is not used.
+    """
+    from .check import safe_rewrite
+
+    shots = data.get("shots")
+    if not isinstance(shots, list) or len(shots) != len(seconds):
+        return None
+    named = {int(m.group(1)) - 1 for p in problems for m in [re.match(r"shot (\d+)", p)] if m}
+    if not named:
+        return None
+    for index in named:
+        shot = shots[index] if 0 <= index < len(shots) else None
+        if isinstance(shot, dict) and index == len(shots) - 1 and (shot.get("visual") or {}).get("template") != "cta":  # the last shot is always the call to action
+            shot["visual"] = {"type": "graphic", "template": "cta", "props": {"headline": "Ready when you are", "button": assumptions["cta"]["text"]}}
+        if isinstance(shot, dict):
+            shot["visual"] = normalise_visual(shot.get("visual"))
+            shot["seconds"] = seconds[index]
+            shot["claims"] = [c for c in (shot.get("claims") or []) if isinstance(c, str)]
+            safe_rewrite(shot, notes, assumptions)
+    return data
 
 
 def allowed_text_from(notes: dict) -> str:
@@ -239,8 +294,13 @@ def build_storyboard(run: Run) -> dict[str, Any]:
         f"Must avoid: {'; '.join(a['must_avoid'])}\n\n"
         f"Claims you may use:\n{claims}\n\nScreenshots you may show (id, kind: what it shows):\n{screens}\n\nWrite the storyboard now."
     )
-    data = ask_json(system_prompt(), user, lambda d: validate_storyboard(d, video_type, seconds, notes, capture, a["cta"]["text"]),
-                    what="storyboard", max_tokens=5000, tries=5)
+    def check(d: dict) -> list[str]:
+        return validate_storyboard(d, video_type, seconds, notes, capture, a["cta"]["text"])
+
+    def repair(d: dict, problems: list[str]) -> dict | None:
+        return repair_storyboard(d, problems, seconds, notes, a)
+
+    data = ask_json(system_prompt(), user, check, what="storyboard", max_tokens=5000, tries=5, repair=repair)
     shots = []
     for beat, shot, duration in zip(STRUCTURES[video_type], data["shots"], seconds):
         visual = dict(shot["visual"])

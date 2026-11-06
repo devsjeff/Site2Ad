@@ -9,12 +9,12 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-FPS = 24
+FPS = 30
 WORDS_PER_SECOND = 2.0  # measured: the Indian-English voices speak 1.9 to 2.1 words a second (the US voice 2.5); the build speeds a line up by at most 25%
 MIN_SHOT_SECONDS = 1.8
 STAGES = ("capture", "notes", "brand", "assumptions", "storyboard", "build", "check")
 
-PLATFORM_SIZES = {"16:9": (1280, 720), "9:16": (720, 1280), "1:1": (960, 960)}
+PLATFORM_SIZES = {"16:9": (1920, 1080), "9:16": (1080, 1920), "1:1": (1080, 1080)}
 
 
 class StageError(Exception):
@@ -102,7 +102,7 @@ GRAPHIC_TEMPLATES = {
     "steps": '{"steps": [str, ...]}  (2 to 4 short steps)',
     "stats": '{"stats": [{"value": str, "label": str}, ...]}  (1 to 3 figures)',
     "price": '{"price": str, "unit": str, "note": str}',
-    "quote": '{"quote": str, "who": str}  (a real quote only)',
+    "quote": '{"quote": str, "who": str}  (ONLY for a claim of kind "quote" that you cite: the exact words of the customer and the real name or role the notes give; never for any other claim)',
     "compare": '{"left_label": str, "left": str, "right_label": str, "right": str}',
     "cta": '{"headline": str, "button": str, "url": str}',
 }
@@ -171,6 +171,10 @@ class Run:
     @property
     def shots_dir(self) -> Path:
         return self._dir("01_capture/screenshots")
+
+    @property
+    def assets_dir(self) -> Path:
+        return self._dir("01_capture/assets")
 
     @property
     def page_md(self) -> Path:

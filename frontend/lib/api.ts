@@ -2,7 +2,7 @@
 // (checked by scripts/check_contract.py). The base URL comes from NEXT_PUBLIC_API_BASE_URL; empty means same origin.
 
 import type {
-  AdResponse, ConfigResponse, ErrorBody, GenerateAdRequest, JobResponse, UploadResponse,
+  AdResponse, ConfigResponse, ErrorBody, GenerateAdRequest, JobResponse, StudioAssumptions, StudioRequest, StudioResponse, UploadResponse,
 } from "./types";
 
 const RAW_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
@@ -66,7 +66,11 @@ export const api = {
   /** An older backend has no ad types or sound options: the lists are then empty and those sections stay hidden. */
   getConfig: async () => {
     const config = await request<ConfigResponse>("/api/config");
-    return { ...config, ad_types: config.ad_types ?? [], voices: config.voices ?? [], music: config.music ?? [] };
+    return {
+      ...config, ad_types: config.ad_types ?? [], voices: config.voices ?? [], music: config.music ?? [],
+      languages: config.languages ?? [], eleven_available: config.eleven_available ?? false,
+      studio_available: config.studio_available ?? false, studio_message: config.studio_message ?? "", studio_types: config.studio_types ?? [],
+    };
   },
 
   /** POST /api/scrape: start scanning a website. */
@@ -91,6 +95,21 @@ export const api = {
 
   /** POST /api/ads/{id}/cancel: stop an ad that is still being made. */
   cancelAd: (adId: string) => postJson<AdResponse>(`/api/ads/${encodeURIComponent(adId)}/cancel`, {}),
+
+  /** POST /api/studio/jobs: start a typed video (promo, hook ad, pitch...) from a website. */
+  studioCreate: (body: StudioRequest) => postJson<StudioResponse>("/api/studio/jobs", body),
+
+  /** GET /api/studio/jobs/{id}: progress and what each finished stage produced. */
+  studioGet: (jobId: string) => request<StudioResponse>(`/api/studio/jobs/${encodeURIComponent(jobId)}`),
+
+  /** PUT /api/studio/jobs/{id}/assumptions: correct the AI's choices while the job waits for review. */
+  studioSaveAssumptions: (jobId: string, body: StudioAssumptions) => request<StudioResponse>(`/api/studio/jobs/${encodeURIComponent(jobId)}/assumptions`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+
+  /** POST /api/studio/jobs/{id}/continue: make the video after the review. */
+  studioContinue: (jobId: string) => postJson<StudioResponse>(`/api/studio/jobs/${encodeURIComponent(jobId)}/continue`, {}),
+
+  /** POST /api/studio/jobs/{id}/cancel: stop a studio job after its current step. */
+  studioCancel: (jobId: string) => postJson<StudioResponse>(`/api/studio/jobs/${encodeURIComponent(jobId)}/cancel`, {}),
 };
 
 /** URL of an uploaded image or video (for <img src> / <video src>). */
@@ -101,6 +120,16 @@ export function assetUrl(assetId: string): string {
 /** URL of the finished video (for <video src> or a download link). */
 export function adVideoUrl(adId: string, download = false): string {
   return apiUrl(`/api/ads/${encodeURIComponent(adId)}/video${download ? "?download=1" : ""}`);
+}
+
+/** URL of the finished studio video (for <video src> or a download link). */
+export function studioVideoUrl(jobId: string, download = false): string {
+  return apiUrl(`/api/studio/jobs/${encodeURIComponent(jobId)}/video${download ? "?download=1" : ""}`);
+}
+
+/** URL of a screenshot captured from the website. */
+export function studioShotUrl(jobId: string, file: string): string {
+  return apiUrl(`/api/studio/jobs/${encodeURIComponent(jobId)}/screenshots/${encodeURIComponent(file)}`);
 }
 
 /** Human readable message for any thrown value. */

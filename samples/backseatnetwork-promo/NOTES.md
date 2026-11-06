@@ -11,9 +11,10 @@ How this sample was made, honestly:
 * The AI writer's free daily limit was used up by testing, so the checks could not rewrite those shots themselves. **I rewrote shots 1 to 5
   by hand in `05_storyboard.json`**, using only wording from the claims they cite (the intended workflow: any stage's file can be edited), then
   ran `build` and `check`. The check report is `07_check/report.md`: PASSED, 0 problems.
-* Known flaw: the hero screenshot (`01_capture/screenshots/01_hero.png`) still shows the site's own "Planning a cab campaign?" chat widget.
-  This capture was made before the capture stage learned to hide floating widgets; a new capture would not have it (but would renumber the
-  citations, so the notes would have to be run again too).
+* Later upgrade: the capture (`01_capture`) was run again with the current capture stage (it hides floating chat widgets, drops empty
+  screenshots and saves the site's logo as `01_capture/assets/logo.png`), and the video was rebuilt with the current design: 1920x1080 at
+  30 fps, the brand colour filling every other frame, a large browser window cropped to the real content, the logo on the end card and a
+  close crop of a real screenshot beside the price and the call to action. The notes and storyboard are unchanged and the check still passes.
 
 To see the automatic version, run the same command again after the AI limit resets:
 `python -m app.studio run --url https://backseatnetwork.com --type promo --length 20 --platform 16:9`

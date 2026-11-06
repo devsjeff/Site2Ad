@@ -3,8 +3,7 @@ import Link from "next/link";
 export const metadata = { title: "Ads | site2ad" };
 
 const ENTRIES = [
-  { href: "/ads/create?mode=auto", icon: "✨", title: "Auto ad", text: "Start from your website: original website content, an AI-generated video, or a mix of both.", tint: "from-violet-500/25 via-fuchsia-500/10 to-transparent" },
-  { href: "/ads/create?mode=manual", icon: "🎬", title: "Manual ad", text: "Upload your own images or videos and add a QR code, text and your logo. No AI video.", tint: "from-amber-400/25 via-pink-500/10 to-transparent" },
+  { href: "/ads/create", icon: "✨", title: "Make an ad", text: "Manual (your own photos and videos) or automated (from your website: its pictures, full AI or a mix). Then Caption + QR for speed, or Studio for the better, designed result.", tint: "from-violet-500/25 via-fuchsia-500/10 to-transparent" },
 ];
 
 // Ads dashboard: the entry point for creating an ad.
@@ -20,7 +19,7 @@ export default function AdsPage() {
           + Create ad
         </Link>
       </header>
-      <ul className="grid gap-4 sm:grid-cols-2">
+      <ul className="grid gap-4">
         {ENTRIES.map((entry, index) => (
           <li key={entry.href} className={`animate-fadeUp delay-${index + 1}`}>
             <Link href={entry.href} className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-line bg-surface/85 p-6 transition-all hover:-translate-y-1 hover:shadow-glow">

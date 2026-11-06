@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 
 from ..schemas import (
     AdResponse, ConfigResponse, ErrorResponse, GenerateAdRequest, HealthResponse, JobResponse, ReadyResponse, ScrapeRequest,
-    UploadResponse,
+    StudioAssumptions, StudioRequest, StudioResponse, UploadResponse,
 )
 from .core import Api, UploadedFile
 from .ranges import RangeNotSatisfiable, parse_range, read_slice
@@ -99,6 +99,60 @@ async def get_ad_video(request: Request, ad_id: str, download: bool = Query(Fals
     start, end = span
     headers["Content-Range"] = f"bytes {start}-{end}/{size}"
     return Response(content=read_slice(path, start, end), status_code=206, media_type="video/mp4", headers=headers)
+
+
+@router.post("/studio/jobs", response_model=StudioResponse, status_code=202, responses=ERRORS)
+async def studio_create(body: StudioRequest, request: Request, api: Api = Depends(get_api)) -> StudioResponse:
+    """Start a typed video (promo, hook ad, pitch, showcase, explainer, testimonial, launch) from a website. Poll GET /api/studio/jobs/{job_id}."""
+    return await api.studio_create(body, client_id(request, api))
+
+
+@router.get("/studio/jobs/{job_id}", response_model=StudioResponse, responses=ERRORS)
+async def studio_get(job_id: str, api: Api = Depends(get_api)) -> StudioResponse:
+    """Progress of a studio job and what each finished stage produced (claims, brand, assumptions, shots, check report)."""
+    return await api.studio_get(job_id)
+
+
+@router.put("/studio/jobs/{job_id}/assumptions", response_model=StudioResponse, responses=ERRORS)
+async def studio_assumptions(job_id: str, body: StudioAssumptions, api: Api = Depends(get_api)) -> StudioResponse:
+    """Correct the AI's creative choices while the job waits for review."""
+    return await api.studio_assumptions(job_id, body)
+
+
+@router.post("/studio/jobs/{job_id}/continue", response_model=StudioResponse, status_code=202, responses=ERRORS)
+async def studio_continue(job_id: str, api: Api = Depends(get_api)) -> StudioResponse:
+    """After the review: make the storyboard, the video and the check."""
+    return await api.studio_continue(job_id)
+
+
+@router.post("/studio/jobs/{job_id}/cancel", response_model=StudioResponse, responses=ERRORS)
+async def studio_cancel(job_id: str, api: Api = Depends(get_api)) -> StudioResponse:
+    """Stop a studio job after its current step."""
+    return await api.studio_cancel(job_id)
+
+
+@router.get("/studio/jobs/{job_id}/video", responses=ERRORS)
+async def studio_video(job_id: str, request: Request, download: bool = Query(False), api: Api = Depends(get_api)) -> Response:
+    """The finished studio video (MP4, supports HTTP Range; ?download=true to save it)."""
+    path = await api.studio_video(job_id)
+    headers = {"Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff", "Accept-Ranges": "bytes"}
+    if download:
+        headers["Content-Disposition"] = f'attachment; filename="studio-{job_id[:8]}.mp4"'
+    try:
+        span = parse_range(request.headers.get("range"), path.stat().st_size)
+    except RangeNotSatisfiable:
+        return Response(status_code=416, headers={**headers, "Content-Range": f"bytes */{path.stat().st_size}"})
+    if span is None:
+        return FileResponse(path, media_type="video/mp4", headers=headers)
+    start, end = span
+    return Response(read_slice(path, start, end), status_code=206, media_type="video/mp4",
+                    headers={**headers, "Content-Range": f"bytes {start}-{end}/{path.stat().st_size}"})
+
+
+@router.get("/studio/jobs/{job_id}/screenshots/{file}", responses=ERRORS)
+async def studio_screenshot(job_id: str, file: str, api: Api = Depends(get_api)) -> FileResponse:
+    """One screenshot captured from the website (shown next to the claims and the shots)."""
+    return FileResponse(await api.studio_screenshot(job_id, file), media_type="image/png", headers={"Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff"})
 
 
 @router.get("/config", response_model=ConfigResponse)

@@ -52,6 +52,9 @@ POST /api/generate-ad {...}       -> 202 {ad_id, ...}    then poll GET /api/ads/
                                                           completed | completed_with_fallback | failed
 GET  /api/ads/{ad_id}/video                               -> the MP4 (supports HTTP Range; ?download=true for a file)
 POST /api/ads/{ad_id}/cancel                              -> stops an ad that is still running
+
+POST /api/studio/jobs {url, video_type, length, platform, ...}   -> 202 {job_id, ...}   a Studio video (below)
+GET  /api/studio/jobs/{job_id}                            poll until status is review | completed | failed | cancelled
 ```
 
 Poll every 1–5 seconds. `completed_with_fallback` means the AI video provider failed and a simple non-AI clip was
@@ -71,6 +74,15 @@ contradictory combinations with `422`:
 | `auto` / `mixed` | a scan | yes |
 
 Ready-made request bodies for each mode are in the spec (`POST /api/generate-ad` → examples) and in the Postman request.
+
+**Studio videos.** `POST /api/studio/jobs` makes a designed, typed video (`video_type`: promo, hook_ad, pitch, showcase,
+explainer, testimonial, launch) from a website in seven stages. It needs the AI writer (`studio_available` in `/api/config`,
+otherwise `409 studio_unavailable`). With `review: true` (the default) the job stops at `status: "review"` with the AI's plan
+(`claims` with their sources, `brand`, `assumptions`): correct it with `PUT /api/studio/jobs/{job_id}/assumptions` (send the
+`assumptions` object back with your changes), then `POST .../continue`. With `review: false` it runs straight through. Finish
+with `GET .../video`. `language` (14 ids in `/api/config` → `languages`), `voice` (`auto` or an id from `voices` that speaks that
+language, otherwise `422`) and `sound_effects` choose the voice-over and sound. A full worked example with curl is in the
+[README](../README.md#5-api-use-it-as-a-backend).
 
 **Limits and options.** Never hard-code platforms, styles, lengths or upload limits: read them from
 `GET /api/config` (it also says whether AI video is available on this deployment).

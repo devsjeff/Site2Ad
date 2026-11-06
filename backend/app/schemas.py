@@ -23,6 +23,10 @@ JobStatus = Literal[
 ScrapeStage = Literal["queued", "fetching", "rendering", "extracting", "ad_ready"]
 PhoneSource = Literal["tel_link", "whatsapp_link", "json_ld", "header", "footer", "body", "contact_page", "user"]
 AdStatus = Literal["queued", "running", "completed", "completed_with_fallback", "failed"]
+StudioStatus = Literal["queued", "running", "review", "completed", "failed", "cancelled"]
+StudioStageStatus = Literal["pending", "running", "done", "failed"]
+StudioVideoType = Literal["promo", "hook_ad", "pitch", "showcase", "explainer", "testimonial", "launch"]
+StudioPlatform = Literal["16:9", "9:16", "1:1"]
 AdStage = Literal[
     "queued", "preparing", "prompt_building", "prompt_ready", "generating_video", "composing", "finalizing", "completed", "failed"
 ]
@@ -602,6 +606,189 @@ class CreativeModeInfo(ApiModel):
     unavailable_reason: str = ""
 
 
+class StudioRequest(ApiModel):
+    """Body of POST /api/studio/jobs: make a typed video from a website in seven stages."""
+
+    url: str = Field(min_length=3, max_length=2048)
+    video_type: StudioVideoType = "promo"
+    length: int = Field(default=20, ge=8, le=60)
+    platform: StudioPlatform = "16:9"
+    claims: list[str] = Field(default_factory=list, max_length=5)  # facts of your own (a real customer quote, a price)
+    review: bool = True  # stop after the assumptions so they can be corrected
+    language: str = "en"  # the language the voiceover is spoken in (see GET /api/config, "languages")
+    voice: str = "auto"  # a voice id from GET /api/config that speaks that language, or "auto" to let the AI choose
+    sound_effects: bool = True  # whooshes, pops and chimes that follow the animation
+
+    @field_validator("language")
+    @classmethod
+    def _language(cls, value: str) -> str:
+        """Only languages this server has."""
+        if value not in catalog.LANGUAGES:
+            raise ValueError(f"language must be one of {sorted(catalog.LANGUAGES)}")
+        return value
+
+    @field_validator("voice")
+    @classmethod
+    def _voice(cls, value: str) -> str:
+        """A known voice (the match with the language is checked when the job starts)."""
+        if value not in catalog.VOICES or value == "none":
+            raise ValueError(f"voice must be 'auto' or one of {sorted(v for v in catalog.VOICES if v not in {'auto', 'none'})}")
+        return value
+
+    @field_validator("claims")
+    @classmethod
+    def _claims(cls, value: list[str]) -> list[str]:
+        """Short, non-empty facts only."""
+        return [c.strip()[:200] for c in value if c.strip()]
+
+
+class StudioStage(ApiModel):
+    """One of the seven stages of a job."""
+
+    name: str
+    label: str
+    status: StudioStageStatus
+    seconds: float = 0.0
+    summary: str = ""
+
+
+class StudioClaim(ApiModel):
+    """A claim of the product notes with the place it comes from."""
+
+    id: str
+    text: str
+    kind: str
+    source: str
+
+
+class StudioBrand(ApiModel):
+    """What the brand notes found."""
+
+    primary: str
+    accent: str
+    background: str
+    ink: str
+    mode: str
+    heading_font: str
+    body_font: str
+    shapes: str
+    tone: str
+    photo_style: str
+
+
+class StudioMustInclude(ApiModel):
+    """Something the video must show or say, with the claims that back it."""
+
+    what: str = Field(max_length=200)
+    claims: list[str] = Field(default_factory=list, max_length=6)
+
+
+class StudioAssumptions(ApiModel):
+    """The creative choices the AI made, which the person can correct (PUT /api/studio/jobs/{id}/assumptions)."""
+
+    audience: str = Field(min_length=1, max_length=300)
+    key_message: str = Field(min_length=1, max_length=200)
+    tone: str = Field(min_length=1, max_length=200)
+    voice: str
+    voice_reason: str = ""
+    music: str
+    music_reason: str = ""
+    cta_text: str = Field(min_length=1, max_length=60)
+    cta_target: str = Field(default="", max_length=200)
+    must_include: list[StudioMustInclude] = Field(default_factory=list, max_length=6)
+    must_avoid: list[str] = Field(default_factory=list, max_length=8)
+    language: str = "en"
+    sound_effects: bool = True
+
+    @field_validator("language")
+    @classmethod
+    def _language(cls, value: str) -> str:
+        """Only languages this server has."""
+        if value not in catalog.LANGUAGES:
+            raise ValueError(f"language must be one of {sorted(catalog.LANGUAGES)}")
+        return value
+
+    @field_validator("voice")
+    @classmethod
+    def _voice(cls, value: str) -> str:
+        """Only voices this server has."""
+        if value not in catalog.VOICES or value == "auto":
+            raise ValueError(f"voice must be one of {sorted(v for v in catalog.VOICES if v != 'auto')}")
+        return value
+
+    @field_validator("music")
+    @classmethod
+    def _music(cls, value: str) -> str:
+        """Only music this server has."""
+        if value not in catalog.MUSIC or value == "auto":
+            raise ValueError(f"music must be one of {sorted(m for m in catalog.MUSIC if m != 'auto')}")
+        return value
+
+
+class StudioShot(ApiModel):
+    """One shot of the storyboard."""
+
+    n: int
+    beat: str
+    purpose: str
+    seconds: float
+    voice: str
+    voice_local: str = ""  # the voice line in the video's language when it is not English
+    caption: str
+    transition: str
+    claims: list[str]
+    visual: str
+    screenshot: Optional[str] = None  # the id of the real screenshot shown, if the shot shows one
+
+
+class StudioScreenshot(ApiModel):
+    """A captured screenshot; GET /api/studio/jobs/{id}/screenshots/{file}."""
+
+    id: str
+    file: str
+    kind: str
+    summary: str
+
+
+class StudioResponse(ApiModel):
+    """A studio job: its progress, and what each finished stage produced."""
+
+    job_id: str
+    status: StudioStatus
+    stage: str
+    progress: int
+    message: str
+    error: str
+    review: bool
+    url: str
+    video_type: StudioVideoType
+    length: int
+    platform: StudioPlatform
+    stages: list[StudioStage]
+    what_it_is: str
+    who_for: str
+    claims: list[StudioClaim]
+    brand: Optional[StudioBrand] = None
+    assumptions: Optional[StudioAssumptions] = None
+    shots: list[StudioShot]
+    screenshots: list[StudioScreenshot]
+    problems: list[str]
+    passed: Optional[bool] = None
+    video_url: Optional[str] = None
+    created_at: str
+    updated_at: str
+
+
+class StudioTypeInfo(ApiModel):
+    """One video type for the picker (GET /api/config)."""
+
+    id: StudioVideoType
+    label: str
+    description: str
+    min_length: int
+    shots: list[str]
+
+
 class ConfigResponse(ApiModel):
     """Body of GET /api/config: what this deployment can do, so the UI never hard-codes it."""
 
@@ -615,6 +802,8 @@ class ConfigResponse(ApiModel):
     goals: list[dict]
     ad_types: list[dict]
     voices: list[dict]
+    languages: list[dict] = Field(default_factory=list)
+    eleven_available: bool = False
     music: list[dict]
     styles: list[dict]
     tones: list[dict]
@@ -629,6 +818,9 @@ class ConfigResponse(ApiModel):
     website_image_seconds: float = 2.5
     max_video_upload_bytes: int = 0
     max_video_upload_seconds: int = 0
+    studio_available: bool = False
+    studio_message: str = ""
+    studio_types: list[StudioTypeInfo] = Field(default_factory=list)
 
 
 class HealthResponse(ApiModel):

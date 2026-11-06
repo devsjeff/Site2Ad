@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import time
 from typing import Optional
 from urllib.parse import quote
 
@@ -216,9 +218,20 @@ class LlmClient:
             raise LlmError("The AI writer account has no credit left.")
         if response.status_code == 429:
             if "per-day" in response.text or "daily" in response.text.lower():
-                raise LlmError("The AI writer's free daily limit is used up. Add credits at the provider, or wait for the daily reset.")
+                raise LlmError(f"The AI writer's free daily limit is used up{self._reset_note(response)}. Add credits at the provider (OpenRouter: 10 credits unlock 1000 free requests a day), or wait for the daily reset.")
             raise LlmError("The AI writer is rate limited.")
         raise LlmError(f"The AI writer answered with status {response.status_code}.")
+
+    @staticmethod
+    def _reset_note(response: httpx.Response) -> str:
+        """The note "; it resets at 00:00 UTC, in about 8 hours" when the provider says when the limit resets, else nothing."""
+        try:
+            reset = int(json.loads(response.text)["error"]["metadata"]["headers"]["X-RateLimit-Reset"]) / 1000
+        except (ValueError, KeyError, TypeError):
+            return ""
+        hours = max(0.0, (reset - time.time()) / 3600)
+        when = time.strftime("%H:%M UTC", time.gmtime(reset))
+        return f"; it resets at {when}, in about {hours:.0f} hour{'s' if round(hours) != 1 else ''}" if hours >= 1 else f"; it resets at {when}, in under an hour"
 
     def _answer_text(self, payload: dict) -> str:
         """Text from a Gemini generateContent body or an OpenAI chat-completions body."""

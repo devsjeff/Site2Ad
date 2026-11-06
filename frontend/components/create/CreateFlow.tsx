@@ -8,6 +8,7 @@ import {
   websiteSlotCount, type CreativePrefs, type ModeId,
 } from "@/lib/creative";
 import { EMPTY_DRAFT, mergeScan, toOverrides, type BusinessDraft, type DraftField } from "@/lib/draft";
+import { effectiveStyle, flowSteps, readDeeplink, stepAfter, stepBefore, type BuildStyle, type FlowStep } from "@/lib/flow";
 import { usePolling } from "@/lib/usePolling";
 import {
   isScanFailure, type AdOptions, type AssetInfo, type BusinessOverrides, type ConfigResponse, type CreationMode, type CreativeMode,
@@ -17,19 +18,21 @@ import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Advanced } from "../ui/Advanced";
 import { InputField } from "../ui/InputField";
+import { StudioFlow } from "../studio/StudioFlow";
 import { AdTypePicker } from "./AdTypePicker";
+import { BuildStyleStep } from "./BuildStyleStep";
 import { CreativeModeStep } from "./CreativeModeStep";
+import { HowStep } from "./HowStep";
 import { ImageUpload } from "./ImageUpload";
 import { MediaUpload } from "./MediaUpload";
 import { OptionsStep } from "./OptionsStep";
 import { PreferencesStep } from "./PreferencesStep";
 import { ReviewStep, type EditTarget, type ReviewSummary } from "./ReviewStep";
 import { ScanProgress } from "./ScanProgress";
+import { StepDots } from "./StepDots";
 
-// Three short screens: start (website or uploads), customize (style, format, length + advanced), review and create.
-type StepKey = "start" | "customize" | "review";
-
-const STEPS: StepKey[] = ["start", "customize", "review"];
+// One guided path (see lib/flow.ts): type (manual or automated) → media → style (Caption + QR or Studio) → settings → review,
+// or, for Studio, the Studio screens in place of settings and review.
 
 const DEFAULT_OPTIONS: AdOptions = {
   goal: "awareness", ad_type: "auto", voice: "auto", music: "auto", platform: "taxi_screen", duration_seconds: 5, style: "cinematic_premium", tone: "friendly",
@@ -46,14 +49,15 @@ interface ManualDetails {
 // "1 photo" / "3 photos".
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
 
-// The whole create-ad flow: choose manual or auto, give the content, pick a creative mode, set preferences, review, create.
+// The whole make-an-ad flow: manual or automated, the media, how to build it, the settings, review, create (or the Studio screens).
 export function CreateFlow() {
   const router = useRouter();
   const [config, setConfig] = useState<ConfigResponse | null>(null);
   const [configError, setConfigError] = useState<string | null>(null);
-  const [stepKey, setStepKey] = useState<StepKey>("start");
-  const [creation, setCreation] = useState<CreationMode | null>("auto");
+  const [stepKey, setStepKey] = useState<FlowStep>("how");
+  const [creation, setCreation] = useState<CreationMode | null>(null);
   const [creativeMode, setCreativeMode] = useState<CreativeMode | null>(null);
+  const [style, setStyle] = useState<BuildStyle>("captions");
 
   const [url, setUrl] = useState("");
   const [jobId, setJobId] = useState<string | null>(null);
@@ -74,6 +78,8 @@ export function CreateFlow() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const mode: ModeId = creation === "manual" ? "manual" : creativeMode ?? "website";
+  const steps = flowSteps(creation, creativeMode, style);
+  const buildStyle = effectiveStyle(creation, creativeMode, style);
 
   // --- server options
   useEffect(() => {
@@ -95,26 +101,24 @@ export function CreateFlow() {
     setPrefs((current) => current ?? defaultPrefs("website"));
   }, []);
 
-  // --- deep links: /ads/create?mode=manual|auto, and ?job=<id> (the "make another ad" link reuses a scan)
+  // --- deep links: ?mode=manual|auto, ?style=studio, ?studio=<job> (a Studio video in progress), ?job=<scan> ("make another ad" reuses a scan)
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const previous = params.get("job");
-    const wanted = params.get("mode");
-    if (previous) {
-      setCreation("auto");
-      startAuto();
-      api.getJob(previous).then(
+    const link = readDeeplink(window.location.search);
+    setCreation(link.creation);
+    setStyle(link.style);
+    setStepKey(link.step);
+    if (link.creation === "manual") setPrefs(defaultPrefs("manual"));
+    else if (link.creation === "auto") {
+      setCreativeMode(link.source ?? "website");
+      setPrefs(defaultPrefs(link.source ?? "website"));
+    }
+    if (link.scanJob) {
+      api.getJob(link.scanJob).then(
         (job) => { setFirstJob(job); setJobId(job.job_id); setUrl(job.url); },
         () => undefined,
       );
-    } else if (wanted === "manual" || wanted === "auto") {
-      setCreation(wanted);
-      if (wanted === "manual") setPrefs(defaultPrefs("manual"));
-      else startAuto();
-    } else {
-      startAuto(); // the flow opens on "From my website"
     }
-  }, [startAuto]);
+  }, []);
 
   // --- poll the scan
   const polled = usePolling<JobResponse>({
@@ -168,6 +172,7 @@ export function CreateFlow() {
     setStepError(null);
     if (value === "manual") setPrefs((current) => (current ? switchMode(current, "manual") : defaultPrefs("manual")));
     else startAuto();
+    setStepKey("media");
   }
 
   // Pick the kind of ad. A QR Code ad needs the QR code on.
@@ -198,34 +203,32 @@ export function CreateFlow() {
   // Go to the next screen (with the checks for the screen we leave).
   function next() {
     setStepError(null);
-    if (stepKey === "start") {
+    if (stepKey === "media") {
       if (creation === "manual") {
         if (media.length === 0) { setStepError("Upload at least one image or video."); return; }
       } else {
+        if (!creativeMode) { setStepError("Choose where the media should come from."); return; }
+        if (callsAiVideo(creativeMode) && !config?.ai_video_available) { setStepError(config?.ai_video_message ?? "AI video is not available."); return; }
         if (!scanUsable) { setStepError("Scan your website first."); return; }
         if (!draft.name.trim()) { setNameError("We could not find your business name. Enter it."); return; }
         if (prefs && !prefs.qrUrl && websiteUrl) setPrefs({ ...prefs, qrUrl: websiteUrl, includeQr: true });
       }
-      setStepKey("customize");
-    } else if (stepKey === "customize") {
-      if (creation !== "manual") {
-        if (!creativeMode) { setStepError("Choose how your ad should be made."); return; }
-        if (callsAiVideo(creativeMode) && !config?.ai_video_available) { setStepError(config?.ai_video_message ?? "AI video is not available."); return; }
-      }
-      setStepKey("review");
+    } else if (stepKey === "style" && buildStyle === "studio" && !config?.studio_available) {
+      setStepError(config?.studio_message || "Studio is not set up on this server.");
+      return;
     }
+    setStepKey(stepAfter(steps, stepKey));
   }
 
   // Go one screen back.
   function back() {
     setStepError(null);
-    const index = STEPS.indexOf(stepKey);
-    if (index > 0) setStepKey(STEPS[index - 1]);
+    setStepKey(stepBefore(steps, stepKey));
   }
 
   // Jump from the review screen to the screen that holds a value.
   function editFrom(target: EditTarget) {
-    setStepKey(target === "mode" || target === "business" ? "start" : "customize");
+    setStepKey(target === "mode" || target === "business" ? "media" : "customize");
   }
 
   // The business details that go with the request.
@@ -296,7 +299,7 @@ export function CreateFlow() {
 
   const nav = (label = "Continue", disabled = false) => (
     <div className="flex items-center justify-between pt-2">
-      {stepKey !== "start" ? <Button variant="ghost" onClick={back}>← Back</Button> : <span />}
+      {stepKey !== "how" ? <Button variant="ghost" onClick={back}>← Back</Button> : <span />}
       <Button onClick={next} disabled={disabled} className="min-w-40">{label} →</Button>
     </div>
   );
@@ -307,30 +310,32 @@ export function CreateFlow() {
         <h1 className="text-3xl font-extrabold tracking-tight text-ink">{title}</h1>
         <p className="mt-1.5 text-sm text-muted">{sub}</p>
       </div>
-      <div className="mt-3 flex shrink-0 items-center gap-1.5" aria-label={`Step ${STEPS.indexOf(stepKey) + 1} of ${STEPS.length}`}>
-        {STEPS.map((key, index) => (
-          <span key={key} className={`h-2 rounded-full transition-all duration-500 ${key === stepKey ? "bg-brand w-7" : index < STEPS.indexOf(stepKey) ? "w-2 bg-accent" : "w-2 bg-line"}`} />
-        ))}
-      </div>
+      {stepKey !== "how" && <StepDots steps={steps} current={stepKey} />}
     </div>
   );
 
   const manual = creation === "manual";
+  const studioUrl = websiteUrl || (url.trim() ? normalizeUrl(url) : "");
 
   return (
     <div className="space-y-8">
-      {stepKey === "start" && (
-        <section key="start" className="space-y-6 animate-fadeUp">
-          {header(<>Create your <span className="text-brand">video ad</span></>, manual ? "Upload your photos or videos. Nothing is scanned and no AI video is made." : "Paste your website. We find your name, images and details for you.")}
+      {stepKey === "how" && (
+        <section key="how" className="space-y-6 animate-fadeUp">
+          {header(<>Make an <span className="text-brand">ad</span></>, "How do you want to make it?")}
+          <HowStep onChoose={chooseCreation} />
+        </section>
+      )}
 
-          <div className="grid grid-cols-2 gap-1 rounded-2xl border border-line bg-surface/80 p-1" role="group" aria-label="How to start">
-            {([["auto", "✨", "From my website"], ["manual", "🎬", "My own photos"]] as const).map(([value, icon, label]) => (
-              <button key={value} type="button" aria-pressed={creation === value} onClick={() => chooseCreation(value)}
-                className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-300 ${creation === value ? "bg-brand animate-gradient text-white shadow-glow" : "text-muted hover:bg-accent-soft hover:text-ink"}`}>
-                <span aria-hidden="true">{icon}</span>{label}
-              </button>
-            ))}
-          </div>
+      {stepKey === "media" && (
+        <section key="media" className="space-y-6 animate-fadeUp">
+          {header(manual ? <>Add your <span className="text-brand">media</span></> : <>Where should the <span className="text-brand">media</span> come from?</>,
+            manual ? "Upload your photos or videos. Nothing is scanned and no AI video is made." : "Pick the media, then paste your website. We find your name, images and details for you.")}
+
+          {!manual && (
+            <div className="space-y-3">
+              <CreativeModeStep modes={config.creative_modes} value={creativeMode} onChange={chooseCreative} aiAvailable={config.ai_video_available} aiMessage={config.ai_video_message} />
+            </div>
+          )}
 
           {!manual && (
             <div className="space-y-5">
@@ -345,7 +350,7 @@ export function CreateFlow() {
 
               {jobId !== null && !(job?.is_final ?? false) && <ScanProgress job={job} />}
               {polled.error !== null && polled.error !== undefined && <Alert tone="error" title="We lost contact with the server">{errorMessage(polled.error)}</Alert>}
-              {failed && job && <Alert tone="warn" title="We could not read that website">{job.result?.message || job.message} Check the address, or switch to &ldquo;My own photos&rdquo;.</Alert>}
+              {failed && job && <Alert tone="warn" title="We could not read that website">{job.result?.message || job.message} Check the address, or go back and choose Manual to upload your own media.</Alert>}
               {job?.is_final && !failed && job.result?.status === "partial" && <Alert tone="info">{job.result.message}</Alert>}
               {result?.flags.includes("browser_unavailable") && (
                 <Alert tone="warn" title="Some content may be missing">This website needs JavaScript, but the server&apos;s browser renderer is not available, so only the plain page was read.</Alert>
@@ -392,15 +397,25 @@ export function CreateFlow() {
         </section>
       )}
 
+      {stepKey === "style" && (
+        <section key="style" className="space-y-6 animate-fadeUp">
+          {header(<>How should we <span className="text-brand">build</span> it?</>, "Both use your website. Studio gives the better result but takes longer.")}
+          <BuildStyleStep value={style} onChange={(next) => { setStyle(next); setStepError(null); }} studioAvailable={config.studio_available} studioMessage={config.studio_message} />
+          {stepError && <Alert tone="error">{stepError}</Alert>}
+          {nav(buildStyle === "studio" ? "Design my Studio video" : "Continue", buildStyle === "studio" && !config.studio_available)}
+        </section>
+      )}
+
+      {stepKey === "studio" && (
+        <section key="studio" className="space-y-4 animate-fadeUp">
+          <div className="flex justify-end"><StepDots steps={steps} current="studio" /></div>
+          <StudioFlow url={studioUrl} onBack={back} jobParam="studio" />
+        </section>
+      )}
+
       {stepKey === "customize" && (
         <section key="customize" className="space-y-7 animate-fadeUp">
           {header(<>Make it <span className="text-brand">yours</span></>, manual ? "Pick where it plays and how long it runs." : "Pick the kind of ad, where it plays, its length and its sound. Everything else is optional.")}
-          {!manual && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-bold text-ink">How should it be made?</h3>
-              <CreativeModeStep modes={config.creative_modes} value={creativeMode} onChange={chooseCreative} aiAvailable={config.ai_video_available} aiMessage={config.ai_video_message} />
-            </div>
-          )}
           <AdTypePicker types={config.ad_types} value={options.ad_type} onChange={chooseAdType} />
           <OptionsStep
             part="essentials" config={config} options={options} onChange={setOptions} durations={durations} aiControls={callsAiVideo(mode)}

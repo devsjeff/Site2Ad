@@ -61,22 +61,47 @@ ERRORS: dict[tuple[str, str], dict[str, str]] = {
         "409": "`video_not_ready` (the ad is still being made).",
         "422": "`invalid_request` (bad query parameter).",
     },
+    ("post", "/api/studio/jobs"): {
+        "409": "`studio_unavailable` (no AI writer is configured on this server).",
+        "422": "`invalid_request` (body failed validation, or the length is too short for the video type) or `unsafe_url` (not a public website).",
+        "429": "`rate_limited` or `daily_limit`.",
+    },
+    ("get", "/api/studio/jobs/{job_id}"): {"404": "`studio_job_not_found` (unknown, malformed or expired id)."},
+    ("put", "/api/studio/jobs/{job_id}/assumptions"): {
+        "404": "`studio_job_not_found`.",
+        "409": "`not_in_review` (the job is not waiting for review).",
+        "422": "`bad_assumptions` (an unknown voice, music or claim id, or an empty field) or `invalid_request`.",
+    },
+    ("post", "/api/studio/jobs/{job_id}/continue"): {"404": "`studio_job_not_found`.", "409": "`not_in_review`."},
+    ("post", "/api/studio/jobs/{job_id}/cancel"): {"404": "`studio_job_not_found`.", "409": "`studio_finished` (already completed, failed or cancelled)."},
+    ("get", "/api/studio/jobs/{job_id}/video"): {
+        "404": "`studio_job_not_found`.", "409": "`video_not_ready`.", "422": "`invalid_request` (bad query parameter).",
+    },
+    ("get", "/api/studio/jobs/{job_id}/screenshots/{file}"): {"404": "`studio_job_not_found` or `screenshot_not_found`."},
 }
 TAGS = {
     "/api/scrape": "Website scan", "/api/jobs/{job_id}": "Website scan",
     "/api/uploads": "Uploads", "/api/assets/{asset_id}": "Uploads",
     "/api/generate-ad": "Ads", "/api/ads/{ad_id}": "Ads", "/api/ads/{ad_id}/cancel": "Ads", "/api/ads/{ad_id}/video": "Ads",
+    "/api/studio/jobs": "Studio", "/api/studio/jobs/{job_id}": "Studio", "/api/studio/jobs/{job_id}/assumptions": "Studio",
+    "/api/studio/jobs/{job_id}/continue": "Studio", "/api/studio/jobs/{job_id}/cancel": "Studio", "/api/studio/jobs/{job_id}/video": "Studio",
+    "/api/studio/jobs/{job_id}/screenshots/{file}": "Studio",
     "/api/config": "Configuration", "/health": "Health", "/ready": "Health",
 }
 TAG_DESCRIPTIONS = {
     "Website scan": "Start a background scan of a business website and poll its progress and result.",
     "Uploads": "Upload a logo, photos or videos (validated on the server) and fetch them by id.",
     "Ads": "Create ONE video ad in the background, poll it, cancel it and download the finished MP4.",
+    "Studio": "Make a typed video (promo, hook ad, pitch, showcase, explainer, testimonial, launch) from a website in seven stages: capture, product notes, brand notes, assumptions, storyboard, build, check.",
     "Configuration": "Options and limits of this deployment, so clients never hard-code them.",
     "Health": "Liveness and readiness probes (outside the /api prefix).",
 }
 
 EXAMPLES = {
+    ("post", "/api/studio/jobs"): {
+        "promo": {"summary": "A 20-second promo, paused for review after the assumptions",
+                  "value": {"url": "https://www.example.com", "video_type": "promo", "length": 20, "platform": "16:9", "claims": [], "review": True}},
+    },
     ("post", "/api/scrape"): {"scan": {"summary": "Scan a website", "value": {"url": "https://www.example.com", "refresh": False}}},
     ("post", "/api/generate-ad"): {
         "website": {

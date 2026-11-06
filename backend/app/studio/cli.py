@@ -17,7 +17,7 @@ import sys
 import time
 from pathlib import Path
 
-from .config import PLATFORM_SIZES, STAGES, STRUCTURES, VIDEO_TYPES, Run, StageError, min_length, normalize_url, slug_for
+from .config import PLATFORM_SIZES, STAGES, VIDEO_TYPES, Run, StageError, normalize_url, slug_for
 
 DEFAULT_ROOT = Path(__file__).resolve().parents[2] / "data" / "studio"
 
@@ -28,55 +28,55 @@ def say(message: str) -> None:
 
 
 def stage_capture(run: Run, args: argparse.Namespace) -> None:
-    from .capture import capture
+    from .pipeline import run_capture, validate_request
 
-    url = normalize_url(args.url or run.request()["url"])
-    request = {"url": url, "video_type": args.type, "length": args.length, "platform": args.platform, "claims": args.claim or []}
-    if args.type not in VIDEO_TYPES:
-        raise StageError(f"video type must be one of {', '.join(VIDEO_TYPES)}")
-    if args.length < min_length(args.type):
-        raise StageError(f"a {args.type} video has {len(STRUCTURES[args.type])} shots and needs at least {min_length(args.type)} seconds")
+    request = {"url": normalize_url(args.url or run.request()["url"]), "video_type": args.type, "length": args.length, "platform": args.platform,
+               "claims": args.claim or [], "fix_rounds": args.fix_rounds}
+    validate_request(request)
     run.write_json(run.request_json, request)
-    record = capture(run, url)
-    say(f"  captured {len(record['blocks'])} text blocks and {len(record['screenshots'])} screenshots -> {run.capture_dir}")
+    say(f"  {run_capture(run, policy())} -> {run.capture_dir}")
     say(f"  see {run.screenshots_md.name}: one line per screenshot")
 
 
-def stage_notes(run: Run, args: argparse.Namespace) -> None:
-    from .notes import build_notes
+def policy():
+    """The network rules of the scanner (backend/.env can lift them for local testing)."""
+    from ..config import Settings
+    from ..scraper.safety import SafetyPolicy
 
-    notes = build_notes(run, run.request().get("claims", []))
-    say(f"  {len(notes['claims'])} claims with sources ({len(notes['rejected'])} left out) -> {run.product_md.name}")
+    return SafetyPolicy.from_settings(Settings.from_env())
+
+
+def stage_notes(run: Run, args: argparse.Namespace) -> None:
+    from .pipeline import run_notes
+
+    say(f"  {run_notes(run)} -> {run.product_md.name}")
 
 
 def stage_brand(run: Run, args: argparse.Namespace) -> None:
-    from .brand import build_brand
+    from .pipeline import run_brand
 
-    brand = build_brand(run)
-    say(f"  primary {brand['colors']['primary']}, fonts {brand['fonts']['heading']} / {brand['fonts']['body']} -> {run.brand_md.name}")
+    say(f"  {run_brand(run)} -> {run.brand_md.name}")
 
 
 def stage_assumptions(run: Run, args: argparse.Namespace) -> None:
-    from .assumptions import build_assumptions
+    from .pipeline import run_assumptions
 
-    build_assumptions(run, run.request()["video_type"])
+    run_assumptions(run)
     say("")
     say(run.assumptions_md.read_text(encoding="utf-8"))
     say(f"  -> edit {run.assumptions_json.name} to correct anything, then run the next stage")
 
 
 def stage_storyboard(run: Run, args: argparse.Namespace) -> None:
-    from .storyboard import build_storyboard
+    from .pipeline import run_storyboard
 
-    board = build_storyboard(run)
-    say(f"  {len(board['shots'])} shots, {board['length']:g} s -> {run.storyboard_md.name}")
+    say(f"  {run_storyboard(run)} -> {run.storyboard_md.name}")
 
 
 def stage_build(run: Run, args: argparse.Namespace) -> None:
-    from .build import build
+    from .pipeline import run_build
 
-    record = build(run)
-    say(f"  built {record['seconds']} s at {record['size'][0]}x{record['size'][1]} (audio: {record['has_audio']}) -> {run.final_mp4}")
+    say(f"  built {run_build(run)} -> {run.final_mp4}")
 
 
 def stage_check(run: Run, args: argparse.Namespace) -> None:

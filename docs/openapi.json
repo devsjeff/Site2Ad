@@ -691,6 +691,494 @@
         ]
       }
     },
+    "/api/studio/jobs": {
+      "post": {
+        "summary": "Studio Create",
+        "description": "Start a typed video (promo, hook ad, pitch, showcase, explainer, testimonial, launch) from a website. Poll GET /api/studio/jobs/{job_id}.",
+        "operationId": "studio_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StudioRequest"
+              },
+              "examples": {
+                "promo": {
+                  "summary": "A 20-second promo, paused for review after the assumptions",
+                  "value": {
+                    "url": "https://www.example.com",
+                    "video_type": "promo",
+                    "length": 20,
+                    "platform": "16:9",
+                    "claims": [],
+                    "review": true
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudioResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`studio_unavailable` (no AI writer is configured on this server).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request` (body failed validation, or the length is too short for the video type) or `unsafe_url` (not a public website).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited` or `daily_limit`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`internal_error` (unexpected server error; details are logged, never returned).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Studio"
+        ]
+      }
+    },
+    "/api/studio/jobs/{job_id}": {
+      "get": {
+        "summary": "Studio Get",
+        "description": "Progress of a studio job and what each finished stage produced (claims, brand, assumptions, shots, check report).",
+        "operationId": "studio_get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudioResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`studio_job_not_found` (unknown, malformed or expired id).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`internal_error` (unexpected server error; details are logged, never returned).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Studio"
+        ]
+      }
+    },
+    "/api/studio/jobs/{job_id}/assumptions": {
+      "put": {
+        "summary": "Studio Assumptions",
+        "description": "Correct the AI's creative choices while the job waits for review.",
+        "operationId": "studio_assumptions",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StudioAssumptions"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudioResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`studio_job_not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`not_in_review` (the job is not waiting for review).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`bad_assumptions` (an unknown voice, music or claim id, or an empty field) or `invalid_request`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`internal_error` (unexpected server error; details are logged, never returned).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Studio"
+        ]
+      }
+    },
+    "/api/studio/jobs/{job_id}/continue": {
+      "post": {
+        "summary": "Studio Continue",
+        "description": "After the review: make the storyboard, the video and the check.",
+        "operationId": "studio_continue",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudioResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`studio_job_not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`not_in_review`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`internal_error` (unexpected server error; details are logged, never returned).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Studio"
+        ]
+      }
+    },
+    "/api/studio/jobs/{job_id}/cancel": {
+      "post": {
+        "summary": "Studio Cancel",
+        "description": "Stop a studio job after its current step.",
+        "operationId": "studio_cancel",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudioResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`studio_job_not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`studio_finished` (already completed, failed or cancelled).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`internal_error` (unexpected server error; details are logged, never returned).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Studio"
+        ]
+      }
+    },
+    "/api/studio/jobs/{job_id}/video": {
+      "get": {
+        "summary": "Studio Video",
+        "description": "The finished studio video (MP4, supports HTTP Range; ?download=true to save it).",
+        "operationId": "studio_video",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "download",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Download"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "`studio_job_not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`video_not_ready`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request` (bad query parameter).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`internal_error` (unexpected server error; details are logged, never returned).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Studio"
+        ]
+      }
+    },
+    "/api/studio/jobs/{job_id}/screenshots/{file}": {
+      "get": {
+        "summary": "Studio Screenshot",
+        "description": "One screenshot captured from the website (shown next to the claims and the shots).",
+        "operationId": "studio_screenshot",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "file",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "`studio_job_not_found` or `screenshot_not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`internal_error` (unexpected server error; details are logged, never returned).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Studio"
+        ]
+      }
+    },
     "/api/config": {
       "get": {
         "summary": "Get Config",
@@ -1552,6 +2040,19 @@
             "type": "array",
             "title": "Voices"
           },
+          "languages": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Languages"
+          },
+          "eleven_available": {
+            "type": "boolean",
+            "title": "Eleven Available",
+            "default": false
+          },
           "music": {
             "items": {
               "additionalProperties": true,
@@ -1634,6 +2135,23 @@
             "type": "integer",
             "title": "Max Video Upload Seconds",
             "default": 0
+          },
+          "studio_available": {
+            "type": "boolean",
+            "title": "Studio Available",
+            "default": false
+          },
+          "studio_message": {
+            "type": "string",
+            "title": "Studio Message",
+            "default": ""
+          },
+          "studio_types": {
+            "items": {
+              "$ref": "#/components/schemas/StudioTypeInfo"
+            },
+            "type": "array",
+            "title": "Studio Types"
           }
         },
         "type": "object",
@@ -2528,6 +3046,657 @@
         "title": "SiteInfo",
         "description": "Business facts and metadata taken from the website."
       },
+      "StudioAssumptions": {
+        "properties": {
+          "audience": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Audience"
+          },
+          "key_message": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Key Message"
+          },
+          "tone": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Tone"
+          },
+          "voice": {
+            "type": "string",
+            "title": "Voice"
+          },
+          "voice_reason": {
+            "type": "string",
+            "title": "Voice Reason",
+            "default": ""
+          },
+          "music": {
+            "type": "string",
+            "title": "Music"
+          },
+          "music_reason": {
+            "type": "string",
+            "title": "Music Reason",
+            "default": ""
+          },
+          "cta_text": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Cta Text"
+          },
+          "cta_target": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Cta Target",
+            "default": ""
+          },
+          "must_include": {
+            "items": {
+              "$ref": "#/components/schemas/StudioMustInclude"
+            },
+            "type": "array",
+            "maxItems": 6,
+            "title": "Must Include"
+          },
+          "must_avoid": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 8,
+            "title": "Must Avoid"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language",
+            "default": "en"
+          },
+          "sound_effects": {
+            "type": "boolean",
+            "title": "Sound Effects",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "audience",
+          "key_message",
+          "tone",
+          "voice",
+          "music",
+          "cta_text"
+        ],
+        "title": "StudioAssumptions",
+        "description": "The creative choices the AI made, which the person can correct (PUT /api/studio/jobs/{id}/assumptions)."
+      },
+      "StudioBrand": {
+        "properties": {
+          "primary": {
+            "type": "string",
+            "title": "Primary"
+          },
+          "accent": {
+            "type": "string",
+            "title": "Accent"
+          },
+          "background": {
+            "type": "string",
+            "title": "Background"
+          },
+          "ink": {
+            "type": "string",
+            "title": "Ink"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "heading_font": {
+            "type": "string",
+            "title": "Heading Font"
+          },
+          "body_font": {
+            "type": "string",
+            "title": "Body Font"
+          },
+          "shapes": {
+            "type": "string",
+            "title": "Shapes"
+          },
+          "tone": {
+            "type": "string",
+            "title": "Tone"
+          },
+          "photo_style": {
+            "type": "string",
+            "title": "Photo Style"
+          }
+        },
+        "type": "object",
+        "required": [
+          "primary",
+          "accent",
+          "background",
+          "ink",
+          "mode",
+          "heading_font",
+          "body_font",
+          "shapes",
+          "tone",
+          "photo_style"
+        ],
+        "title": "StudioBrand",
+        "description": "What the brand notes found."
+      },
+      "StudioClaim": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "kind",
+          "source"
+        ],
+        "title": "StudioClaim",
+        "description": "A claim of the product notes with the place it comes from."
+      },
+      "StudioMustInclude": {
+        "properties": {
+          "what": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "What"
+          },
+          "claims": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 6,
+            "title": "Claims"
+          }
+        },
+        "type": "object",
+        "required": [
+          "what"
+        ],
+        "title": "StudioMustInclude",
+        "description": "Something the video must show or say, with the claims that back it."
+      },
+      "StudioRequest": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 3,
+            "title": "Url"
+          },
+          "video_type": {
+            "type": "string",
+            "enum": [
+              "promo",
+              "hook_ad",
+              "pitch",
+              "showcase",
+              "explainer",
+              "testimonial",
+              "launch"
+            ],
+            "title": "Video Type",
+            "default": "promo"
+          },
+          "length": {
+            "type": "integer",
+            "maximum": 60.0,
+            "minimum": 8.0,
+            "title": "Length",
+            "default": 20
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "16:9",
+              "9:16",
+              "1:1"
+            ],
+            "title": "Platform",
+            "default": "16:9"
+          },
+          "claims": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Claims"
+          },
+          "review": {
+            "type": "boolean",
+            "title": "Review",
+            "default": true
+          },
+          "language": {
+            "type": "string",
+            "title": "Language",
+            "default": "en"
+          },
+          "voice": {
+            "type": "string",
+            "title": "Voice",
+            "default": "auto"
+          },
+          "sound_effects": {
+            "type": "boolean",
+            "title": "Sound Effects",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "StudioRequest",
+        "description": "Body of POST /api/studio/jobs: make a typed video from a website in seven stages."
+      },
+      "StudioResponse": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "review",
+              "completed",
+              "failed",
+              "cancelled"
+            ],
+            "title": "Status"
+          },
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "progress": {
+            "type": "integer",
+            "title": "Progress"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "error": {
+            "type": "string",
+            "title": "Error"
+          },
+          "review": {
+            "type": "boolean",
+            "title": "Review"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "video_type": {
+            "type": "string",
+            "enum": [
+              "promo",
+              "hook_ad",
+              "pitch",
+              "showcase",
+              "explainer",
+              "testimonial",
+              "launch"
+            ],
+            "title": "Video Type"
+          },
+          "length": {
+            "type": "integer",
+            "title": "Length"
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "16:9",
+              "9:16",
+              "1:1"
+            ],
+            "title": "Platform"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/StudioStage"
+            },
+            "type": "array",
+            "title": "Stages"
+          },
+          "what_it_is": {
+            "type": "string",
+            "title": "What It Is"
+          },
+          "who_for": {
+            "type": "string",
+            "title": "Who For"
+          },
+          "claims": {
+            "items": {
+              "$ref": "#/components/schemas/StudioClaim"
+            },
+            "type": "array",
+            "title": "Claims"
+          },
+          "brand": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StudioBrand"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "assumptions": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StudioAssumptions"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shots": {
+            "items": {
+              "$ref": "#/components/schemas/StudioShot"
+            },
+            "type": "array",
+            "title": "Shots"
+          },
+          "screenshots": {
+            "items": {
+              "$ref": "#/components/schemas/StudioScreenshot"
+            },
+            "type": "array",
+            "title": "Screenshots"
+          },
+          "problems": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Problems"
+          },
+          "passed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passed"
+          },
+          "video_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Url"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "status",
+          "stage",
+          "progress",
+          "message",
+          "error",
+          "review",
+          "url",
+          "video_type",
+          "length",
+          "platform",
+          "stages",
+          "what_it_is",
+          "who_for",
+          "claims",
+          "shots",
+          "screenshots",
+          "problems",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "StudioResponse",
+        "description": "A studio job: its progress, and what each finished stage produced."
+      },
+      "StudioScreenshot": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "file": {
+            "type": "string",
+            "title": "File"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "file",
+          "kind",
+          "summary"
+        ],
+        "title": "StudioScreenshot",
+        "description": "A captured screenshot; GET /api/studio/jobs/{id}/screenshots/{file}."
+      },
+      "StudioShot": {
+        "properties": {
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "beat": {
+            "type": "string",
+            "title": "Beat"
+          },
+          "purpose": {
+            "type": "string",
+            "title": "Purpose"
+          },
+          "seconds": {
+            "type": "number",
+            "title": "Seconds"
+          },
+          "voice": {
+            "type": "string",
+            "title": "Voice"
+          },
+          "voice_local": {
+            "type": "string",
+            "title": "Voice Local",
+            "default": ""
+          },
+          "caption": {
+            "type": "string",
+            "title": "Caption"
+          },
+          "transition": {
+            "type": "string",
+            "title": "Transition"
+          },
+          "claims": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Claims"
+          },
+          "visual": {
+            "type": "string",
+            "title": "Visual"
+          },
+          "screenshot": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Screenshot"
+          }
+        },
+        "type": "object",
+        "required": [
+          "n",
+          "beat",
+          "purpose",
+          "seconds",
+          "voice",
+          "caption",
+          "transition",
+          "claims",
+          "visual"
+        ],
+        "title": "StudioShot",
+        "description": "One shot of the storyboard."
+      },
+      "StudioStage": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "done",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "seconds": {
+            "type": "number",
+            "title": "Seconds",
+            "default": 0.0
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "label",
+          "status"
+        ],
+        "title": "StudioStage",
+        "description": "One of the seven stages of a job."
+      },
+      "StudioTypeInfo": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "promo",
+              "hook_ad",
+              "pitch",
+              "showcase",
+              "explainer",
+              "testimonial",
+              "launch"
+            ],
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "min_length": {
+            "type": "integer",
+            "title": "Min Length"
+          },
+          "shots": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Shots"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "description",
+          "min_length",
+          "shots"
+        ],
+        "title": "StudioTypeInfo",
+        "description": "One video type for the picker (GET /api/config)."
+      },
       "UploadResponse": {
         "properties": {
           "assets": {
@@ -2575,6 +3744,10 @@
     {
       "name": "Ads",
       "description": "Create ONE video ad in the background, poll it, cancel it and download the finished MP4."
+    },
+    {
+      "name": "Studio",
+      "description": "Make a typed video (promo, hook ad, pitch, showcase, explainer, testimonial, launch) from a website in seven stages: capture, product notes, brand notes, assumptions, storyboard, build, check."
     },
     {
       "name": "Configuration",

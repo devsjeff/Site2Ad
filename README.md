@@ -36,6 +36,29 @@ python -m playwright install chromium
 python -m app.studio run --url https://backseatnetwork.com --type promo --length 20 --platform 16:9
 ```
 
+It is also on the website, as a choice inside the one **Make an ad** flow (`/ads/create`): Automated → media from my website → **Studio**
+(instead of Caption + QR; it gives the better result but takes longer). Pick the video type, the length and the shape; watch the seven stages; **check and correct the plan** (audience, message, voice, music,
+call to action, must-include and must-avoid, with the sourced claims and screenshots in front of you); then play and download the video
+with every shot's claims listed. The page keeps `?job=<id>` in its address, so a reload or a shared link comes back to the same job.
+The API is `POST /api/studio/jobs`, `GET /api/studio/jobs/{id}`, `PUT .../assumptions`, `POST .../continue`, `POST .../cancel`,
+`GET .../video` and `GET .../screenshots/{file}` (see `docs/openapi.json`). It needs the AI writer (`AI_PROMPT_*` in `backend/.env`);
+the Docker image installs Chromium for it. The daily ad limit (`MAX_ADS_PER_DAY`) applies, and private addresses are refused.
+
+**What the video looks like.** 1080p at 30 fps. When the brand has a strong colour it fills every other frame (white pill headlines, a
+highlight colour for figures), the others use the site's own background. Screenshots appear in a large browser window cropped to the part
+that has content (never a small card on empty white), the site's logo closes the video on a call-to-action card, and a close crop of a
+real screenshot (or one of the site's own pictures) sits beside the headlines. A page that is blank, or only asks you to sign in, is
+refused with a clear message instead of making an empty video.
+
+**Voices, languages and sound.** Pick the language of the voiceover (English, Hindi, Tamil, Telugu, Bengali, Marathi, Gujarati, Kannada,
+Malayalam, Spanish, French, German, Arabic, Portuguese) and a voice, or let the AI choose. The storyboard is written and checked in English;
+only the voice lines are then translated (one request, every figure kept, a line is translated again only when its English changed), and the
+words on screen stay as your website wrote them. Free Microsoft voices work out of the box. With `ELEVENLABS_API_KEY` in `backend/.env`,
+studio-quality ElevenLabs voices appear too (the free plan has 10,000 characters a month; every line is cached, so rebuilding costs nothing,
+and when the key fails or the plan runs out a Microsoft voice of the same language and gender takes over). Every video also gets original
+sound effects that follow the animation (whooshes on slides, pops, a stamp-and-ding on prices, a chime and sparkle on the call to action).
+They are synthesised by FFmpeg, so they are copyright-free and nothing is downloaded. Turn them off with "Sound effects".
+
 See [backend/app/studio/README.md](backend/app/studio/README.md) to run each stage, and [samples/backseatnetwork-promo](samples/backseatnetwork-promo/NOTES.md) for a finished run.
 
 ---
@@ -123,15 +146,28 @@ The video model makes clips of up to `VIDEO_MAX_SECONDS` (default 5). A longer r
 
 ## 3. What the user sees
 
-**Ads → Create ad → Manual or Auto → content → settings → review → result.**
+**One flow: Make an ad → Manual or Automated → media → (Caption + QR or Studio) → settings → review → result.**
 
-One screen at a time (no step counter). 1. **Start** (`/ads`, then `/ads/create`) — choose an **Auto ad** (from your website) or a **Manual ad** (your own images/videos).
-2. **Manual: your media** — upload photos and/or videos (MP4, MOV, WebM), an optional logo, and optional name, offer, call to action and phone. Nothing is scanned.
-   **Auto: your website** — paste a URL and check the call to action; everything else comes from the scan. Website Content Priority is preselected.
-3. **Auto: creative mode** — *Website Content Priority*, *AI Video Priority* or *Website + AI Mix* (see the table below). Modes that need the AI video provider are disabled, with the reason, when no provider is configured.
-4. **Settings** — only the switches that fit the mode: which website images (and their order), logo, QR code and its exact destination URL, sound on/off, platform (taxi screen 16:9, Reel/Shorts 9:16, Facebook 1:1), length (5/10/15/20 s), style, and for AI modes goal, tone and creative instructions.
-5. **Review** — mode, media and where it comes from, **whether the AI video provider will be called**, QR destination, format, length, overlays and the stages that will run.
-6. **Result** — page `/ads/<id>` (safe to refresh or bookmark): live progress (with *Cancel*), what the video is made of (website image / AI video / your video…), whether it contains AI footage, whether the QR code was really added, the MP4 and any warnings.
+One screen at a time, with a step indicator. The flow lives at `/ads/create` (the home page, "My ads" and the top bar all lead to it).
+
+1. **Make an ad: how?** Two big cards. **Manual** (you give your own photos or videos) or **Automated** (we start from your website).
+2. **Media.**
+   * **Manual:** upload photos and/or videos (MP4, MOV, WebM), an optional logo, and optional name, offer, call to action and phone. Nothing is scanned and no AI video is made.
+   * **Automated:** pick where the media comes from, then paste your website (we scan it for your name, details and pictures):
+     **From my website** (its own pictures), **Full AI** (a new AI video from your business details) or **Mix** (website pictures around an AI clip).
+     Modes that need the AI video provider are disabled, with the reason, when none is configured.
+3. **How should we build it?** *(Automated with website media only)*
+   * **Caption + QR:** fast (about 1 to 2 minutes). Your pictures with motion, animated captions, your offer, logo and a QR code. Next: settings and review.
+   * **Studio:** the better result, but it takes longer (about 3 to 5 minutes). A designed, story-driven video with a plan you approve first, your brand colours and fonts, a voice-over in your language
+     (free Microsoft voices or ElevenLabs studio voices), sound effects, and every number checked against your website. Next: the Studio screens.
+   Studio is built from the website's own pictures and wording, so Full AI and Mix go straight to settings with Caption + QR.
+4. **Settings** *(Caption + QR and Manual)*: the kind of ad (17 types), platform (taxi screen 16:9, Reel/Shorts 9:16, Facebook 1:1), length, voice and music, plus (under Advanced) which website images, logo, QR destination, style and, for AI modes, goal, tone and creative instructions.
+5. **Review** *(Caption + QR and Manual)*: mode, media and where it comes from, **whether the AI video provider will be called**, QR destination, format, length and the stages that will run.
+6. **Result:** page `/ads/<id>` (safe to refresh or bookmark): live progress (with *Cancel*), what the video is made of, whether it contains AI footage, whether the QR code was really added, the MP4 and any warnings.
+
+**Studio screens** (inside the same flow): choose the kind of video (promo, hook ad, pitch, showcase, explainer, testimonial, launch), its length and shape, the **language and voice** and whether to add **sound effects** →
+live progress through seven stages → **check the plan** (what was found with its sources, screenshots, brand colours, and the audience, message, tone, voice, music and call to action the AI chose, all editable) →
+the finished video with every shot's claims. The job id is kept in the address (`?studio=<id>`), so a reload or shared link comes back to the same video.
 
 | Mode | Website scan | Prompt writer | AI video provider | Final video |
 |---|---|---|---|---|
@@ -139,8 +175,9 @@ One screen at a time (no step counter). 1. **Start** (`/ads`, then `/ads/create`
 | Website Content Priority | yes | no | **no** | original website images, 3 s each (5 s → 2, 15 s → 5, 20 s → 7), looping when there are fewer |
 | AI Video Priority | yes (facts only) | yes | yes (text-to-video) | AI footage only, no website pictures; a short clip loops to 5/10/15/20 s |
 | Website + AI Mix | yes | yes | yes (image-to-video) | website image(s) → AI video (looped to the length) → website image(s) |
+| Studio | yes (page text, screenshots, logo, pictures, brand) | yes (notes, plan, storyboard, translation) | **no** | HTML/CSS motion graphics in your brand colours with your real screenshots, voice-over, music and sound effects, rendered with FFmpeg |
 
-Every mode adds the logo, the QR code (exactly the URL you typed) and the text overlays with FFmpeg on the complete video. The backend validates every combination (`creative` in the request) and refuses AI modes when no AI provider is configured instead of producing a demo clip. If the provider fails during an AI ad, the ad is marked `completed_with_fallback` and the replacement clip is labelled as *not* AI footage (or the ad fails when `VIDEO_FALLBACK_ON_ERROR=false`).
+Every Caption + QR mode adds the logo, the QR code (exactly the URL you typed) and the text overlays with FFmpeg on the complete video. The backend validates every combination (`creative` in the request) and refuses AI modes when no AI provider is configured instead of producing a demo clip. If the provider fails during an AI ad, the ad is marked `completed_with_fallback` and the replacement clip is labelled as *not* AI footage (or the ad fails when `VIDEO_FALLBACK_ON_ERROR=false`).
 
 Scan statuses: `queued` · `running` · `ok` · `partial` · `blocked` (Cloudflare/captcha — the user types details instead) · `unreachable` · `invalid_url` · `unsupported_platform` · `timeout` · `internal_error`.
 
@@ -169,24 +206,166 @@ Scan statuses: `queued` · `running` · `ok` · `partial` · `blocked` (Cloudfla
 
 ---
 
-## 5. API (all under `/api`)
+## 5. API: use it as a backend
 
-Full OpenAPI 3.1 spec: [`docs/openapi.json`](docs/openapi.json) · Postman collection: [`docs/postman_collection.json`](docs/postman_collection.json) · integration guide for other teams: [`docs/API.md`](docs/API.md).
+The website is just one client. Everything it does is a plain JSON/HTTP API under `/api`, so you can run the backend on its own and call it from your own app, script or another service.
+
+* Machine-readable spec: [`docs/openapi.json`](docs/openapi.json) (OpenAPI 3.1) · Postman collection: [`docs/postman_collection.json`](docs/postman_collection.json) · integration guide: [`docs/API.md`](docs/API.md).
+* Interactive docs of a running development server: `http://localhost:8000/docs` (switched off when `APP_ENV=production`).
+
+### Run only the backend
+
+```bash
+cp backend/.env.example backend/.env        # add the keys you have (all optional: see below)
+docker compose up -d --build backend redis  # API on http://localhost:8000   (or: make backend)
+curl http://localhost:8000/health           # {"status": "ok", ...}
+curl http://localhost:8000/api/config       # what this server can do (see "Reading the options")
+```
+
+| Key in `backend/.env` | Turns on |
+|---|---|
+| *(none)* | scanning, manual ads, Website Content Priority ads, free Microsoft voices, music, sound effects (demo clips instead of AI video) |
+| `AI_PROMPT_API_KEY` (+ `AI_PROMPT_BASE_URL`, `AI_PROMPT_MODEL`; OpenRouter, Gemini or any OpenAI-compatible gateway) | the AI writer: AI video prompts, **Studio** (notes, plan, storyboard, translation), better caption copy |
+| `VIDEO_MODEL_API_KEY` (Magic Hour) or `GEMINI_API_KEY` | AI video: Full AI and Mix modes |
+| `ELEVENLABS_API_KEY` | ElevenLabs studio voices (falls back to a free voice when missing or used up) |
+
+### The basics
+
+* **Base URL:** your server (`http://localhost:8000` locally). All endpoints are under `/api`, except the probes `/health` and `/ready`.
+* **No login, no API keys.** Anyone who can reach the API can use it (and spend your credits). Before exposing it, put it behind your own gateway, proxy with auth, VPN or allow-list. Expensive calls are limited per client (`RATE_LIMIT_PER_MINUTE`, answers `429 rate_limited`) and per day (`MAX_ADS_PER_DAY`, answers `429 daily_limit`).
+* **Everything slow is a job.** A `POST` returns `202` with an id straight away; **poll** the matching `GET` every 1 to 5 seconds until it is final; then fetch the video:
+
+  | Job | Start | Poll | Done when | Result |
+  |---|---|---|---|---|
+  | Website scan | `POST /api/scrape` | `GET /api/jobs/{job_id}` | `is_final` is `true` | the scan (`result`) |
+  | Ad | `POST /api/generate-ad` | `GET /api/ads/{ad_id}` | `status` is `completed`, `completed_with_fallback` or `failed` | `GET /api/ads/{ad_id}/video` |
+  | Studio video | `POST /api/studio/jobs` | `GET /api/studio/jobs/{job_id}` | `status` is `review` (your turn), `completed`, `failed` or `cancelled` | `GET /api/studio/jobs/{job_id}/video` |
+* **Errors** always look like `{"detail": "a sentence you can show to people", "code": "machine_code"}`. Branch on `code`.
+* **Videos** are MP4 and support HTTP `Range`; add `?download=1` for a file download.
+* **CORS:** browsers may call the API only from origins in `CORS_ORIGINS` (server-to-server calls are not affected).
+
+### Endpoints
 
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/api/scrape` | Start a scan → `202` + job. Body `{url, refresh?}` |
-| GET | `/api/jobs/{job_id}` | Scan progress and result |
-| POST | `/api/uploads` | Multipart `kind=logo\|photo\|video`, `files=…` → asset ids. Videos are checked by their bytes and ffprobe (MP4/MOV/WebM; H.264, H.265, VP8, VP9, AV1; `MAX_VIDEO_UPLOAD_BYTES`, `MAX_VIDEO_UPLOAD_SECONDS`) |
+| GET | `/api/config` | Options and limits: platforms, ad types, voices, **languages**, music, durations, upload limits, which modes and **Studio** are available |
+| POST | `/api/scrape` | Start a website scan → `202` + job. Body `{url, refresh?}` |
+| GET | `/api/jobs/{job_id}` | Scan progress and result (name, details, images, brand) |
+| POST | `/api/uploads` | Multipart `kind=logo\|photo\|video`, `files=…` → asset ids. Videos are checked by their bytes and ffprobe (MP4/MOV/WebM; `MAX_VIDEO_UPLOAD_BYTES`, `MAX_VIDEO_UPLOAD_SECONDS`) |
 | GET | `/api/assets/{asset_id}` | An uploaded image or video |
-| POST | `/api/generate-ad` | Create **one** ad → `202`. Body: `job_id` or `scrape_result`, `business`, `options`, `hero`, `logo_asset_id`, and `creative` (`creation_mode`, `creative_mode`, `use_website_images`, `use_ai_video`, `use_uploaded_media`, `include_logo`, `include_qr`, `qr_url`, `selected_image_urls`, `media_asset_ids`, `keep_audio`, `prefer_website_images`). Without `creative` the original one-prompt AI flow runs (with `photo_asset_ids`) |
-| GET | `/api/ads/{ad_id}` | Status, stage, prompt, warnings, `video_url`, `composition`, `ai_video_used`, `qr_added` |
-| POST | `/api/ads/{ad_id}/cancel` | Stop an ad that is still running (it ends as `failed`, "You cancelled this ad.") |
-| GET | `/api/ads/{ad_id}/video` | The MP4 (`Range` supported, `?download=1`) |
-| GET | `/api/config` | Options and limits for the UI |
+| POST | `/api/generate-ad` | Create **one** ad → `202`. Body: `job_id` or `scrape_result`, `business`, `options`, `hero`, `logo_asset_id`, `creative` (below) |
+| GET | `/api/ads/{ad_id}` | Status, stage, progress, prompt, warnings, `video_url`, `composition`, `ai_video_used`, `qr_added` |
+| POST | `/api/ads/{ad_id}/cancel` | Stop an ad that is still running |
+| GET | `/api/ads/{ad_id}/video` | The MP4 |
+| POST | `/api/studio/jobs` | Start a **Studio** video from a website → `202` + job. Body `{url, video_type, length, platform, claims?, review?, language?, voice?, sound_effects?}` |
+| GET | `/api/studio/jobs/{job_id}` | Progress of the seven stages and what each produced (claims, brand, plan, shots, screenshots, check result) |
+| PUT | `/api/studio/jobs/{job_id}/assumptions` | Correct the AI's plan (audience, message, tone, voice, language, music, call to action, must include/avoid) while the job waits in `review` |
+| POST | `/api/studio/jobs/{job_id}/continue` | Make the video after the review → `202` |
+| POST | `/api/studio/jobs/{job_id}/cancel` | Stop a Studio job after its current step (a job waiting for review is cancelled at once) |
+| GET | `/api/studio/jobs/{job_id}/video` | The finished MP4 |
+| GET | `/api/studio/jobs/{job_id}/screenshots/{file}` | A screenshot captured from the website |
 | GET | `/health`, `/ready` | Liveness / readiness (database, cache, browser, providers) |
 
-Errors always look like `{"detail": "plain-language message", "code": "machine_code"}`. Interactive docs: `/docs` (not in production).
+### Recipes (curl)
+
+```bash
+BASE=http://localhost:8000
+JSON='Content-Type: application/json'
+```
+
+**1. An ad from a website (Caption + QR, no AI video).**
+
+```bash
+JOB=$(curl -s -X POST $BASE/api/scrape -H "$JSON" -d '{"url":"https://www.example.com"}' | jq -r .job_id)
+until [ "$(curl -s $BASE/api/jobs/$JOB | jq -r .is_final)" = true ]; do sleep 2; done          # the scan
+AD=$(curl -s -X POST $BASE/api/generate-ad -H "$JSON" -d "{
+  \"job_id\": \"$JOB\",
+  \"options\": {\"platform\": \"taxi_screen\", \"duration_seconds\": 10, \"voice\": \"auto\", \"music\": \"auto\"},
+  \"creative\": {\"creation_mode\": \"auto\", \"creative_mode\": \"website\", \"use_website_images\": true,
+                \"include_qr\": true, \"qr_url\": \"https://www.example.com\"},
+  \"wait_for_prompt\": false}" | jq -r .ad_id)
+until curl -s $BASE/api/ads/$AD | jq -e '.status | IN("completed","completed_with_fallback","failed")' >/dev/null; do sleep 3; done
+curl -s $BASE/api/ads/$AD | jq '{status, video_url, ai_video_used, qr_added, warnings}'
+curl -s -o ad.mp4 "$BASE/api/ads/$AD/video?download=1"
+```
+
+**2. A manual ad from your own photos and videos.**
+
+```bash
+A1=$(curl -s -X POST $BASE/api/uploads -F kind=photo -F files=@shop.jpg -F files=@menu.jpg | jq -c '[.assets[].asset_id]')
+curl -s -X POST $BASE/api/generate-ad -H "$JSON" -d "{
+  \"business\": {\"name\": \"Joe's Cafe\", \"offer\": \"2 for 1 coffee\", \"cta\": \"Scan to order\"},
+  \"creative\": {\"creation_mode\": \"manual\", \"use_uploaded_media\": true, \"media_asset_ids\": $A1, \"include_qr\": true, \"qr_url\": \"https://joes.example/order\"}}" | jq .ad_id
+```
+
+**3. AI video or a mix.** Same as recipe 1 with `"creative_mode": "ai"` or `"mixed"` (needs `VIDEO_MODEL_API_KEY` or `GEMINI_API_KEY`; `GET /api/config` → `ai_video_available` says whether it is on). The server answers `422` instead of faking AI footage when it is off.
+
+**4. A Studio video** (the better, slower one: a plan you approve first, voice-over in any of 14 languages, sound effects).
+
+```bash
+# a) start it: video_type promo|hook_ad|pitch|showcase|explainer|testimonial|launch, length 8-60 s, platform 16:9|9:16|1:1
+ST=$(curl -s -X POST $BASE/api/studio/jobs -H "$JSON" -d '{
+  "url": "https://www.example.com", "video_type": "promo", "length": 20, "platform": "16:9",
+  "language": "hi", "voice": "auto", "sound_effects": true, "review": true,
+  "claims": ["Free demo every Friday"]}' | jq -r .job_id)
+
+# b) wait for the review (or "failed", with a plain-language "error")
+until curl -s $BASE/api/studio/jobs/$ST | jq -e '.status | IN("review","failed")' >/dev/null; do sleep 4; done
+curl -s $BASE/api/studio/jobs/$ST | jq '{claims: .claims, brand, assumptions}'     # what was found, with sources, and the AI's plan
+
+# c) (optional) correct the plan: send back the assumptions object with your changes
+curl -s $BASE/api/studio/jobs/$ST | jq '.assumptions | .key_message = "Free demo every Friday"' \
+  | curl -s -X PUT $BASE/api/studio/jobs/$ST/assumptions -H "$JSON" -d @- >/dev/null
+
+# d) make the video, wait, download
+curl -s -X POST $BASE/api/studio/jobs/$ST/continue >/dev/null
+until curl -s $BASE/api/studio/jobs/$ST | jq -e '.status | IN("completed","failed","cancelled")' >/dev/null; do sleep 6; done
+curl -s $BASE/api/studio/jobs/$ST | jq '{status, passed, problems, shots: [.shots[] | {n, voice, voice_local}]}'
+curl -s -o studio.mp4 "$BASE/api/studio/jobs/$ST/video?download=1"
+```
+
+Studio request fields: `review` (default `true`) stops after the plan so you can correct it, `false` runs straight through; `claims` are up to 5 facts of your own (a real customer quote, a price) that are used as if they were on the website;
+`language` is one of the ids in `/api/config` → `languages` (`en hi ta te bn mr gu kn ml es fr de ar pt`); `voice` is `auto` (the AI chooses) or an id from `/api/config` → `voices` that speaks that language (a mismatch is `422`);
+`sound_effects` turns the whooshes, pops and chimes on or off. The video is spoken in the chosen language: only the voice lines are translated (every figure kept) and the words on screen stay as the website wrote them.
+A Studio video needs the AI writer (`studio_available` in `/api/config`); without it `POST /api/studio/jobs` answers `409 studio_unavailable`.
+
+### Reading the options
+
+Never hard-code platforms, lengths, voices or limits: read `GET /api/config`. It returns, among others:
+
+```json
+{
+  "platforms": [{"id": "taxi_screen", "label": "...", "aspect_ratio": "16:9"}, ...],
+  "ad_types": [...], "music": [...], "durations": [...], "compose_durations": [5, 10, 15, 20],
+  "languages": [{"id": "hi", "label": "Hindi", "native": "हिन्दी"}, ...],
+  "voices": [{"id": "swara", "label": "Swara", "engine": "edge", "languages": ["hi"], "gender": "f"},
+             {"id": "el_adam", "label": "Adam (ElevenLabs)", "engine": "eleven", "languages": ["en", "hi", ...], "gender": "m"}, ...],
+  "eleven_available": true,
+  "ai_video_available": false, "ai_video_message": "...",
+  "studio_available": true, "studio_types": [{"id": "promo", "label": "Promo", "min_length": 16, "shots": [...]}, ...],
+  "creative_modes": [{"id": "website", "available": true, ...}, ...]
+}
+```
+
+`engine` is `edge` (free Microsoft voice) or `eleven` (ElevenLabs; listed only while that key works). Each video type has a `min_length` (its shots need about two seconds each to be read).
+
+### Status values and error codes
+
+* **Ad** `status`: `queued` · `running` · `completed` · `completed_with_fallback` (the AI provider failed and a plain clip was used: see `provider_error`, never present it as AI footage) · `failed`.
+* **Studio** `status`: `queued` · `running` · `review` (waiting for you: `PUT` the plan, then `continue`) · `completed` · `failed` · `cancelled`. Each of the seven `stages` is `pending` · `running` · `done` · `failed`. `passed` and `problems` are the result of the final check (every number compared with the website notes).
+
+| `code` | HTTP | Meaning |
+|---|---|---|
+| `invalid_request` | 422 | A field is missing or wrong (the `detail` says which) |
+| `unsafe_url` | 422 | The address is private, internal or not a public website (SSRF protection) |
+| `rate_limited` | 429 | Too many requests from this client: wait a minute |
+| `daily_limit` | 429 | The daily cap on ads or Studio videos is reached |
+| `studio_unavailable` | 409 | Studio needs the AI writer and none is configured |
+| `not_in_review` · `video_not_ready` · `studio_finished` | 409 | The action does not fit the job's state (for example `continue` before `review`) |
+| `job_not_found` · `ad_not_found` · `studio_job_not_found` · `asset_not_found` · `screenshot_not_found` | 404 | Unknown or expired id (data is deleted after `DATA_RETENTION_HOURS`, 72 by default) |
+| `file_too_large` · `too_many_files` · `no_files` | 413 / 422 | Upload limits (see `/api/config`) |
+
+Generate a typed client from the spec: `npx @openapitools/openapi-generator-cli generate -i docs/openapi.json -g typescript-fetch -o ./site2ad-client` (or `-g python`). After you change a route or schema, run `python scripts/generate_openapi.py` to refresh the spec and Postman files (the test suite checks they match the code).
 
 ---
 

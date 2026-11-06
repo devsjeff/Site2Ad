@@ -17,8 +17,8 @@ RUN apt-get update \
 WORKDIR /srv
 COPY requirements.txt .
 RUN pip install -r requirements.txt \
-    # Firefox is the default scanner browser (--with-deps installs the system libraries it needs).
-    && python -m playwright install --with-deps firefox \
+    # Firefox is the default scanner browser (--with-deps installs the system libraries it needs); Studio draws its scenes in Chromium.
+    && python -m playwright install --with-deps firefox chromium \
     && rm -rf /var/lib/apt/lists/* \
     && chmod -R a+rX /ms-playwright
 

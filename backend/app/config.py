@@ -123,6 +123,10 @@ class Settings:
     gemini_api_key: str = ""
     gemini_video_model: str = "gemini-omni-1.1-flash"
 
+    # --- ElevenLabs voices (optional; the free Microsoft voices are used when this is empty, missing or used up)
+    elevenlabs_api_key: str = ""
+    elevenlabs_model: str = "eleven_multilingual_v2"
+
     # --- video generation
     video_provider: str = "auto"  # auto | gemini | magic_hour | mock
     video_model_api_key: str = ""
@@ -239,6 +243,8 @@ class Settings:
             ai_copy_timeout_seconds=_float(g("AI_COPY_TIMEOUT_SECONDS"), d.ai_copy_timeout_seconds),
             gemini_api_key=gemini_api_key,
             gemini_video_model=g("GEMINI_VIDEO_MODEL", d.gemini_video_model),
+            elevenlabs_api_key=g("ELEVENLABS_API_KEY"),
+            elevenlabs_model=g("ELEVENLABS_MODEL", d.elevenlabs_model),
             video_provider=g("VIDEO_PROVIDER", d.video_provider).lower(),
             video_model_api_key=g("VIDEO_MODEL_API_KEY"),
             magic_hour_model=g("MAGIC_HOUR_MODEL", d.magic_hour_model),

@@ -1,7 +1,7 @@
 {
   "url": "https://backseatnetwork.com",
-  "title": "DOOH & Taxi Cab Advertising in India | Backseat Network",
-  "captured_at": "2026-11-01T16:10:47+00:00",
+  "title": "In-cab advertising in India | Backseat Network",
+  "captured_at": "2026-11-02T14:36:23+00:00",
   "page_height": 14012,
   "blocks": [
     {
@@ -226,26 +226,6 @@
     },
     {
       "line": 48,
-      "text": "Planning a cab campaign?",
-      "top": 697,
-      "heading": 0,
-      "button": false,
-      "li": false,
-      "quote": false,
-      "region": "footer"
-    },
-    {
-      "line": 50,
-      "text": "I can plan and price one with you in under a minute.",
-      "top": 719,
-      "heading": 0,
-      "button": false,
-      "li": false,
-      "quote": false,
-      "region": "footer"
-    },
-    {
-      "line": 52,
       "text": "Indian cities live or onboarding",
       "top": 727,
       "heading": 0,
@@ -255,7 +235,7 @@
       "region": ""
     },
     {
-      "line": 54,
+      "line": 50,
       "text": "airport and city cabs",
       "top": 727,
       "heading": 0,
@@ -265,7 +245,7 @@
       "region": ""
     },
     {
-      "line": 56,
+      "line": 52,
       "text": "per cab per month, plus GST",
       "top": 727,
       "heading": 0,
@@ -275,37 +255,7 @@
       "region": ""
     },
     {
-      "line": 58,
-      "text": "Plan my campaign",
-      "top": 761,
-      "heading": 0,
-      "button": true,
-      "li": false,
-      "quote": false,
-      "region": "footer"
-    },
-    {
-      "line": 60,
-      "text": "Ask a question",
-      "top": 761,
-      "heading": 0,
-      "button": true,
-      "li": false,
-      "quote": false,
-      "region": "footer"
-    },
-    {
-      "line": 62,
-      "text": "Ask Vira",
-      "top": 838,
-      "heading": 0,
-      "button": true,
-      "li": false,
-      "quote": false,
-      "region": "footer"
-    },
-    {
-      "line": 64,
+      "line": 54,
       "text": "Trusted by leading brands across India",
       "top": 996,
       "heading": 2,
@@ -315,8 +265,58 @@
       "region": ""
     },
     {
-      "line": 66,
+      "line": 56,
       "text": "IndigoGo",
+      "top": 1140,
+      "heading": 0,
+      "button": false,
+      "li": false,
+      "quote": false,
+      "region": ""
+    },
+    {
+      "line": 58,
+      "text": "PhonePe",
+      "top": 1140,
+      "heading": 0,
+      "button": false,
+      "li": false,
+      "quote": false,
+      "region": ""
+    },
+    {
+      "line": 60,
+      "text": "Swiggy",
+      "top": 1140,
+      "heading": 0,
+      "button": false,
+      "li": false,
+      "quote": false,
+      "region": ""
+    },
+    {
+      "line": 62,
+      "text": "Titan",
+      "top": 1140,
+      "heading": 0,
+      "button": false,
+      "li": false,
+      "quote": false,
+      "region": ""
+    },
+    {
+      "line": 64,
+      "text": "Ather",
+      "top": 1140,
+      "heading": 0,
+      "button": false,
+      "li": false,
+      "quote": false,
+      "region": ""
+    },
+    {
+      "line": 66,
+      "text": "Zomato",
       "top": 1140,
       "heading": 0,
       "button": false,
@@ -326,7 +326,7 @@
     },
     {
       "line": 68,
-      "text": "PhonePe",
+      "text": "HDFC",
       "top": 1140,
       "heading": 0,
       "button": false,
@@ -336,7 +336,7 @@
     },
     {
       "line": 70,
-      "text": "Swiggy",
+      "text": "Meesho",
       "top": 1140,
       "heading": 0,
       "button": false,
@@ -346,7 +346,7 @@
     },
     {
       "line": 72,
-      "text": "Titan",
+      "text": "Nykaa",
       "top": 1140,
       "heading": 0,
       "button": false,
@@ -356,7 +356,7 @@
     },
     {
       "line": 74,
-      "text": "Ather",
+      "text": "Flipkart",
       "top": 1140,
       "heading": 0,
       "button": false,
@@ -366,7 +366,7 @@
     },
     {
       "line": 76,
-      "text": "Zomato",
+      "text": "VerifyStack",
       "top": 1140,
       "heading": 0,
       "button": false,
@@ -376,7 +376,7 @@
     },
     {
       "line": 78,
-      "text": "HDFC",
+      "text": "DeepChq",
       "top": 1140,
       "heading": 0,
       "button": false,
@@ -386,56 +386,6 @@
     },
     {
       "line": 80,
-      "text": "Meesho",
-      "top": 1140,
-      "heading": 0,
-      "button": false,
-      "li": false,
-      "quote": false,
-      "region": ""
-    },
-    {
-      "line": 82,
-      "text": "Nykaa",
-      "top": 1140,
-      "heading": 0,
-      "button": false,
-      "li": false,
-      "quote": false,
-      "region": ""
-    },
-    {
-      "line": 84,
-      "text": "Flipkart",
-      "top": 1140,
-      "heading": 0,
-      "button": false,
-      "li": false,
-      "quote": false,
-      "region": ""
-    },
-    {
-      "line": 86,
-      "text": "VerifyStack",
-      "top": 1140,
-      "heading": 0,
-      "button": false,
-      "li": false,
-      "quote": false,
-      "region": ""
-    },
-    {
-      "line": 88,
-      "text": "DeepChq",
-      "top": 1140,
-      "heading": 0,
-      "button": false,
-      "li": false,
-      "quote": false,
-      "region": ""
-    },
-    {
-      "line": 90,
       "text": "IndigoGo",
       "top": 1140,
       "heading": 0,
@@ -445,7 +395,7 @@
       "region": ""
     },
     {
-      "line": 92,
+      "line": 82,
       "text": "PhonePe",
       "top": 1140,
       "heading": 0,
@@ -455,7 +405,7 @@
       "region": ""
     },
     {
-      "line": 94,
+      "line": 84,
       "text": "Swiggy",
       "top": 1140,
       "heading": 0,
@@ -465,7 +415,7 @@
       "region": ""
     },
     {
-      "line": 96,
+      "line": 86,
       "text": "Titan",
       "top": 1140,
       "heading": 0,
@@ -475,7 +425,7 @@
       "region": ""
     },
     {
-      "line": 98,
+      "line": 88,
       "text": "Ather",
       "top": 1140,
       "heading": 0,
@@ -485,7 +435,7 @@
       "region": ""
     },
     {
-      "line": 100,
+      "line": 90,
       "text": "Zomato",
       "top": 1140,
       "heading": 0,
@@ -495,7 +445,7 @@
       "region": ""
     },
     {
-      "line": 102,
+      "line": 92,
       "text": "HDFC",
       "top": 1140,
       "heading": 0,
@@ -505,7 +455,7 @@
       "region": ""
     },
     {
-      "line": 104,
+      "line": 94,
       "text": "Meesho",
       "top": 1140,
       "heading": 0,
@@ -515,7 +465,7 @@
       "region": ""
     },
     {
-      "line": 106,
+      "line": 96,
       "text": "Nykaa",
       "top": 1140,
       "heading": 0,
@@ -525,7 +475,7 @@
       "region": ""
     },
     {
-      "line": 108,
+      "line": 98,
       "text": "Flipkart",
       "top": 1140,
       "heading": 0,
@@ -535,7 +485,7 @@
       "region": ""
     },
     {
-      "line": 110,
+      "line": 100,
       "text": "VerifyStack",
       "top": 1140,
       "heading": 0,
@@ -545,7 +495,7 @@
       "region": ""
     },
     {
-      "line": 112,
+      "line": 102,
       "text": "DeepChq",
       "top": 1140,
       "heading": 0,
@@ -555,7 +505,7 @@
       "region": ""
     },
     {
-      "line": 114,
+      "line": 104,
       "text": "From the brands",
       "top": 1552,
       "heading": 0,
@@ -565,7 +515,7 @@
       "region": ""
     },
     {
-      "line": 116,
+      "line": 106,
       "text": "How the ride turns into clients and search",
       "top": 1592,
       "heading": 2,
@@ -575,7 +525,7 @@
       "region": ""
     },
     {
-      "line": 118,
+      "line": 108,
       "text": "A passenger watches one silent loop, opens the site from the QR, and later types the brand into search. These are real testimonials from brands using our platform.",
       "top": 1704,
       "heading": 0,
@@ -585,7 +535,7 @@
       "region": ""
     },
     {
-      "line": 120,
+      "line": 110,
       "text": "Priya Sharma",
       "top": 1825,
       "heading": 0,
@@ -595,7 +545,7 @@
       "region": ""
     },
     {
-      "line": 122,
+      "line": 112,
       "text": "VerifyStack",
       "top": 1824,
       "heading": 0,
@@ -605,7 +555,7 @@
       "region": ""
     },
     {
-      "line": 124,
+      "line": 114,
       "text": "Rahul Mehta",
       "top": 1825,
       "heading": 0,
@@ -615,7 +565,7 @@
       "region": ""
     },
     {
-      "line": 126,
+      "line": 116,
       "text": "DeepChq",
       "top": 1824,
       "heading": 0,
@@ -625,7 +575,7 @@
       "region": ""
     },
     {
-      "line": 128,
+      "line": 118,
       "text": "Chief Marketing Officer",
       "top": 1851,
       "heading": 0,
@@ -635,7 +585,7 @@
       "region": ""
     },
     {
-      "line": 130,
+      "line": 120,
       "text": "Enterprise background verification platform",
       "top": 1856,
       "heading": 0,
@@ -645,7 +595,7 @@
       "region": ""
     },
     {
-      "line": 132,
+      "line": 122,
       "text": "Chief Marketing Officer",
       "top": 1851,
       "heading": 0,
@@ -655,7 +605,7 @@
       "region": ""
     },
     {
-      "line": 134,
+      "line": 124,
       "text": "AI-powered search visibility platform",
       "top": 1856,
       "heading": 0,
@@ -665,7 +615,7 @@
       "region": ""
     },
     {
-      "line": 136,
+      "line": 126,
       "text": "“ The people who buy background checks sit in airport cabs between meetings. One silent loop and a QR to verifystack.in, and they open the site before the terminal. The next morning the same names show up as branded searches. Those searches are the leads my team now works. ”",
       "top": 1896,
       "heading": 0,
@@ -675,7 +625,7 @@
       "region": ""
     },
     {
-      "line": 138,
+      "line": 128,
       "text": "“ We sell AI search visibility, so a logo on a screen was never going to win a client. The loop shows how a brand gets cited in AI answers, and the QR opens deepchq.com while the founder is still in the car. They read the product on the ride, then search DeepChq when they brief the next campaign. That is the client. ”",
       "top": 1896,
       "heading": 0,
@@ -685,7 +635,7 @@
       "region": ""
     },
     {
-      "line": 140,
+      "line": 130,
       "text": "verifystack.in",
       "top": 2063,
       "heading": 0,
@@ -695,7 +645,7 @@
       "region": ""
     },
     {
-      "line": 142,
+      "line": 132,
       "text": "deepchq.com",
       "top": 2063,
       "heading": 0,
@@ -705,7 +655,7 @@
       "region": ""
     },
     {
-      "line": 144,
+      "line": 134,
       "text": "Website",
       "top": 2309,
       "heading": 0,
@@ -715,7 +665,7 @@
       "region": ""
     },
     {
-      "line": 146,
+      "line": 136,
       "text": "Refer and earn",
       "top": 2307,
       "heading": 0,
@@ -725,7 +675,7 @@
       "region": ""
     },
     {
-      "line": 148,
+      "line": 138,
       "text": "Send a referral",
       "top": 2339,
       "heading": 3,
@@ -735,7 +685,7 @@
       "region": ""
     },
     {
-      "line": 150,
+      "line": 140,
       "text": "Bring a customer. Keep 10% of the sale.",
       "top": 2347,
       "heading": 2,
@@ -745,7 +695,7 @@
       "region": ""
     },
     {
-      "line": 152,
+      "line": 142,
       "text": "Your details, then the brand you are introducing.",
       "top": 2375,
       "heading": 0,
@@ -755,7 +705,7 @@
       "region": ""
     },
     {
-      "line": 154,
+      "line": 144,
       "text": "Your name",
       "top": 2415,
       "heading": 0,
@@ -765,7 +715,7 @@
       "region": ""
     },
     {
-      "line": 156,
+      "line": 146,
       "text": "Refer a brand, an agency or a local business. If they book, you earn 10% of the total sales on that deal. A current customer can refer too.",
       "top": 2459,
       "heading": 0,
@@ -775,7 +725,7 @@
       "region": ""
     },
     {
-      "line": 158,
+      "line": 148,
       "text": "Your phone",
       "top": 2503,
       "heading": 0,
@@ -785,7 +735,7 @@
       "region": ""
     },
     {
-      "line": 160,
+      "line": 150,
       "text": "Your email",
       "top": 2503,
       "heading": 0,
@@ -795,7 +745,7 @@
       "region": ""
     },
     {
-      "line": 162,
+      "line": 152,
       "text": "10%",
       "top": 2536,
       "heading": 0,
@@ -805,7 +755,7 @@
       "region": ""
     },
     {
-      "line": 164,
+      "line": 154,
       "text": "Who you are",
       "top": 2591,
       "heading": 0,
@@ -815,7 +765,7 @@
       "region": ""
     },
     {
-      "line": 166,
+      "line": 156,
       "text": "of the total sales on the deal you bring in",
       "top": 2604,
       "heading": 0,
@@ -825,7 +775,7 @@
       "region": ""
     },
     {
-      "line": 168,
+      "line": 158,
       "text": "0 1",
       "top": 2684,
       "heading": 0,
@@ -835,7 +785,7 @@
       "region": ""
     },
     {
-      "line": 170,
+      "line": 160,
       "text": "Brand you are referring",
       "top": 2679,
       "heading": 0,
@@ -845,7 +795,7 @@
       "region": ""
     },
     {
-      "line": 172,
+      "line": 162,
       "text": "Introduce the brand",
       "top": 2708,
       "heading": 0,
@@ -855,7 +805,7 @@
       "region": ""
     },
     {
-      "line": 174,
+      "line": 164,
       "text": "Tell us who they are and how we should reach them. You can refer whether or not you already advertise with us.",
       "top": 2736,
       "heading": 0,
@@ -865,7 +815,7 @@
       "region": ""
     },
     {
-      "line": 176,
+      "line": 166,
       "text": "Their name",
       "top": 2767,
       "heading": 0,
@@ -875,7 +825,7 @@
       "region": ""
     },
     {
-      "line": 178,
+      "line": 168,
       "text": "Their phone or email",
       "top": 2767,
       "heading": 0,
@@ -885,7 +835,7 @@
       "region": ""
     },
     {
-      "line": 180,
+      "line": 170,
       "text": "0 2",
       "top": 2838,
       "heading": 0,
@@ -895,7 +845,7 @@
       "region": ""
     },
     {
-      "line": 182,
+      "line": 172,
       "text": "We close the campaign",
       "top": 2862,
       "heading": 0,
@@ -905,7 +855,7 @@
       "region": ""
     },
     {
-      "line": 184,
+      "line": 174,
       "text": "City they want",
       "top": 2855,
       "heading": 0,
@@ -915,7 +865,7 @@
       "region": ""
     },
     {
-      "line": 186,
+      "line": 176,
       "text": "They buy the usual way: ₹4,000 per cab per month, plus GST, in Mumbai, Delhi NCR or Bengaluru.",
       "top": 2890,
       "heading": 0,
@@ -925,7 +875,7 @@
       "region": ""
     },
     {
-      "line": 188,
+      "line": 178,
       "text": "Note (optional)",
       "top": 2943,
       "heading": 0,
@@ -935,7 +885,7 @@
       "region": ""
     },
     {
-      "line": 190,
+      "line": 180,
       "text": "0 3",
       "top": 2991,
       "heading": 0,
@@ -945,7 +895,7 @@
       "region": ""
     },
     {
-      "line": 192,
+      "line": 182,
       "text": "You earn 10%",
       "top": 3015,
       "heading": 0,
@@ -955,7 +905,7 @@
       "region": ""
     },
     {
-      "line": 194,
+      "line": 184,
       "text": "Your reward is 10% of the total sales on that deal, the sale that came from the customer you sent us.",
       "top": 3043,
       "heading": 0,
@@ -965,7 +915,7 @@
       "region": ""
     },
     {
-      "line": 196,
+      "line": 186,
       "text": "Refer and earn 10%",
       "top": 3071,
       "heading": 0,
@@ -975,7 +925,7 @@
       "region": ""
     },
     {
-      "line": 198,
+      "line": 188,
       "text": "Passenger POV",
       "top": 3339,
       "heading": 0,
@@ -985,7 +935,7 @@
       "region": ""
     },
     {
-      "line": 200,
+      "line": 190,
       "text": "Taxi advertising your customer watches for 20 to 45 minutes",
       "top": 3379,
       "heading": 2,
@@ -995,7 +945,7 @@
       "region": ""
     },
     {
-      "line": 202,
+      "line": 192,
       "text": "Your ad plays on a headrest tablet at eye level. There is no skip button, and every creative carries a QR code the passenger can scan before the ride ends.",
       "top": 3491,
       "heading": 0,
@@ -1005,8 +955,8 @@
       "region": ""
     },
     {
-      "line": 204,
-      "text": "Airport cabs · weekend",
+      "line": 194,
+      "text": "Mumbai · 6 PM rush",
       "top": 3631,
       "heading": 0,
       "button": false,
@@ -1015,7 +965,7 @@
       "region": ""
     },
     {
-      "line": 206,
+      "line": 196,
       "text": "Ad",
       "top": 3629,
       "heading": 0,
@@ -1025,7 +975,7 @@
       "region": ""
     },
     {
-      "line": 208,
+      "line": 198,
       "text": "Live in-cab",
       "top": 3649,
       "heading": 0,
@@ -1035,7 +985,7 @@
       "region": ""
     },
     {
-      "line": 210,
+      "line": 200,
       "text": "Passenger POV",
       "top": 3649,
       "heading": 0,
@@ -1045,8 +995,8 @@
       "region": ""
     },
     {
-      "line": 212,
-      "text": "Goa this weekend",
+      "line": 202,
+      "text": "Chai break?",
       "top": 3672,
       "heading": 0,
       "button": false,
@@ -1055,8 +1005,8 @@
       "region": ""
     },
     {
-      "line": 214,
-      "text": "Flights + stay from ₹4,999",
+      "line": 204,
+      "text": "Real chai. Real good.",
       "top": 3704,
       "heading": 0,
       "button": false,
@@ -1065,8 +1015,8 @@
       "region": ""
     },
     {
-      "line": 216,
-      "text": "Scan to book",
+      "line": 206,
+      "text": "Scan to sip",
       "top": 3761,
       "heading": 0,
       "button": false,
@@ -1075,7 +1025,7 @@
       "region": ""
     },
     {
-      "line": 218,
+      "line": 208,
       "text": "Cab screen",
       "top": 3830,
       "heading": 0,
@@ -1085,7 +1035,7 @@
       "region": ""
     },
     {
-      "line": 220,
+      "line": 210,
       "text": "20 to 45 minutes",
       "top": 3861,
       "heading": 0,
@@ -1095,7 +1045,7 @@
       "region": ""
     },
     {
-      "line": 222,
+      "line": 212,
       "text": "60 cm away",
       "top": 3861,
       "heading": 0,
@@ -1105,27 +1055,7 @@
       "region": ""
     },
     {
-      "line": 224,
-      "text": "Mumbai",
-      "top": 3872,
-      "heading": 0,
-      "button": false,
-      "li": false,
-      "quote": false,
-      "region": ""
-    },
-    {
-      "line": 226,
-      "text": "Marine Drive, golden hour",
-      "top": 3892,
-      "heading": 0,
-      "button": false,
-      "li": false,
-      "quote": false,
-      "region": ""
-    },
-    {
-      "line": 228,
+      "line": 214,
       "text": "Of dwell time on a single ride, far longer than any indoor advertising panel a commuter walks past.",
       "top": 3885,
       "heading": 0,
@@ -1135,7 +1065,7 @@
       "region": ""
     },
     {
-      "line": 230,
+      "line": 216,
       "text": "The screen sits at arm's length, at eye level, behind the driver's headrest.",
       "top": 3885,
       "heading": 0,
@@ -1145,8 +1075,28 @@
       "region": ""
     },
     {
-      "line": 232,
-      "text": "Chai brand",
+      "line": 218,
+      "text": "Mumbai airport",
+      "top": 3912,
+      "heading": 0,
+      "button": false,
+      "li": false,
+      "quote": false,
+      "region": ""
+    },
+    {
+      "line": 220,
+      "text": "Terminal pickup",
+      "top": 3932,
+      "heading": 0,
+      "button": false,
+      "li": false,
+      "quote": false,
+      "region": ""
+    },
+    {
+      "line": 222,
+      "text": "Travel brand",
       "top": 3940,
       "heading": 0,
       "button": false,
@@ -1155,7 +1105,7 @@
       "region": ""
     },
     {
-      "line": 234,
+      "line": 224,
       "text": "Silent 15s loop",
       "top": 3940,
       "heading": 0,
@@ -1165,7 +1115,7 @@
       "region": ""
     },
     {
-      "line": 236,
+      "line": 226,
       "text": "Scan-to-act QR",
       "top": 3940,
       "heading": 0,
@@ -1175,7 +1125,7 @@
       "region": ""
     },
     {
-      "line": 238,
+      "line": 228,
       "text": "Silent by design",
       "top": 4009,
       "heading": 0,
@@ -1185,7 +1135,7 @@
       "region": ""
     },
     {
-      "line": 240,
+      "line": 230,
       "text": "A QR on every ad",
       "top": 4009,
       "heading": 0,
@@ -1195,7 +1145,7 @@
       "region": ""
     },
     {
-      "line": 242,
+      "line": 232,
       "text": "No audio, so drivers stay focused and passengers keep watching.",
       "top": 4033,
       "heading": 0,
@@ -1205,7 +1155,7 @@
       "region": ""
     },
     {
-      "line": 244,
+      "line": 234,
       "text": "A ride becomes an install, an order or a booking.",
       "top": 4033,
       "heading": 0,
@@ -1215,7 +1165,7 @@
       "region": ""
     },
     {
-      "line": 246,
+      "line": 236,
       "text": "Compare",
       "top": 4301,
       "heading": 0,
@@ -1225,7 +1175,7 @@
       "region": ""
     },
     {
-      "line": 248,
+      "line": 238,
       "text": "Cab screens vs hoardings and digital billboards",
       "top": 4341,
       "heading": 2,
@@ -1235,7 +1185,7 @@
       "region": ""
     },
     {
-      "line": 250,
+      "line": 240,
       "text": "Outdoor advertising reaches people passing by. A cab screen reaches one passenger for the length of a ride, and logs every play.",
       "top": 4453,
       "heading": 0,
@@ -1245,7 +1195,7 @@
       "region": ""
     },
     {
-      "line": 252,
+      "line": 242,
       "text": "Cab screen",
       "top": 4533,
       "heading": 0,
@@ -1255,7 +1205,7 @@
       "region": ""
     },
     {
-      "line": 254,
+      "line": 244,
       "text": "Hoarding advertising",
       "top": 4533,
       "heading": 0,
@@ -1265,7 +1215,7 @@
       "region": ""
     },
     {
-      "line": 256,
+      "line": 246,
       "text": "Digital billboards",
       "top": 4533,
       "heading": 0,
@@ -1275,7 +1225,7 @@
       "region": ""
     },
     {
-      "line": 258,
+      "line": 248,
       "text": "Time with the ad",
       "top": 4594,
       "heading": 0,
@@ -1285,7 +1235,7 @@
       "region": ""
     },
     {
-      "line": 260,
+      "line": 250,
       "text": "20 to 45 minutes per ride",
       "top": 4594,
       "heading": 0,
@@ -1295,7 +1245,7 @@
       "region": ""
     },
     {
-      "line": 262,
+      "line": 252,
       "text": "A glance as traffic passes",
       "top": 4594,
       "heading": 0,
@@ -1305,7 +1255,7 @@
       "region": ""
     },
     {
-      "line": 264,
+      "line": 254,
       "text": "A glance, on a loop shared with other advertisers",
       "top": 4594,
       "heading": 0,
@@ -1315,7 +1265,7 @@
       "region": ""
     },
     {
-      "line": 266,
+      "line": 256,
       "text": "Proof it ran",
       "top": 4675,
       "heading": 0,
@@ -1325,7 +1275,7 @@
       "region": ""
     },
     {
-      "line": 268,
+      "line": 258,
       "text": "Every play counted, with a live GPS map of your cabs",
       "top": 4675,
       "heading": 0,
@@ -1335,7 +1285,7 @@
       "region": ""
     },
     {
-      "line": 270,
+      "line": 260,
       "text": "Site photographs",
       "top": 4675,
       "heading": 0,
@@ -1345,7 +1295,7 @@
       "region": ""
     },
     {
-      "line": 272,
+      "line": 262,
       "text": "Playout report from the screen operator",
       "top": 4675,
       "heading": 0,
@@ -1355,7 +1305,7 @@
       "region": ""
     },
     {
-      "line": 274,
+      "line": 264,
       "text": "What you buy",
       "top": 4736,
       "heading": 0,
@@ -1365,7 +1315,7 @@
       "region": ""
     },
     {
-      "line": 276,
+      "line": 266,
       "text": "Cabs by the month: ₹4,000 per cab, plus GST",
       "top": 4736,
       "heading": 0,
@@ -1375,7 +1325,7 @@
       "region": ""
     },
     {
-      "line": 278,
+      "line": 268,
       "text": "A site, quoted by location",
       "top": 4736,
       "heading": 0,
@@ -1385,7 +1335,7 @@
       "region": ""
     },
     {
-      "line": 280,
+      "line": 270,
       "text": "A slot, quoted by site",
       "top": 4736,
       "heading": 0,
@@ -1395,7 +1345,7 @@
       "region": ""
     },
     {
-      "line": 282,
+      "line": 272,
       "text": "How you launch",
       "top": 4797,
       "heading": 0,
@@ -1405,7 +1355,7 @@
       "region": ""
     },
     {
-      "line": 284,
+      "line": 274,
       "text": "Book and pay online; creative is reviewed before it goes live",
       "top": 4797,
       "heading": 0,
@@ -1415,7 +1365,7 @@
       "region": ""
     },
     {
-      "line": 286,
+      "line": 276,
       "text": "Print and mount at the site",
       "top": 4797,
       "heading": 0,
@@ -1425,7 +1375,7 @@
       "region": ""
     },
     {
-      "line": 288,
+      "line": 278,
       "text": "Send the file to the operator to schedule",
       "top": 4797,
       "heading": 0,
@@ -1435,7 +1385,7 @@
       "region": ""
     },
     {
-      "line": 290,
+      "line": 280,
       "text": "Compare more channels →",
       "top": 4909,
       "heading": 0,
@@ -1445,7 +1395,7 @@
       "region": ""
     },
     {
-      "line": 292,
+      "line": 282,
       "text": "A self-serve advertising platform: live in 4 steps",
       "top": 5138,
       "heading": 2,
@@ -1455,7 +1405,7 @@
       "region": ""
     },
     {
-      "line": 294,
+      "line": 284,
       "text": "Most online advertising platforms stop at the phone screen. This one books real cabs, with the same card-and-UPI checkout.",
       "top": 5250,
       "heading": 0,
@@ -1465,7 +1415,7 @@
       "region": ""
     },
     {
-      "line": 296,
+      "line": 286,
       "text": "Brief Vira",
       "top": 5498,
       "heading": 3,
@@ -1475,7 +1425,7 @@
       "region": ""
     },
     {
-      "line": 298,
+      "line": 288,
       "text": "Review the creative",
       "top": 5498,
       "heading": 3,
@@ -1485,7 +1435,7 @@
       "region": ""
     },
     {
-      "line": 300,
+      "line": 290,
       "text": "Pick cabs and months",
       "top": 5498,
       "heading": 3,
@@ -1495,7 +1445,7 @@
       "region": ""
     },
     {
-      "line": 302,
+      "line": 292,
       "text": "Pay and go live",
       "top": 5498,
       "heading": 3,
@@ -1505,7 +1455,7 @@
       "region": ""
     },
     {
-      "line": 304,
+      "line": 294,
       "text": "Paste your brand's website, or skip ahead and upload your own creative.",
       "top": 5534,
       "heading": 0,
@@ -1515,7 +1465,7 @@
       "region": ""
     },
     {
-      "line": 306,
+      "line": 296,
       "text": "Vira makes the landscape cab ad from your website.",
       "top": 5534,
       "heading": 0,
@@ -1525,7 +1475,7 @@
       "region": ""
     },
     {
-      "line": 308,
+      "line": 298,
       "text": "Choose your cities, the number of cabs and how long the campaign runs.",
       "top": 5534,
       "heading": 0,
@@ -1535,7 +1485,7 @@
       "region": ""
     },
     {
-      "line": 310,
+      "line": 300,
       "text": "Pay by UPI, card or netbanking. Our team activates the screens in your cities.",
       "top": 5534,
       "heading": 0,
@@ -1545,7 +1495,7 @@
       "region": ""
     },
     {
-      "line": 312,
+      "line": 302,
       "text": "Watch the demo",
       "top": 5650,
       "heading": 0,
@@ -1555,7 +1505,7 @@
       "region": ""
     },
     {
-      "line": 314,
+      "line": 304,
       "text": "See how it works →",
       "top": 5662,
       "heading": 0,
@@ -1565,7 +1515,7 @@
       "region": ""
     },
     {
-      "line": 316,
+      "line": 306,
       "text": "Pricing",
       "top": 5886,
       "heading": 0,
@@ -1575,7 +1525,7 @@
       "region": ""
     },
     {
-      "line": 318,
+      "line": 308,
       "text": "OOH advertising cost: ₹4,000 per cab per month",
       "top": 5926,
       "heading": 2,
@@ -1585,7 +1535,7 @@
       "region": ""
     },
     {
-      "line": 320,
+      "line": 310,
       "text": "One price in every city. GST at 18% is added on the invoice, which is emailed as soon as you pay.",
       "top": 6038,
       "heading": 0,
@@ -1595,7 +1545,7 @@
       "region": ""
     },
     {
-      "line": 322,
+      "line": 312,
       "text": "Where your ad plays",
       "top": 6130,
       "heading": 0,
@@ -1605,7 +1555,7 @@
       "region": ""
     },
     {
-      "line": 324,
+      "line": 314,
       "text": "Estimated total, incl. GST",
       "top": 6130,
       "heading": 0,
@@ -1615,7 +1565,7 @@
       "region": ""
     },
     {
-      "line": 326,
+      "line": 316,
       "text": "₹1,41,600",
       "top": 6154,
       "heading": 0,
@@ -1625,7 +1575,7 @@
       "region": ""
     },
     {
-      "line": 328,
+      "line": 318,
       "text": "Cab screens",
       "top": 6208,
       "heading": 0,
@@ -1635,7 +1585,7 @@
       "region": ""
     },
     {
-      "line": 330,
+      "line": 320,
       "text": "₹40,000 a month · Mumbai",
       "top": 6206,
       "heading": 0,
@@ -1645,7 +1595,7 @@
       "region": ""
     },
     {
-      "line": 332,
+      "line": 322,
       "text": "Airport cabs",
       "top": 6216,
       "heading": 0,
@@ -1655,7 +1605,7 @@
       "region": ""
     },
     {
-      "line": 334,
+      "line": 324,
       "text": "Two-wheelers",
       "top": 6216,
       "heading": 0,
@@ -1665,7 +1615,7 @@
       "region": ""
     },
     {
-      "line": 336,
+      "line": 326,
       "text": "Vans",
       "top": 6216,
       "heading": 0,
@@ -1675,7 +1625,7 @@
       "region": ""
     },
     {
-      "line": 338,
+      "line": 328,
       "text": "City taxis and app cabs",
       "top": 6230,
       "heading": 0,
@@ -1685,7 +1635,7 @@
       "region": ""
     },
     {
-      "line": 340,
+      "line": 330,
       "text": "Terminal transfers",
       "top": 6238,
       "heading": 0,
@@ -1695,7 +1645,7 @@
       "region": ""
     },
     {
-      "line": 342,
+      "line": 332,
       "text": "Bike taxis, delivery",
       "top": 6238,
       "heading": 0,
@@ -1705,7 +1655,7 @@
       "region": ""
     },
     {
-      "line": 344,
+      "line": 334,
       "text": "Staff and last-mile",
       "top": 6238,
       "heading": 0,
@@ -1715,7 +1665,7 @@
       "region": ""
     },
     {
-      "line": 346,
+      "line": 336,
       "text": "10 vehicle s × ₹4,000 × 3 month s",
       "top": 6271,
       "heading": 0,
@@ -1725,7 +1675,7 @@
       "region": ""
     },
     {
-      "line": 348,
+      "line": 338,
       "text": "₹1,20,000",
       "top": 6271,
       "heading": 0,
@@ -1735,7 +1685,7 @@
       "region": ""
     },
     {
-      "line": 350,
+      "line": 340,
       "text": "GST 18 %",
       "top": 6299,
       "heading": 0,
@@ -1745,7 +1695,7 @@
       "region": ""
     },
     {
-      "line": 352,
+      "line": 342,
       "text": "₹21,600",
       "top": 6299,
       "heading": 0,
@@ -1755,7 +1705,7 @@
       "region": ""
     },
     {
-      "line": 354,
+      "line": 344,
       "text": "City",
       "top": 6309,
       "heading": 0,
@@ -1765,8 +1715,58 @@
       "region": ""
     },
     {
-      "line": 356,
+      "line": 346,
       "text": "Mumbai",
+      "top": 6341,
+      "heading": 0,
+      "button": true,
+      "li": false,
+      "quote": false,
+      "region": ""
+    },
+    {
+      "line": 348,
+      "text": "Delhi NCR",
+      "top": 6341,
+      "heading": 0,
+      "button": true,
+      "li": false,
+      "quote": false,
+      "region": ""
+    },
+    {
+      "line": 350,
+      "text": "Bengaluru",
+      "top": 6341,
+      "heading": 0,
+      "button": true,
+      "li": false,
+      "quote": false,
+      "region": ""
+    },
+    {
+      "line": 352,
+      "text": "Hyderabad",
+      "top": 6341,
+      "heading": 0,
+      "button": true,
+      "li": false,
+      "quote": false,
+      "region": ""
+    },
+    {
+      "line": 354,
+      "text": "Chennai",
+      "top": 6341,
+      "heading": 0,
+      "button": true,
+      "li": false,
+      "quote": false,
+      "region": ""
+    },
+    {
+      "line": 356,
+      "text": "Pune",
       "top": 6341,
       "heading": 0,
       "button": true,
@@ -1776,56 +1776,6 @@
     },
     {
       "line": 358,
-      "text": "Delhi NCR",
-      "top": 6341,
-      "heading": 0,
-      "button": true,
-      "li": false,
-      "quote": false,
-      "region": ""
-    },
-    {
-      "line": 360,
-      "text": "Bengaluru",
-      "top": 6341,
-      "heading": 0,
-      "button": true,
-      "li": false,
-      "quote": false,
-      "region": ""
-    },
-    {
-      "line": 362,
-      "text": "Hyderabad",
-      "top": 6341,
-      "heading": 0,
-      "button": true,
-      "li": false,
-      "quote": false,
-      "region": ""
-    },
-    {
-      "line": 364,
-      "text": "Chennai",
-      "top": 6341,
-      "heading": 0,
-      "button": true,
-      "li": false,
-      "quote": false,
-      "region": ""
-    },
-    {
-      "line": 366,
-      "text": "Pune",
-      "top": 6341,
-      "heading": 0,
-      "button": true,
-      "li": false,
-      "quote": false,
-      "region": ""
-    },
-    {
-      "line": 368,
       "text": "Total",
       "top": 6336,
       "heading": 0,
@@ -1835,7 +1785,7 @@
       "region": ""
     },
     {
-      "line": 370,
+      "line": 360,
       "text": "₹1,41,600",
       "top": 6336,
       "heading": 0,
@@ -1845,7 +1795,7 @@
       "region": ""
     },
     {
-      "line": 372,
+      "line": 362,
       "text": "Ad impressions",
       "top": 6390,
       "heading": 0,
@@ -1855,7 +1805,7 @@
       "region": ""
     },
     {
-      "line": 374,
+      "line": 364,
       "text": "Cost per 1,000 views",
       "top": 6390,
       "heading": 0,
@@ -1865,7 +1815,7 @@
       "region": ""
     },
     {
-      "line": 376,
+      "line": 366,
       "text": "Number of vehicles",
       "top": 6403,
       "heading": 0,
@@ -1875,7 +1825,7 @@
       "region": ""
     },
     {
-      "line": 378,
+      "line": 368,
       "text": "3,60,000",
       "top": 6409,
       "heading": 0,
@@ -1885,7 +1835,7 @@
       "region": ""
     },
     {
-      "line": 380,
+      "line": 370,
       "text": "₹333",
       "top": 6409,
       "heading": 0,
@@ -1895,7 +1845,7 @@
       "region": ""
     },
     {
-      "line": 382,
+      "line": 372,
       "text": "80",
       "top": 6463,
       "heading": 0,
@@ -1905,7 +1855,7 @@
       "region": ""
     },
     {
-      "line": 384,
+      "line": 374,
       "text": "Screen hours",
       "top": 6461,
       "heading": 0,
@@ -1915,7 +1865,7 @@
       "region": ""
     },
     {
-      "line": 386,
+      "line": 376,
       "text": "Kilometres driven",
       "top": 6461,
       "heading": 0,
@@ -1925,7 +1875,7 @@
       "region": ""
     },
     {
-      "line": 388,
+      "line": 378,
       "text": "5,400–7,200",
       "top": 6479,
       "heading": 0,
@@ -1935,7 +1885,7 @@
       "region": ""
     },
     {
-      "line": 390,
+      "line": 380,
       "text": "60,000",
       "top": 6479,
       "heading": 0,
@@ -1945,7 +1895,7 @@
       "region": ""
     },
     {
-      "line": 392,
+      "line": 382,
       "text": "Campaign length",
       "top": 6508,
       "heading": 0,
@@ -1955,7 +1905,7 @@
       "region": ""
     },
     {
-      "line": 394,
+      "line": 384,
       "text": "1 month",
       "top": 6540,
       "heading": 0,
@@ -1965,7 +1915,7 @@
       "region": ""
     },
     {
-      "line": 396,
+      "line": 386,
       "text": "3 month s",
       "top": 6540,
       "heading": 0,
@@ -1975,7 +1925,7 @@
       "region": ""
     },
     {
-      "line": 398,
+      "line": 388,
       "text": "6 month s",
       "top": 6540,
       "heading": 0,
@@ -1985,7 +1935,7 @@
       "region": ""
     },
     {
-      "line": 400,
+      "line": 390,
       "text": "Launch this campaign",
       "top": 6541,
       "heading": 0,
@@ -1995,7 +1945,7 @@
       "region": ""
     },
     {
-      "line": 402,
+      "line": 392,
       "text": "Send this quote without waiting for a salesperson",
       "top": 6601,
       "heading": 0,
@@ -2005,7 +1955,7 @@
       "region": ""
     },
     {
-      "line": 404,
+      "line": 394,
       "text": "Send this quote",
       "top": 6721,
       "heading": 0,
@@ -2015,7 +1965,7 @@
       "region": ""
     },
     {
-      "line": 406,
+      "line": 396,
       "text": "Forward on WhatsApp",
       "top": 6769,
       "heading": 0,
@@ -2025,7 +1975,7 @@
       "region": ""
     },
     {
-      "line": 408,
+      "line": 398,
       "text": "Copy quote",
       "top": 6817,
       "heading": 0,
@@ -2035,7 +1985,7 @@
       "region": ""
     },
     {
-      "line": 410,
+      "line": 400,
       "text": "You pay per vehicle per month; reach figures are projections from average vehicle activity, not guarantees. Pay securely by UPI, card or netbanking and get a GST invoice.",
       "top": 6845,
       "heading": 0,
@@ -2045,7 +1995,7 @@
       "region": ""
     },
     {
-      "line": 412,
+      "line": 402,
       "text": "Transit media",
       "top": 7123,
       "heading": 0,
@@ -2055,7 +2005,7 @@
       "region": ""
     },
     {
-      "line": 414,
+      "line": 404,
       "text": "Transit advertising on cabs, two-wheelers, tempos and trucks",
       "top": 7163,
       "heading": 2,
@@ -2065,7 +2015,7 @@
       "region": ""
     },
     {
-      "line": 416,
+      "line": 406,
       "text": "Five vehicle classes, from airport Innovas to highway goods carriers.",
       "top": 7275,
       "heading": 0,
@@ -2075,7 +2025,7 @@
       "region": ""
     },
     {
-      "line": 418,
+      "line": 408,
       "text": "City cabs: Swift and Dzire",
       "top": 7551,
       "heading": 3,
@@ -2085,7 +2035,7 @@
       "region": ""
     },
     {
-      "line": 420,
+      "line": 410,
       "text": "11,000+",
       "top": 7551,
       "heading": 0,
@@ -2095,7 +2045,7 @@
       "region": ""
     },
     {
-      "line": 422,
+      "line": 412,
       "text": "Airport cabs: Innova and Ertiga",
       "top": 7551,
       "heading": 3,
@@ -2105,7 +2055,7 @@
       "region": ""
     },
     {
-      "line": 424,
+      "line": 414,
       "text": "4,000+",
       "top": 7551,
       "heading": 0,
@@ -2115,7 +2065,7 @@
       "region": ""
     },
     {
-      "line": 426,
+      "line": 416,
       "text": "Ride-hail hatchbacks and sedans across Bengaluru, Mumbai, Delhi NCR and Hyderabad, each with a headrest tablet.",
       "top": 7591,
       "heading": 0,
@@ -2125,7 +2075,7 @@
       "region": ""
     },
     {
-      "line": 428,
+      "line": 418,
       "text": "Airport MUVs with 45-minute average rides and business travellers in the back seat.",
       "top": 7591,
       "heading": 0,
@@ -2135,7 +2085,7 @@
       "region": ""
     },
     {
-      "line": 430,
+      "line": 420,
       "text": "Two-wheelers",
       "top": 7887,
       "heading": 3,
@@ -2145,7 +2095,7 @@
       "region": ""
     },
     {
-      "line": 432,
+      "line": 422,
       "text": "3,500+",
       "top": 7887,
       "heading": 0,
@@ -2155,7 +2105,7 @@
       "region": ""
     },
     {
-      "line": 434,
+      "line": 424,
       "text": "Tempos and vans: Ace and Eeco",
       "top": 7887,
       "heading": 3,
@@ -2165,7 +2115,7 @@
       "region": ""
     },
     {
-      "line": 436,
+      "line": 426,
       "text": "1,750+",
       "top": 7887,
       "heading": 0,
@@ -2175,7 +2125,7 @@
       "region": ""
     },
     {
-      "line": 438,
+      "line": 428,
       "text": "Trucks",
       "top": 7887,
       "heading": 3,
@@ -2185,7 +2135,7 @@
       "region": ""
     },
     {
-      "line": 440,
+      "line": 430,
       "text": "420+",
       "top": 7887,
       "heading": 0,
@@ -2195,7 +2145,7 @@
       "region": ""
     },
     {
-      "line": 442,
+      "line": 432,
       "text": "Food and quick-commerce riders covering dense lanes and high-street junctions.",
       "top": 7927,
       "heading": 0,
@@ -2205,7 +2155,7 @@
       "region": ""
     },
     {
-      "line": 444,
+      "line": 434,
       "text": "National-highway goods carriers for long-dwell reach between metros and tier-2 towns.",
       "top": 7927,
       "heading": 0,
@@ -2215,7 +2165,7 @@
       "region": ""
     },
     {
-      "line": 446,
+      "line": 436,
       "text": "Running wholesale markets, last-mile routes and staff shuttles.",
       "top": 7955,
       "heading": 0,
@@ -2225,7 +2175,7 @@
       "region": ""
     },
     {
-      "line": 448,
+      "line": 438,
       "text": "See formats and specs →",
       "top": 8051,
       "heading": 0,
@@ -2235,7 +2185,7 @@
       "region": ""
     },
     {
-      "line": 450,
+      "line": 440,
       "text": "Locations",
       "top": 8264,
       "heading": 0,
@@ -2245,7 +2195,7 @@
       "region": ""
     },
     {
-      "line": 452,
+      "line": 442,
       "text": "DOOH advertising in India's metros",
       "top": 8304,
       "heading": 2,
@@ -2255,7 +2205,7 @@
       "region": ""
     },
     {
-      "line": 454,
+      "line": 444,
       "text": "Pick a city to see routes, hotspots and airport coverage.",
       "top": 8368,
       "heading": 0,
@@ -2265,7 +2215,7 @@
       "region": ""
     },
     {
-      "line": 456,
+      "line": 446,
       "text": "Live",
       "top": 8444,
       "heading": 0,
@@ -2275,7 +2225,7 @@
       "region": ""
     },
     {
-      "line": 458,
+      "line": 448,
       "text": "Mumbai",
       "top": 8612,
       "heading": 3,
@@ -2285,7 +2235,7 @@
       "region": ""
     },
     {
-      "line": 460,
+      "line": 450,
       "text": "Delhi NCR",
       "top": 8612,
       "heading": 3,
@@ -2295,7 +2245,7 @@
       "region": ""
     },
     {
-      "line": 462,
+      "line": 452,
       "text": "Bengaluru",
       "top": 8612,
       "heading": 3,
@@ -2305,7 +2255,7 @@
       "region": ""
     },
     {
-      "line": 464,
+      "line": 454,
       "text": "BKC and Lower Parel to Andheri, Powai and the Sea Link.",
       "top": 8648,
       "heading": 0,
@@ -2315,7 +2265,7 @@
       "region": ""
     },
     {
-      "line": 466,
+      "line": 456,
       "text": "IGI Airport to Cyber City, Connaught Place and Noida.",
       "top": 8648,
       "heading": 0,
@@ -2325,7 +2275,7 @@
       "region": ""
     },
     {
-      "line": 468,
+      "line": 458,
       "text": "Tech parks, airport runs and Outer Ring Road traffic.",
       "top": 8648,
       "heading": 0,
@@ -2335,7 +2285,7 @@
       "region": ""
     },
     {
-      "line": 470,
+      "line": 460,
       "text": "Onboarding",
       "top": 8744,
       "heading": 0,
@@ -2345,7 +2295,7 @@
       "region": ""
     },
     {
-      "line": 472,
+      "line": 462,
       "text": "Hyderabad",
       "top": 8912,
       "heading": 3,
@@ -2355,7 +2305,7 @@
       "region": ""
     },
     {
-      "line": 474,
+      "line": 464,
       "text": "Chennai",
       "top": 8912,
       "heading": 3,
@@ -2365,7 +2315,7 @@
       "region": ""
     },
     {
-      "line": 476,
+      "line": 466,
       "text": "Pune",
       "top": 8912,
       "heading": 3,
@@ -2375,7 +2325,7 @@
       "region": ""
     },
     {
-      "line": 478,
+      "line": 468,
       "text": "HITEC City, Gachibowli and the airport expressway.",
       "top": 8948,
       "heading": 0,
@@ -2385,7 +2335,7 @@
       "region": ""
     },
     {
-      "line": 480,
+      "line": 470,
       "text": "OMR, the airport and Anna Salai.",
       "top": 8948,
       "heading": 0,
@@ -2395,7 +2345,7 @@
       "region": ""
     },
     {
-      "line": 482,
+      "line": 472,
       "text": "Hinjewadi, Kharadi and Koregaon Park.",
       "top": 8948,
       "heading": 0,
@@ -2405,7 +2355,7 @@
       "region": ""
     },
     {
-      "line": 484,
+      "line": 474,
       "text": "Coming next: Kolkata, Ahmedabad, Jaipur, Kochi, Lucknow and Chandigarh.",
       "top": 9044,
       "heading": 0,
@@ -2415,7 +2365,7 @@
       "region": ""
     },
     {
-      "line": 486,
+      "line": 476,
       "text": "Measurement",
       "top": 9256,
       "heading": 0,
@@ -2425,7 +2375,7 @@
       "region": ""
     },
     {
-      "line": 488,
+      "line": 478,
       "text": "Outdoor advertising you can measure",
       "top": 9296,
       "heading": 2,
@@ -2435,7 +2385,7 @@
       "region": ""
     },
     {
-      "line": 490,
+      "line": 480,
       "text": "Every play is counted, a live GPS map shows the cabs carrying your ad, and QR scans land in your own analytics.",
       "top": 9408,
       "heading": 0,
@@ -2445,7 +2395,7 @@
       "region": ""
     },
     {
-      "line": 492,
+      "line": 482,
       "text": "GPS-tracked playouts",
       "top": 9664,
       "heading": 3,
@@ -2455,7 +2405,7 @@
       "region": ""
     },
     {
-      "line": 494,
+      "line": 484,
       "text": "QR scans",
       "top": 9664,
       "heading": 3,
@@ -2465,7 +2415,7 @@
       "region": ""
     },
     {
-      "line": 496,
+      "line": 486,
       "text": "One console",
       "top": 9664,
       "heading": 3,
@@ -2475,7 +2425,7 @@
       "region": ""
     },
     {
-      "line": 498,
+      "line": 488,
       "text": "GST invoices",
       "top": 9664,
       "heading": 3,
@@ -2485,7 +2435,7 @@
       "region": ""
     },
     {
-      "line": 500,
+      "line": 490,
       "text": "Each play is reported by the tablet with the cab's GPS position, so you can see where your ad is running.",
       "top": 9700,
       "heading": 0,
@@ -2495,7 +2445,7 @@
       "region": ""
     },
     {
-      "line": 502,
+      "line": 492,
       "text": "Put a UTM-tagged link in your QR code and every scan shows up in Google Analytics or your own tools.",
       "top": 9700,
       "heading": 0,
@@ -2505,7 +2455,7 @@
       "region": ""
     },
     {
-      "line": 504,
+      "line": 494,
       "text": "Plan, review creative and track cabs, playouts and reach as the campaign runs.",
       "top": 9700,
       "heading": 0,
@@ -2515,7 +2465,7 @@
       "region": ""
     },
     {
-      "line": 506,
+      "line": 496,
       "text": "Invoices in INR are generated automatically and emailed as soon as you pay.",
       "top": 9700,
       "heading": 0,
@@ -2525,7 +2475,7 @@
       "region": ""
     },
     {
-      "line": 508,
+      "line": 498,
       "text": "Keyboard shortcuts",
       "top": 10243,
       "heading": 0,
@@ -2535,7 +2485,7 @@
       "region": ""
     },
     {
-      "line": 510,
+      "line": 500,
       "text": "Map data ©2026 Google, TMap Mobility",
       "top": 10243,
       "heading": 0,
@@ -2545,7 +2495,7 @@
       "region": ""
     },
     {
-      "line": 512,
+      "line": 502,
       "text": "Terms",
       "top": 10243,
       "heading": 0,
@@ -2555,7 +2505,7 @@
       "region": ""
     },
     {
-      "line": 514,
+      "line": 504,
       "text": "How we measure →",
       "top": 10290,
       "heading": 0,
@@ -2565,7 +2515,7 @@
       "region": ""
     },
     {
-      "line": 516,
+      "line": 506,
       "text": "Campaigns that turn heads on every road",
       "top": 10503,
       "heading": 2,
@@ -2575,7 +2525,7 @@
       "region": ""
     },
     {
-      "line": 518,
+      "line": 508,
       "text": "Real streets, real vehicles: Mumbai's seafront, India Gate, airport kerbs, and in-cab dwell.",
       "top": 10663,
       "heading": 0,
@@ -2585,7 +2535,7 @@
       "region": ""
     },
     {
-      "line": 520,
+      "line": 510,
       "text": "FAQs",
       "top": 11399,
       "heading": 0,
@@ -2595,7 +2545,7 @@
       "region": ""
     },
     {
-      "line": 522,
+      "line": 512,
       "text": "In-cab advertising in India, explained",
       "top": 11439,
       "heading": 2,
@@ -2605,7 +2555,7 @@
       "region": ""
     },
     {
-      "line": 524,
+      "line": 514,
       "text": "What is in-cab advertising?",
       "top": 11599,
       "heading": 3,
@@ -2615,7 +2565,7 @@
       "region": ""
     },
     {
-      "line": 526,
+      "line": 516,
       "text": "Backseat Network runs silent digital screens in airport cabs and city vehicles. Passengers see your brand on the tablet behind the driver. It is a form of digital out-of-home advertising, sometimes called cab digital out-of-home or CADOOH.",
       "top": 11631,
       "heading": 0,
@@ -2625,7 +2575,7 @@
       "region": ""
     },
     {
-      "line": 528,
+      "line": 518,
       "text": "Which Indian cities can I buy?",
       "top": 11755,
       "heading": 3,
@@ -2635,7 +2585,7 @@
       "region": ""
     },
     {
-      "line": 530,
+      "line": 520,
       "text": "Mumbai, Delhi NCR and Bengaluru are live. Hyderabad, Chennai and Pune are onboarding, with more cities to follow. You pick the cab count and months in the console.",
       "top": 11787,
       "heading": 0,
@@ -2645,7 +2595,7 @@
       "region": ""
     },
     {
-      "line": 532,
+      "line": 522,
       "text": "How much does a campaign cost?",
       "top": 11891,
       "heading": 3,
@@ -2655,7 +2605,7 @@
       "region": ""
     },
     {
-      "line": 534,
+      "line": 524,
       "text": "Media is ₹4,000 per cab per month. GST at 18% is added on the invoice. You pay online by UPI, card or netbanking through Razorpay when you submit the campaign, and the GST invoice is emailed automatically.",
       "top": 11923,
       "heading": 0,
@@ -2665,7 +2615,7 @@
       "region": ""
     },
     {
-      "line": 536,
+      "line": 526,
       "text": "How is a cab screen different from a hoarding or a digital billboard?",
       "top": 12027,
       "heading": 3,
@@ -2675,7 +2625,7 @@
       "region": ""
     },
     {
-      "line": 538,
+      "line": 528,
       "text": "A hoarding or billboard is seen in passing. A cab screen sits at arm's length from one passenger for 20 to 45 minutes, every play is counted and tracked by GPS, and it carries a QR code the passenger can scan.",
       "top": 12059,
       "heading": 0,
@@ -2685,7 +2635,7 @@
       "region": ""
     },
     {
-      "line": 540,
+      "line": 530,
       "text": "Is there a minimum booking?",
       "top": 12163,
       "heading": 3,
@@ -2695,7 +2645,7 @@
       "region": ""
     },
     {
-      "line": 542,
+      "line": 532,
       "text": "You can book from a single cab for one month (₹4,000 plus GST). Add cabs and months for more reach; the pricing calculator shows the total as you go.",
       "top": 12195,
       "heading": 0,
@@ -2705,7 +2655,7 @@
       "region": ""
     },
     {
-      "line": 544,
+      "line": 534,
       "text": "What creative do I need?",
       "top": 12299,
       "heading": 3,
@@ -2715,7 +2665,7 @@
       "region": ""
     },
     {
-      "line": 546,
+      "line": 536,
       "text": "A silent landscape MP4 of about 15 seconds, or a JPG, PNG or WebP still, up to 40 MB, with a QR code on the creative. Vira can make it from your website. Every file is reviewed before it goes live.",
       "top": 12331,
       "heading": 0,
@@ -2725,7 +2675,7 @@
       "region": ""
     },
     {
-      "line": 548,
+      "line": 538,
       "text": "How do I know my ad played?",
       "top": 12435,
       "heading": 3,
@@ -2735,7 +2685,7 @@
       "region": ""
     },
     {
-      "line": 550,
+      "line": 540,
       "text": "Each tablet reports every play of your creative, and your console shows the running totals and a live GPS map of the cabs carrying your campaign. QR scans show up in your own analytics through a tagged link.",
       "top": 12467,
       "heading": 0,
@@ -2745,7 +2695,7 @@
       "region": ""
     },
     {
-      "line": 552,
+      "line": 542,
       "text": "How do cab drivers join the network?",
       "top": 12571,
       "heading": 3,
@@ -2755,7 +2705,7 @@
       "region": ""
     },
     {
-      "line": 554,
+      "line": 544,
       "text": "Drivers apply with their RC, driving licence and vehicle photos. Our team verifies the papers, a GPS installer mounts the company tablet, and campaigns then play silently for passengers.",
       "top": 12603,
       "heading": 0,
@@ -2765,7 +2715,7 @@
       "region": ""
     },
     {
-      "line": 556,
+      "line": 546,
       "text": "Can I refer a brand and earn from the sale?",
       "top": 12707,
       "heading": 3,
@@ -2775,7 +2725,7 @@
       "region": ""
     },
     {
-      "line": 558,
+      "line": 548,
       "text": "Yes. Refer a brand, an agency or a local business, whether or not you already advertise with us. If they book, you earn 10% of the total sales on that deal. Send the introduction from the Refer and earn section on the homepage.",
       "top": 12739,
       "heading": 0,
@@ -2785,7 +2735,7 @@
       "region": ""
     },
     {
-      "line": 560,
+      "line": 550,
       "text": "All questions →",
       "top": 12855,
       "heading": 0,
@@ -2795,7 +2745,7 @@
       "region": ""
     },
     {
-      "line": 562,
+      "line": 552,
       "text": "Put your brand in the back seat",
       "top": 13068,
       "heading": 2,
@@ -2805,7 +2755,7 @@
       "region": ""
     },
     {
-      "line": 564,
+      "line": 554,
       "text": "Launch online today, or talk to our team about a multi-city plan.",
       "top": 13132,
       "heading": 0,
@@ -2815,7 +2765,7 @@
       "region": ""
     },
     {
-      "line": 566,
+      "line": 556,
       "text": "Launch a campaign",
       "top": 13184,
       "heading": 0,
@@ -2825,7 +2775,7 @@
       "region": ""
     },
     {
-      "line": 568,
+      "line": 558,
       "text": "Book a demo",
       "top": 13184,
       "heading": 0,
@@ -2835,7 +2785,7 @@
       "region": ""
     },
     {
-      "line": 570,
+      "line": 560,
       "text": "Drive a cab?",
       "top": 13310,
       "heading": 3,
@@ -2845,7 +2795,7 @@
       "region": ""
     },
     {
-      "line": 572,
+      "line": 562,
       "text": "Apply as a driver",
       "top": 13324,
       "heading": 0,
@@ -2855,7 +2805,7 @@
       "region": ""
     },
     {
-      "line": 574,
+      "line": 564,
       "text": "Carry a silent passenger tablet and earn from the campaigns that play in your vehicle.",
       "top": 13342,
       "heading": 0,
@@ -2865,7 +2815,7 @@
       "region": ""
     },
     {
-      "line": 576,
+      "line": 566,
       "text": "Drivers",
       "top": 13566,
       "heading": 0,
@@ -2875,7 +2825,7 @@
       "region": "footer"
     },
     {
-      "line": 578,
+      "line": 568,
       "text": "Company",
       "top": 13566,
       "heading": 0,
@@ -2885,7 +2835,7 @@
       "region": "footer"
     },
     {
-      "line": 580,
+      "line": 570,
       "text": "Legal",
       "top": 13566,
       "heading": 0,
@@ -2895,7 +2845,7 @@
       "region": "footer"
     },
     {
-      "line": 582,
+      "line": 572,
       "text": "Account",
       "top": 13566,
       "heading": 0,
@@ -2905,7 +2855,7 @@
       "region": "footer"
     },
     {
-      "line": 584,
+      "line": 574,
       "text": "Drive with us",
       "top": 13598,
       "heading": 0,
@@ -2915,7 +2865,7 @@
       "region": "footer"
     },
     {
-      "line": 586,
+      "line": 576,
       "text": "About",
       "top": 13598,
       "heading": 0,
@@ -2925,7 +2875,7 @@
       "region": "footer"
     },
     {
-      "line": 588,
+      "line": 578,
       "text": "Privacy policy",
       "top": 13598,
       "heading": 0,
@@ -2935,7 +2885,7 @@
       "region": "footer"
     },
     {
-      "line": 590,
+      "line": 580,
       "text": "Log in",
       "top": 13598,
       "heading": 0,
@@ -2945,7 +2895,7 @@
       "region": "footer"
     },
     {
-      "line": 592,
+      "line": 582,
       "text": "Apply",
       "top": 13626,
       "heading": 0,
@@ -2955,7 +2905,7 @@
       "region": "footer"
     },
     {
-      "line": 594,
+      "line": 584,
       "text": "Investors",
       "top": 13626,
       "heading": 0,
@@ -2965,7 +2915,7 @@
       "region": "footer"
     },
     {
-      "line": 596,
+      "line": 586,
       "text": "Terms",
       "top": 13626,
       "heading": 0,
@@ -2975,7 +2925,7 @@
       "region": "footer"
     },
     {
-      "line": 598,
+      "line": 588,
       "text": "Sign up",
       "top": 13626,
       "heading": 0,
@@ -2985,7 +2935,7 @@
       "region": "footer"
     },
     {
-      "line": 600,
+      "line": 590,
       "text": "DOOH advertising in India on airport cabs and city fleets, from Mumbai to Bengaluru.",
       "top": 13634,
       "heading": 0,
@@ -2995,7 +2945,7 @@
       "region": "footer"
     },
     {
-      "line": 602,
+      "line": 592,
       "text": "Fleet owners",
       "top": 13654,
       "heading": 0,
@@ -3005,7 +2955,7 @@
       "region": "footer"
     },
     {
-      "line": 604,
+      "line": 594,
       "text": "Careers",
       "top": 13654,
       "heading": 0,
@@ -3015,7 +2965,7 @@
       "region": "footer"
     },
     {
-      "line": 606,
+      "line": 596,
       "text": "Refund policy",
       "top": 13654,
       "heading": 0,
@@ -3025,7 +2975,7 @@
       "region": "footer"
     },
     {
-      "line": 608,
+      "line": 598,
       "text": "Tablet install",
       "top": 13654,
       "heading": 0,
@@ -3035,7 +2985,7 @@
       "region": "footer"
     },
     {
-      "line": 610,
+      "line": 600,
       "text": "Driver log in",
       "top": 13682,
       "heading": 0,
@@ -3045,7 +2995,7 @@
       "region": "footer"
     },
     {
-      "line": 612,
+      "line": 602,
       "text": "Refer and earn",
       "top": 13682,
       "heading": 0,
@@ -3055,7 +3005,7 @@
       "region": "footer"
     },
     {
-      "line": 614,
+      "line": 604,
       "text": "support@backseatnetwork.com",
       "top": 13706,
       "heading": 0,
@@ -3065,7 +3015,7 @@
       "region": "footer"
     },
     {
-      "line": 616,
+      "line": 606,
       "text": "Contact us",
       "top": 13710,
       "heading": 0,
@@ -3075,7 +3025,7 @@
       "region": "footer"
     },
     {
-      "line": 618,
+      "line": 608,
       "text": "Chat with us",
       "top": 13739,
       "heading": 0,
@@ -3085,7 +3035,7 @@
       "region": "footer"
     },
     {
-      "line": 620,
+      "line": 610,
       "text": "LinkedIn",
       "top": 13767,
       "heading": 0,
@@ -3095,7 +3045,7 @@
       "region": "footer"
     },
     {
-      "line": 622,
+      "line": 612,
       "text": "Instagram @backseattnetwork",
       "top": 13795,
       "heading": 0,
@@ -3105,7 +3055,7 @@
       "region": "footer"
     },
     {
-      "line": 624,
+      "line": 614,
       "text": "Mumbai · Delhi NCR · Bengaluru · Hyderabad · Chennai · Pune",
       "top": 13827,
       "heading": 0,
@@ -3115,7 +3065,7 @@
       "region": "footer"
     },
     {
-      "line": 626,
+      "line": 616,
       "text": "© 2026 Backseat Network Pvt Ltd . All rights reserved.",
       "top": 13907,
       "heading": 0,
@@ -3566,145 +3516,145 @@
     "images": [
       {
         "src": "pov/pov-mumbai-chai.jpg",
-        "alt": "",
-        "w": 1280,
-        "h": 720
-      },
-      {
-        "src": "pov/pov-mumbai-chai.jpg",
-        "alt": "",
-        "w": 1280,
-        "h": 720
-      },
-      {
-        "src": "images.unsplash.com/photo-1587474260584-136574528ed5",
-        "alt": "",
-        "w": 1200,
-        "h": 800
-      },
-      {
-        "src": "pov/pov-bengaluru-night.jpg",
-        "alt": "",
-        "w": 1280,
-        "h": 720
-      },
-      {
-        "src": "images.unsplash.com/photo-1529253355930-ddbe423a2ac7",
-        "alt": "",
-        "w": 2400,
-        "h": 3000
-      },
-      {
-        "src": "pov/pov-airport-travel.jpg",
-        "alt": "",
-        "w": 1280,
-        "h": 720
-      },
-      {
-        "src": "pov/pov-tablet-closeup.jpg",
-        "alt": "",
-        "w": 1280,
-        "h": 720
-      },
-      {
-        "src": "pov/pov-mumbai-chai.jpg",
-        "alt": "Taxi advertisement for a chai brand on a cab headrest screen, Marine Drive, Mumbai",
-        "w": 1280,
-        "h": 720
-      },
-      {
-        "src": "images.unsplash.com/photo-1587474260584-136574528ed5",
-        "alt": "India Gate, New Delhi",
-        "w": 1200,
-        "h": 800
-      },
-      {
-        "src": "pov/pov-delhi-qr.jpg",
-        "alt": "Passenger scanning a QR code on a taxi cab advertising screen near India Gate, Delhi",
-        "w": 1280,
-        "h": 720
-      },
-      {
-        "src": "images.unsplash.com/photo-1529253355930-ddbe423a2ac7",
-        "alt": "Gateway of India, Mumbai",
-        "w": 2400,
-        "h": 3000
-      },
-      {
-        "src": "pov/pov-bengaluru-night.jpg",
-        "alt": "Food delivery ad on a cab tablet on a rainy Bengaluru night",
-        "w": 1280,
-        "h": 720
-      },
-      {
-        "src": "images.unsplash.com/photo-1564507592333-c60657eea523",
-        "alt": "Taj Mahal, Agra",
-        "w": 1200,
-        "h": 800
-      },
-      {
-        "src": "pov/pov-passenger-watching.jpg",
-        "alt": "Passenger watching a sneaker ad on an in-cab screen",
-        "w": 1280,
-        "h": 720
-      },
-      {
-        "src": "pov/pov-airport-travel.jpg",
-        "alt": "Travel ad on a Mumbai airport cab screen beside a suitcase",
-        "w": 1280,
-        "h": 720
-      },
-      {
-        "src": "pov/pov-mumbai-chai.jpg",
-        "alt": "Taxi advertisement for a chai brand on a cab headrest screen, Marine Drive, Mumbai",
-        "w": 1280,
-        "h": 720
-      },
-      {
-        "src": "images.unsplash.com/photo-1587474260584-136574528ed5",
-        "alt": "India Gate, New Delhi",
-        "w": 1200,
-        "h": 800
-      },
-      {
-        "src": "pov/pov-delhi-qr.jpg",
-        "alt": "Passenger scanning a QR code on a taxi cab advertising screen near India Gate, Delhi",
-        "w": 1280,
-        "h": 720
-      },
-      {
-        "src": "images.unsplash.com/photo-1529253355930-ddbe423a2ac7",
-        "alt": "Gateway of India, Mumbai",
-        "w": 2400,
-        "h": 3000
-      },
-      {
-        "src": "pov/pov-bengaluru-night.jpg",
-        "alt": "Food delivery ad on a cab tablet on a rainy Bengaluru night",
-        "w": 1280,
-        "h": 720
-      },
-      {
-        "src": "images.unsplash.com/photo-1564507592333-c60657eea523",
-        "alt": "Taj Mahal, Agra",
-        "w": 1200,
-        "h": 800
-      },
-      {
-        "src": "pov/pov-passenger-watching.jpg",
-        "alt": "Passenger watching a sneaker ad on an in-cab screen",
-        "w": 1280,
-        "h": 720
-      },
-      {
-        "src": "pov/pov-airport-travel.jpg",
-        "alt": "Travel ad on a Mumbai airport cab screen beside a suitcase",
+        "alt": "Passenger view of a chai ad on a cab headrest screen, Marine Drive Mumbai",
         "w": 1280,
         "h": 720
       },
       {
         "src": "pov/pov-mumbai-chai.jpg",
         "alt": "Passenger view of a chai ad on a cab headrest screen, Marine Drive Mumbai",
+        "w": 1280,
+        "h": 720
+      },
+      {
+        "src": "images.unsplash.com/photo-1587474260584-136574528ed5",
+        "alt": "India Gate, New Delhi",
+        "w": 1200,
+        "h": 800
+      },
+      {
+        "src": "pov/pov-bengaluru-night.jpg",
+        "alt": "Biryani delivery ad glowing on a cab tablet on a rainy Bengaluru night",
+        "w": 1280,
+        "h": 720
+      },
+      {
+        "src": "images.unsplash.com/photo-1529253355930-ddbe423a2ac7",
+        "alt": "Marine Drive, Mumbai at dusk",
+        "w": 2400,
+        "h": 3000
+      },
+      {
+        "src": "pov/pov-airport-travel.jpg",
+        "alt": "Goa holiday ad on an airport cab tablet beside a suitcase",
+        "w": 1280,
+        "h": 720
+      },
+      {
+        "src": "pov/pov-tablet-closeup.jpg",
+        "alt": "Skincare video ad playing on a headrest tablet near Charminar, Hyderabad",
+        "w": 1280,
+        "h": 720
+      },
+      {
+        "src": "pov/pov-mumbai-chai.jpg",
+        "alt": "Taxi advertisement for a chai brand on a cab headrest screen, Marine Drive, Mumbai",
+        "w": 1280,
+        "h": 720
+      },
+      {
+        "src": "images.unsplash.com/photo-1587474260584-136574528ed5",
+        "alt": "India Gate, New Delhi",
+        "w": 1200,
+        "h": 800
+      },
+      {
+        "src": "pov/pov-delhi-qr.jpg",
+        "alt": "Passenger scanning a QR code on a taxi cab advertising screen near India Gate, Delhi",
+        "w": 1280,
+        "h": 720
+      },
+      {
+        "src": "images.unsplash.com/photo-1529253355930-ddbe423a2ac7",
+        "alt": "Gateway of India, Mumbai",
+        "w": 2400,
+        "h": 3000
+      },
+      {
+        "src": "pov/pov-bengaluru-night.jpg",
+        "alt": "Food delivery ad on a cab tablet on a rainy Bengaluru night",
+        "w": 1280,
+        "h": 720
+      },
+      {
+        "src": "images.unsplash.com/photo-1564507592333-c60657eea523",
+        "alt": "Taj Mahal, Agra",
+        "w": 1200,
+        "h": 800
+      },
+      {
+        "src": "pov/pov-passenger-watching.jpg",
+        "alt": "Passenger watching a sneaker ad on an in-cab screen",
+        "w": 1280,
+        "h": 720
+      },
+      {
+        "src": "pov/pov-airport-travel.jpg",
+        "alt": "Travel ad on a Mumbai airport cab screen beside a suitcase",
+        "w": 1280,
+        "h": 720
+      },
+      {
+        "src": "pov/pov-mumbai-chai.jpg",
+        "alt": "Taxi advertisement for a chai brand on a cab headrest screen, Marine Drive, Mumbai",
+        "w": 1280,
+        "h": 720
+      },
+      {
+        "src": "images.unsplash.com/photo-1587474260584-136574528ed5",
+        "alt": "India Gate, New Delhi",
+        "w": 1200,
+        "h": 800
+      },
+      {
+        "src": "pov/pov-delhi-qr.jpg",
+        "alt": "Passenger scanning a QR code on a taxi cab advertising screen near India Gate, Delhi",
+        "w": 1280,
+        "h": 720
+      },
+      {
+        "src": "images.unsplash.com/photo-1529253355930-ddbe423a2ac7",
+        "alt": "Gateway of India, Mumbai",
+        "w": 2400,
+        "h": 3000
+      },
+      {
+        "src": "pov/pov-bengaluru-night.jpg",
+        "alt": "Food delivery ad on a cab tablet on a rainy Bengaluru night",
+        "w": 1280,
+        "h": 720
+      },
+      {
+        "src": "images.unsplash.com/photo-1564507592333-c60657eea523",
+        "alt": "Taj Mahal, Agra",
+        "w": 1200,
+        "h": 800
+      },
+      {
+        "src": "pov/pov-passenger-watching.jpg",
+        "alt": "Passenger watching a sneaker ad on an in-cab screen",
+        "w": 1280,
+        "h": 720
+      },
+      {
+        "src": "pov/pov-airport-travel.jpg",
+        "alt": "Travel ad on a Mumbai airport cab screen beside a suitcase",
+        "w": 1280,
+        "h": 720
+      },
+      {
+        "src": "pov/pov-airport-travel.jpg",
+        "alt": "Goa holiday ad on an airport cab tablet beside a suitcase",
         "w": 1280,
         "h": 720
       },
@@ -3806,7 +3756,7 @@
       }
     ],
     "themeColor": "",
-    "description": "Digital out-of-home advertising on taxi and airport cab screens in Mumbai, Delhi NCR and Bengaluru. ₹4,000 per cab per month + GST, live GPS playouts."
+    "description": "Book in-cab advertising on airport and city cab screens in Mumbai, Delhi NCR and Bengaluru. ₹4,000 per cab per month plus GST, with live GPS proof."
   },
   "screenshots": [
     {
@@ -3819,9 +3769,9 @@
       },
       "lines": [
         16,
-        62
+        52
       ],
-      "text": "Log in | Sign up | Launch a Campaign | Launch | Demo | We’re raising to take in-cab media to 50,000 vehicles across India. | Investor relations → | CADOOH · Made for Indian roads | In-cab ads across India | Backseat Network is India’s self-serve in-cab advertising network. Silent passenger screens run in airport cabs and city fleets in Mumbai, Delhi NCR, Bengaluru and beyond, from ₹4,000 per cab per month plus GST, paid by UPI or card, with live GPS proof. | Build your cab ad | Book a demo | Watch the 1-minute demo | 12 | 15K+ | ₹4,000 | Planning a cab campaign? | I can plan and price one with you in under a minute. | Indian cities live or onboarding | airport and city cabs | per cab per month, plus GST | Plan my campaign | Ask a question | Ask Vira",
+      "text": "Log in | Sign up | Launch a Campaign | Launch | Demo | We’re raising to take in-cab media to 50,000 vehicles across India. | Investor relations → | CADOOH · Made for Indian roads | In-cab ads across India | Backseat Network is India’s self-serve in-cab advertising network. Silent passenger screens run in airport cabs and city fleets in Mumbai, Delhi NCR, Bengaluru and beyond, from ₹4,000 per cab per month plus GST, paid by UPI or card, with live GPS proof. | Build your cab ad | Book a demo | Watch the 1-minute demo | 12 | 15K+ | ₹4,000 | Indian cities live or onboarding | airport and city cabs | per cab per month, plus GST",
       "summary": "the hero with the heading \"In-cab ads across India\" and the button \"Launch a Campaign\" / \"Launch\" showing ₹4,000, 15K, ₹4,000"
     },
     {
@@ -3833,8 +3783,8 @@
         "height": 556
       },
       "lines": [
-        64,
-        112
+        54,
+        102
       ],
       "text": "Trusted by leading brands across India | IndigoGo | PhonePe | Swiggy | Titan | Ather | Zomato | HDFC | Meesho | Nykaa | Flipkart | VerifyStack | DeepChq | IndigoGo | PhonePe | Swiggy | Titan | Ather | Zomato | HDFC | Meesho | Nykaa | Flipkart | VerifyStack | DeepChq",
       "summary": "a section with the heading \"Trusted by leading brands across India\""
@@ -3848,8 +3798,8 @@
         "height": 755
       },
       "lines": [
-        114,
-        142
+        104,
+        132
       ],
       "text": "From the brands | How the ride turns into clients and search | A passenger watches one silent loop, opens the site from the QR, and later types the brand into search. These are real testimonials from brands using our platform. | Priya Sharma | VerifyStack | Rahul Mehta | DeepChq | Chief Marketing Officer | Enterprise background verification platform | Chief Marketing Officer | AI-powered search visibility platform | “ The people who buy background checks sit in airport cabs between meetings. One silent loop and a QR to verifystack.in, and they open the site before the terminal. The next morning the same names show up as branded searches. Those searches are the leads my team now works. ” | “ We sell AI search visibility, so a logo on a screen was never going to win a client. The loop shows how a brand gets cited in AI answers, and the QR opens deepchq.com while the founder is still in the",
       "summary": "a section with the heading \"How the ride turns into clients and search\""
@@ -3863,8 +3813,8 @@
         "height": 1000
       },
       "lines": [
-        144,
-        196
+        134,
+        186
       ],
       "text": "Website | Refer and earn | Send a referral | Bring a customer. Keep 10% of the sale. | Your details, then the brand you are introducing. | Your name | Refer a brand, an agency or a local business. If they book, you earn 10% of the total sales on that deal. A current customer can refer too. | Your phone | Your email | 10% | Who you are | of the total sales on the deal you bring in | 0 1 | Brand you are referring | Introduce the brand | Tell us who they are and how we should reach them. You can refer whether or not you already advertise with us. | Their name | Their phone or email | 0 2 | We close the campaign | City they want | They buy the usual way: ₹4,000 per cab per month, plus GST, in Mumbai, Delhi NCR or Bengaluru. | Note (optional) | 0 3 | You earn 10% | Your reward is 10% of the total sales on that deal, the sale that came from the customer you sent us. | Refer and earn 10%",
       "summary": "the pricing with the heading \"Send a referral\" / \"Bring a customer. Keep 10% of the sale.\" and the button \"Refer and earn 10%\" showing 10%, 10%, 10%"
@@ -3878,11 +3828,11 @@
         "height": 962
       },
       "lines": [
-        198,
-        244
+        188,
+        234
       ],
-      "text": "Passenger POV | Taxi advertising your customer watches for 20 to 45 minutes | Your ad plays on a headrest tablet at eye level. There is no skip button, and every creative carries a QR code the passenger can scan before the ride ends. | Airport cabs · weekend | Ad | Live in-cab | Passenger POV | Goa this weekend | Flights + stay from ₹4,999 | Scan to book | Cab screen | 20 to 45 minutes | 60 cm away | Mumbai | Marine Drive, golden hour | Of dwell time on a single ride, far longer than any indoor advertising panel a commuter walks past. | The screen sits at arm's length, at eye level, behind the driver's headrest. | Chai brand | Silent 15s loop | Scan-to-act QR | Silent by design | A QR on every ad | No audio, so drivers stay focused and passengers keep watching. | A ride becomes an install, an order or a booking.",
-      "summary": "a section with the heading \"Taxi advertising your customer watches for 20 to 45 minutes\" showing ₹4,999"
+      "text": "Passenger POV | Taxi advertising your customer watches for 20 to 45 minutes | Your ad plays on a headrest tablet at eye level. There is no skip button, and every creative carries a QR code the passenger can scan before the ride ends. | Mumbai · 6 PM rush | Ad | Live in-cab | Passenger POV | Chai break? | Real chai. Real good. | Scan to sip | Cab screen | 20 to 45 minutes | 60 cm away | Of dwell time on a single ride, far longer than any indoor advertising panel a commuter walks past. | The screen sits at arm's length, at eye level, behind the driver's headrest. | Mumbai airport | Terminal pickup | Travel brand | Silent 15s loop | Scan-to-act QR | Silent by design | A QR on every ad | No audio, so drivers stay focused and passengers keep watching. | A ride becomes an install, an order or a booking.",
+      "summary": "a section with the heading \"Taxi advertising your customer watches for 20 to 45 minutes\""
     },
     {
       "id": "06",
@@ -3893,8 +3843,8 @@
         "height": 764
       },
       "lines": [
-        292,
-        314
+        282,
+        304
       ],
       "text": "A self-serve advertising platform: live in 4 steps | Most online advertising platforms stop at the phone screen. This one books real cabs, with the same card-and-UPI checkout. | Brief Vira | Review the creative | Pick cabs and months | Pay and go live | Paste your brand's website, or skip ahead and upload your own creative. | Vira makes the landscape cab ad from your website. | Choose your cities, the number of cabs and how long the campaign runs. | Pay by UPI, card or netbanking. Our team activates the screens in your cities. | Watch the demo | See how it works →",
       "summary": "the proof with the heading \"A self-serve advertising platform: live in 4 steps\" / \"Brief Vira\" and the button \"Watch the demo\""
@@ -3908,8 +3858,8 @@
         "height": 1000
       },
       "lines": [
-        316,
-        406
+        306,
+        396
       ],
       "text": "Pricing | OOH advertising cost: ₹4,000 per cab per month | One price in every city. GST at 18% is added on the invoice, which is emailed as soon as you pay. | Where your ad plays | Estimated total, incl. GST | ₹1,41,600 | Cab screens | ₹40,000 a month · Mumbai | Airport cabs | Two-wheelers | Vans | City taxis and app cabs | Terminal transfers | Bike taxis, delivery | Staff and last-mile | 10 vehicle s × ₹4,000 × 3 month s | ₹1,20,000 | GST 18 % | ₹21,600 | City | Mumbai | Delhi NCR | Bengaluru | Hyderabad | Chennai | Pune | Total | ₹1,41,600 | Ad impressions | Cost per 1,000 views | Number of vehicles | 3,60,000 | ₹333 | 80 | Screen hours | Kilometres driven | 5,400–7,200 | 60,000 | Campaign length | 1 month | 3 month s | 6 month s | Launch this campaign | Send this quote without waiting for a salesperson | Send this quote | Forward on WhatsApp",
       "summary": "the pricing with the heading \"OOH advertising cost: ₹4,000 per cab per month\" and the button \"Cab screens\" / \"Airport cabs\" showing ₹4,000, 18%, ₹1,41,600"
@@ -3923,8 +3873,8 @@
         "height": 1000
       },
       "lines": [
-        486,
-        506
+        476,
+        496
       ],
       "text": "Measurement | Outdoor advertising you can measure | Every play is counted, a live GPS map shows the cabs carrying your ad, and QR scans land in your own analytics. | GPS-tracked playouts | QR scans | One console | GST invoices | Each play is reported by the tablet with the cab's GPS position, so you can see where your ad is running. | Put a UTM-tagged link in your QR code and every scan shows up in Google Analytics or your own tools. | Plan, review creative and track cabs, playouts and reach as the campaign runs. | Invoices in INR are generated automatically and emailed as soon as you pay.",
       "summary": "the proof with the heading \"Outdoor advertising you can measure\" / \"GPS-tracked playouts\""
@@ -3938,8 +3888,8 @@
         "height": 1000
       },
       "lines": [
-        508,
-        518
+        498,
+        508
       ],
       "text": "Keyboard shortcuts | Map data ©2026 Google, TMap Mobility | Terms | How we measure → | Campaigns that turn heads on every road | Real streets, real vehicles: Mumbai's seafront, India Gate, airport kerbs, and in-cab dwell.",
       "summary": "the proof with the heading \"Campaigns that turn heads on every road\" and the button \"Keyboard shortcuts\""
@@ -3953,11 +3903,19 @@
         "height": 510
       },
       "lines": [
-        576,
-        626
+        566,
+        616
       ],
       "text": "Drivers | Company | Legal | Account | Drive with us | About | Privacy policy | Log in | Apply | Investors | Terms | Sign up | DOOH advertising in India on airport cabs and city fleets, from Mumbai to Bengaluru. | Fleet owners | Careers | Refund policy | Tablet install | Driver log in | Refer and earn | support@backseatnetwork.com | Contact us | Chat with us | LinkedIn | Instagram @backseattnetwork | Mumbai · Delhi NCR · Bengaluru · Hyderabad · Chennai · Pune | © 2026 Backseat Network Pvt Ltd . All rights reserved.",
       "summary": "the footer with text such as \"Drivers\""
     }
-  ]
+  ],
+  "assets": {
+    "logo": {
+      "file": "assets/logo.png",
+      "w": 178,
+      "h": 40
+    },
+    "images": []
+  }
 }

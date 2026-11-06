@@ -274,6 +274,130 @@ export interface CreativeModeInfo {
   unavailable_reason: string;
 }
 
+// ---- Studio: a typed video made from a website in seven stages (backend/app/studio)
+
+export type StudioStatus = "queued" | "running" | "review" | "completed" | "failed" | "cancelled";
+export type StudioStageStatus = "pending" | "running" | "done" | "failed";
+export type StudioVideoType = "promo" | "hook_ad" | "pitch" | "showcase" | "explainer" | "testimonial" | "launch";
+export type StudioPlatform = "16:9" | "9:16" | "1:1";
+
+export interface StudioRequest {
+  url: string;
+  video_type: StudioVideoType;
+  length: number;
+  platform: StudioPlatform;
+  claims: string[];
+  review: boolean;
+  language: string;
+  voice: string;
+  sound_effects: boolean;
+}
+
+export interface StudioStage {
+  name: string;
+  label: string;
+  status: StudioStageStatus;
+  seconds: number;
+  summary: string;
+}
+
+export interface StudioClaim {
+  id: string;
+  text: string;
+  kind: string;
+  source: string;
+}
+
+export interface StudioBrand {
+  primary: string;
+  accent: string;
+  background: string;
+  ink: string;
+  mode: string;
+  heading_font: string;
+  body_font: string;
+  shapes: string;
+  tone: string;
+  photo_style: string;
+}
+
+export interface StudioMustInclude {
+  what: string;
+  claims: string[];
+}
+
+export interface StudioAssumptions {
+  audience: string;
+  key_message: string;
+  tone: string;
+  voice: string;
+  voice_reason: string;
+  music: string;
+  music_reason: string;
+  cta_text: string;
+  cta_target: string;
+  must_include: StudioMustInclude[];
+  must_avoid: string[];
+  language: string;
+  sound_effects: boolean;
+}
+
+export interface StudioShot {
+  n: number;
+  beat: string;
+  purpose: string;
+  seconds: number;
+  voice: string;
+  voice_local: string;
+  caption: string;
+  transition: string;
+  claims: string[];
+  visual: string;
+  screenshot: string | null;
+}
+
+export interface StudioScreenshot {
+  id: string;
+  file: string;
+  kind: string;
+  summary: string;
+}
+
+export interface StudioResponse {
+  job_id: string;
+  status: StudioStatus;
+  stage: string;
+  progress: number;
+  message: string;
+  error: string;
+  review: boolean;
+  url: string;
+  video_type: StudioVideoType;
+  length: number;
+  platform: StudioPlatform;
+  stages: StudioStage[];
+  what_it_is: string;
+  who_for: string;
+  claims: StudioClaim[];
+  brand: StudioBrand | null;
+  assumptions: StudioAssumptions | null;
+  shots: StudioShot[];
+  screenshots: StudioScreenshot[];
+  problems: string[];
+  passed: boolean | null;
+  video_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StudioTypeInfo {
+  id: StudioVideoType;
+  label: string;
+  description: string;
+  min_length: number;
+  shots: string[];
+}
+
 export interface ConfigOption {
   id: string;
   label: string;
@@ -281,6 +405,10 @@ export interface ConfigOption {
   audience?: string;
   hint?: string;
   note?: string;
+  engine?: "edge" | "eleven";
+  languages?: string[];
+  gender?: string;
+  native?: string;
 }
 
 export interface ConfigResponse {
@@ -294,7 +422,12 @@ export interface ConfigResponse {
   goals: ConfigOption[];
   ad_types: ConfigOption[];
   voices: ConfigOption[];
+  languages: ConfigOption[];
+  eleven_available: boolean;
   music: ConfigOption[];
+  studio_available: boolean;
+  studio_message: string;
+  studio_types: StudioTypeInfo[];
   styles: ConfigOption[];
   tones: ConfigOption[];
   categories: ConfigOption[];

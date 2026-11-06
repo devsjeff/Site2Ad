@@ -10,6 +10,7 @@ import pytest
 from PIL import Image
 
 from app.ai.llm import LlmError
+from app.scraper.safety import SafetyPolicy
 from app.studio import ai as studio_ai
 from app.studio import check, cli, figures, notes, scenes, storyboard
 from app.studio.config import FPS, STRUCTURES, VIDEO_TYPES, Run, StageError, allocate, min_length, slug_for, words_allowed, words_limit
@@ -189,8 +190,53 @@ def test_the_storyboard_rules_are_enforced():
     data["shots"][2]["visual"] = data["shots"][1]["visual"] = {"type": "graphic", "template": "price", "props": {"price": "₹4,000"}}
     assert any("same visual" in p for p in problems_of(data))
     data = good_promo()
-    data["shots"][1]["visual"] = {"type": "graphic", "template": "cta", "props": {"button": "Launch"}}
-    assert any("only the last shot may be a call to action" in p for p in problems_of(data))
+    data["shots"][1]["visual"] = {"type": "graphic", "template": "cta", "props": {"headline": "Silent screens", "button": "Launch"}}
+    assert problems_of(data) == []  # an early call to action is turned into a plain title, with the same words, instead of failing the video
+    assert data["shots"][1]["visual"] == {"type": "graphic", "template": "title", "props": {"headline": "Silent screens", "sub": ""}}
+    data = good_promo()
+    data["shots"][4]["visual"] = {"type": "graphic", "template": "cta", "props": {"headline": "one two three four five six seven eight nine ten eleven", "button": "Buy"}}
+    assert problems_of(data) == []  # the button is always the real call to action and the headline is cut to nine words
+    props = data["shots"][4]["visual"]["props"]
+    assert props["button"] == "Launch" and len(props["headline"].split()) == 9
+    data = good_promo()
+    data["shots"][4]["visual"] = {"type": "graphic", "template": "title", "props": {"headline": "Bye"}}
+    assert any("shot 5" in p and "must be the 'cta' graphic" in p for p in problems_of(data))
+
+
+def test_a_quote_card_is_only_for_a_real_customer_quote():
+    data = good_promo()
+    data["shots"][2]["visual"] = {"type": "graphic", "template": "quote", "props": {"quote": "Every play is counted live", "who": "brand passenger"}}
+    assert any("shot 3" in p and "real customer quote" in p for p in problems_of(data))
+    quotes = {**NOTES, "claims": NOTES["claims"] + [{"id": "C4", "text": "It doubled our walk-ins, says Priya, a customer.", "kind": "quote", "source": "page.md line 8", "evidence": "doubled our walk-ins"}]}
+    data["shots"][2].update({"claims": ["C4"], "voice": "It doubled our walk-ins", "caption": ""})
+    data["shots"][2]["visual"] = {"type": "graphic", "template": "quote", "props": {"quote": "It doubled our walk-ins.", "who": "Priya, a customer"}}
+    seconds = allocate(20.0, STRUCTURES["promo"])
+    assert storyboard.validate_storyboard(data, "promo", seconds, quotes, BOARD_CAPTURE, "Launch") == []
+
+
+def test_a_price_is_shown_once_and_a_picture_card_keeps_the_whole_content_width(tmp_path):
+    from app.studio import imaging
+
+    data = good_promo()
+    data["shots"][0]["visual"] = {"type": "graphic", "template": "price", "props": {"price": "₹4,000", "unit": "per cab per month"}}
+    data["shots"][0]["claims"] = ["C2"]
+    data["shots"][0]["voice"] = "Media is ₹4,000 per cab per month"
+    found = problems_of(data)
+    assert any("shot 4" in p and "already shown in shot 1" in p for p in found), found
+    full = draw_content(tmp_path / "full.png")  # content 600 px wide on a 1440 px page
+    for aspect in (1.0, 0.6, 1.8):
+        card = imaging.card_image(full, aspect, tmp_path / "card.png")
+        with Image.open(card) as image:
+            assert abs(image.width / image.height - aspect) < 0.02 and image.width >= 600  # the whole width of the content, nothing cut at the sides
+
+
+def test_a_transition_the_writer_names_in_other_words_is_mapped_not_rejected():
+    for word, expected in (("wipe", "slide"), ("Wipe left", "slide"), ("dissolve", "fade"), ("cross-fade", "fade"), ("zoom in", "zoom"), ("hard cut", "cut"), ("jump cut", "cut"),
+                           ("whip pan", "slide"), ("", "fade"), (None, "fade"), ("sparkle", "fade"), ("slide", "slide")):
+        assert storyboard.normalise_transition(word) == expected, word
+    data = good_promo()
+    data["shots"][2]["transition"], data["shots"][3]["transition"] = "dissolve", "wipe right"
+    assert problems_of(data) == [] and [s["transition"] for s in data["shots"][2:4]] == ["fade", "slide"]
 
 
 def test_a_dropped_currency_symbol_is_repaired_not_rejected():
@@ -373,7 +419,7 @@ def test_capture_saves_numbered_text_screenshots_and_styles(tmp_path):
 
     with FixtureServer({"/": html(PAGE)}) as site:
         run = Run(tmp_path / "run")
-        record = capture(run, site.base + "/")
+        record = capture(run, site.base + "/", SafetyPolicy(allow_private=True, allowed_ports=None))
     text = run.page_md.read_text(encoding="utf-8")
     lines = text.splitlines()
     assert "# In-cab ads across India" in text and "[Launch a campaign]" in text and "- Pick cabs and months" in text
@@ -416,6 +462,21 @@ def test_the_safe_rewrite_always_passes_the_storyboard_rules():
     assert problems_of(data) == [] and data["shots"][1]["visual"]["template"] == "title"
 
 
+def test_a_writer_that_keeps_adding_an_unsourced_word_gets_that_shot_repaired_not_the_whole_video_failed(fake_ai):
+    bad = good_promo()
+    bad["shots"][2]["visual"] = {"type": "graphic", "template": "stats", "props": {"stats": [{"value": "Live", "label": "tracking"}]}}
+    bad["shots"][2]["voice"] = "Every play is counted live"
+    seconds = allocate(20.0, STRUCTURES["promo"])
+    found = storyboard.validate_storyboard(json.loads(json.dumps(bad)), "promo", seconds, NOTES, BOARD_CAPTURE, "Launch")
+    assert any("shot 3" in p and "tracking" in p and "never say" in p for p in found), found  # the retry names the exact word
+    fake_ai(*[json.dumps(bad)] * 3)
+    data = studio_ai.ask_json(
+        "sys", "user", lambda d: storyboard.validate_storyboard(d, "promo", seconds, NOTES, BOARD_CAPTURE, "Launch"), what="storyboard", tries=3,
+        repair=lambda d, problems: storyboard.repair_storyboard(d, problems, seconds, NOTES, {"cta": {"text": "Launch"}, "must_include": []}))
+    assert "tracking" not in json.dumps(data["shots"][2]) and storyboard.validate_storyboard(data, "promo", seconds, NOTES, BOARD_CAPTURE, "Launch") == []
+    assert data["shots"][0] == good_promo()["shots"][0]  # shots that were fine are left alone
+
+
 def test_a_comma_inside_a_number_is_not_a_place_to_cut():
     assert check.fit_clause("Advertising starts at ₹4,000 per cab per month, plus GST on every invoice", 8) == "Advertising starts at ₹4,000 per cab per month"
     assert not check.trim_words("Starts at ₹4,000 per cab per month plus", 7).endswith("plus")
@@ -449,3 +510,212 @@ def test_the_command_line_reports_a_stopped_stage_without_a_traceback(tmp_path, 
 def test_the_command_line_refuses_a_length_that_is_too_short(tmp_path, capsys):
     assert cli.main(["capture", "--url", "https://x.example", "--type", "pitch", "--length", "8", "--run", str(tmp_path / "d")]) == 1
     assert "needs at least 14 seconds" in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------------------------------------- the browser only opens public websites
+
+
+@pytest.mark.parametrize("url", ["http://127.0.0.1/", "http://localhost/", "http://10.0.0.5/admin", "http://169.254.169.254/latest/meta-data", "file:///etc/passwd",
+                                 "http://user:pass@example.com/", "ftp://example.com/", "http://[::1]/"])
+def test_the_browser_refuses_private_and_unsafe_addresses(url):
+    from app.studio.capture import capture
+
+    with pytest.raises(StageError):
+        capture(Run(Path("unused-never-created")), url)
+
+
+def test_every_request_a_page_makes_is_checked():
+    from app.studio.netguard import request_allowed
+
+    cache: dict[str, bool] = {}
+    default = SafetyPolicy()
+    assert request_allowed("data:image/png;base64,AAAA", default, cache) and request_allowed("about:blank", default, cache)
+    assert not request_allowed("http://127.0.0.1:8000/api/config", default, cache)
+    assert not request_allowed("http://metadata.google.internal/", default, cache)
+    assert request_allowed("http://127.0.0.1/", SafetyPolicy(allow_private=True, allowed_ports=None), {})
+
+
+# ---------------------------------------------------------------------------------------------- empty pages, crops, logo and pictures
+
+
+def draw_content(path: Path, size=(1440, 900), box=(420, 300, 1020, 600)):
+    from PIL import ImageDraw
+
+    image = Image.new("RGB", size, (255, 255, 255))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle(box, fill=(255, 102, 0))
+    draw.rectangle((box[0] + 40, box[1] + 40, box[2] - 40, box[1] + 90), fill=(20, 20, 20))
+    image.save(path)
+    return path
+
+
+def test_an_empty_screenshot_is_recognised_and_the_crop_follows_the_content(tmp_path):
+    from app.studio import imaging
+
+    empty = tmp_path / "empty.png"
+    Image.new("RGB", (1440, 900), (255, 255, 255)).save(empty)
+    barely = tmp_path / "barely.png"  # the 'try searching to get started' kind of page: a line of text on white
+    image = Image.new("RGB", (1440, 900), (255, 255, 255))
+    for x in range(600, 840):
+        for y in range(420, 428):
+            image.putpixel((x, y), (20, 20, 20))
+    image.save(barely)
+    full = draw_content(tmp_path / "full.png")
+    assert imaging.is_empty(empty) and imaging.is_empty(barely) and not imaging.is_empty(full)
+    left, top, right, bottom = imaging.content_box(full)
+    assert left <= 420 and right >= 1020 and top <= 300 and bottom >= 600 and (right - left) < 900  # the empty margins are gone
+    for aspect in (1.78, 1.0, 0.56):
+        crop = imaging.crop_for(full, aspect)
+        assert abs(crop["w"] / crop["h"] - aspect) < 0.02
+        assert 0 <= crop["x"] and crop["x"] + crop["w"] <= 1440 and 0 <= crop["y"] and crop["y"] + crop["h"] <= 900
+    whole = imaging.crop_for(full, 1.0, whole_width=True)  # a small card never shows a word cut at its edge
+    assert whole["x"] <= left and whole["x"] + whole["w"] >= right
+
+
+def test_a_page_that_shows_nothing_is_refused_with_a_clear_reason(tmp_path):
+    manager, browser, _ = chromium_page()
+    browser.close()
+    manager.stop()
+    from app.studio.capture import capture
+
+    nothing = "<html><head><title>Home</title></head><body style='margin:0;background:#fff'><p style='text-align:center;padding-top:200px;font-size:14px'>Try searching to get started</p></body></html>"
+    with FixtureServer({"/": html(nothing)}) as site:
+        with pytest.raises(StageError, match="shows almost nothing"):
+            capture(Run(tmp_path / "run"), site.base + "/", SafetyPolicy(allow_private=True, allowed_ports=None))
+
+
+def test_the_logo_and_the_big_pictures_of_a_site_are_saved_as_assets(tmp_path):
+    import io
+
+    from PIL import ImageDraw
+
+    manager, browser, _ = chromium_page()
+    browser.close()
+    manager.stop()
+    from app.studio.capture import capture
+
+    def png(size, fill):
+        image = Image.new("RGB", size, (255, 255, 255))
+        draw = ImageDraw.Draw(image)
+        draw.rectangle((4, 4, size[0] - 5, size[1] - 5), fill=fill)
+        draw.ellipse((size[0] // 4, size[1] // 4, size[0] * 3 // 4, size[1] * 3 // 4), fill=(255, 255, 255))
+        out = io.BytesIO()
+        image.save(out, "PNG")
+        return out.getvalue()
+
+    from .fixture_server import Route
+
+    page = PAGE.replace("<body>", '<body><header style="padding:12px"><a href="/"><img class="site-logo" src="/logo.png" alt="Cab Ads" width="160" height="48"></a></header>').replace(
+        "<h1>In-cab ads across India</h1>", '<h1>In-cab ads across India</h1><img src="/hero.png" alt="A cab with a screen" width="520" height="320">')
+    routes = {"/": html(page), "/logo.png": Route(body=png((160, 48), (255, 102, 0)), content_type="image/png"),
+              "/hero.png": Route(body=png((520, 320), (30, 90, 160)), content_type="image/png")}
+    with FixtureServer(routes) as site:
+        run = Run(tmp_path / "run")
+        record = capture(run, site.base + "/", SafetyPolicy(allow_private=True, allowed_ports=None))
+    assets = record["assets"]
+    assert assets["logo"] and (run.capture_dir / assets["logo"]["file"]).is_file()
+    assert [a["alt"] for a in assets["images"]] == ["A cab with a screen"] and (run.capture_dir / assets["images"][0]["file"]).is_file()
+
+
+STRONG_BRAND = {"colors": {"mode": "light", "primary": "#ff6600", "accent": "#ffe0c2", "background_dark": "#18181b", "background_light": "#faf8f5", "ink": "#171717", "on_primary": "#ffffff"},
+                "fonts": {"heading": "Outfit", "body": "Inter"}, "shapes": {"card_radius_px": 16, "button_radius_px": 9999}}
+
+
+@pytest.mark.parametrize("size", [(1920, 1080), (1080, 1920), (1080, 1080)])
+def test_every_scene_fits_in_every_shape_in_both_looks(tmp_path, size):
+    """Bold (brand colour fills the frame) and plain looks, with the logo, a picture beside the headline and a cropped screenshot."""
+    from app.studio import imaging
+
+    shot_file = draw_content(tmp_path / "shot.png")
+    art = tmp_path / "art.png"
+    draw_content(art, size=(600, 600), box=(60, 60, 540, 540))
+    logo = tmp_path / "logo.png"
+    Image.new("RGBA", (300, 90), (255, 102, 0, 255)).save(logo)
+    theme = scenes.theme_from(STRONG_BRAND)
+    assert theme["bold"]
+    manager, browser, page = chromium_page(*size)
+    try:
+        for number in (1, 2):  # odd shots are bold, even ones plain
+            for name in sorted(PROPS):
+                visual = {"type": "graphic", "template": name, "props": PROPS[name]}
+                scene = {"n": number, "seconds": 3, "visual": visual, "caption": ""}
+                path = tmp_path / f"{name}_{number}.html"
+                path.write_text(scenes.scene_html(scene, theme, size, "x.example", logo_url=logo.as_uri(), art_url=art.as_uri()), encoding="utf-8")
+                page.goto(path.as_uri(), wait_until="load")
+                page.evaluate("ms => document.getAnimations().forEach(a => { a.pause(); a.currentTime = ms; })", 4000)
+                page.evaluate("window.__fit()")
+                assert page.evaluate("window.__overflow") == [], (name, number, size)
+            crop = imaging.crop_for(shot_file, scenes.screenshot_aspect(size))
+            scene = {"n": number, "seconds": 3, "visual": {"type": "screenshot", "id": "01", "focus": "top", "zoom": "in"}, "caption": "Live map of every play"}
+            path = tmp_path / f"shot_{number}.html"
+            path.write_text(scenes.scene_html(scene, theme, size, "x.example", shot_file.as_uri(), crop), encoding="utf-8")
+            page.goto(path.as_uri(), wait_until="load")
+            page.evaluate("ms => document.getAnimations().forEach(a => { a.pause(); a.currentTime = ms; })", 2500)
+            page.evaluate("window.__fit()")
+            assert page.evaluate("window.__overflow") == [], ("screenshot", number, size)
+            box = page.evaluate("(() => { const r = document.querySelector('.shot-card').getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; })()")
+            assert abs((box[0] + box[2]) / 2 - size[0] / 2) < 3
+    finally:
+        browser.close()
+        manager.stop()
+
+
+def test_a_weak_brand_colour_does_not_fill_the_frame():
+    weak = {**STRONG_BRAND, "colors": {**STRONG_BRAND["colors"], "primary": "#f3f3f3"}}
+    assert not scenes.theme_from(weak)["bold"] and not scenes.bold_ok("#111111") and scenes.bold_ok("#0a66c2")
+
+
+def test_an_answer_that_was_cut_off_is_kept_up_to_its_last_complete_item(fake_ai):
+    cut = '{"claims": [{"id": "C1", "text": "Costs {₹4,000}, per cab"}, {"id": "C2", "text": "Live GPS"}, {"id": "C3", "text": "Trust'
+    assert studio_ai.parse_json(cut) == {"claims": [{"id": "C1", "text": "Costs {₹4,000}, per cab"}, {"id": "C2", "text": "Live GPS"}]}
+    assert studio_ai.parse_json('```json\n{"a": [1, {"b": "x"}]}\n```') == {"a": [1, {"b": "x"}]}
+    assert studio_ai.parse_json("no json here") is None and studio_ai.parse_json('{"a": "never closed') is None
+    writer = fake_ai(cut, '{"n": 2}')
+    data = studio_ai.ask_json("sys", "user", lambda d: [] if d.get("n") == 2 else ["n must be 2"], what="a test")
+    assert data == {"n": 2} and writer.calls == 2
+
+
+def test_the_retry_message_says_when_the_answer_was_cut_off(fake_ai):
+    seen = []
+
+    class Recording(FakeWriter):
+        async def complete(self, system, user, max_tokens=1400, *, model="", timeout=0.0, reasoning=None):
+            seen.append(user)
+            return await super().complete(system, user, max_tokens, model=model, timeout=timeout, reasoning=reasoning)
+
+    writer = Recording("Here is the plan: first we", '{"n": 2}')
+    studio_ai.set_client(writer)
+    studio_ai.ask_json("sys", "user", lambda d: [] if d.get("n") == 2 else ["n must be 2"], what="a test")
+    assert "looks cut off" in seen[1]
+
+
+def test_the_daily_limit_message_says_when_it_resets_and_the_other_free_models_are_not_asked(fake_ai, monkeypatch):
+    import time
+
+    import httpx
+
+    from app.ai.llm import LlmClient
+
+    from .conftest import make_settings
+
+    reset_ms = int((time.time() + 5 * 3600) * 1000)
+    body = {"error": {"message": "Rate limit exceeded: free-models-per-day", "code": 429, "metadata": {"headers": {"X-RateLimit-Reset": str(reset_ms)}}}}
+    client = LlmClient(make_settings(ai_prompt_api_key="k", ai_prompt_base_url="https://openrouter.ai/api/v1", ai_prompt_model="openrouter/free"))
+    with pytest.raises(LlmError) as raised:
+        client._raise_for_status(httpx.Response(429, json=body))
+    assert "daily limit" in str(raised.value) and "resets at" in str(raised.value) and "in about 5 hours" in str(raised.value) and "1000 free requests" in str(raised.value)
+
+    asked = []
+
+    class Limited(FakeWriter):
+        async def complete(self, system, user, max_tokens=1400, *, model="", timeout=0.0, reasoning=None):
+            asked.append(model)
+            raise LlmError(str(raised.value))
+
+    writer = Limited()
+    writer.settings = types.SimpleNamespace(ai_prompt_base_url="https://openrouter.ai/api/v1", ai_prompt_model="openrouter/free")
+    studio_ai.set_client(writer)
+    with pytest.raises(StageError) as stopped:
+        studio_ai.ask_json("sys", "user", lambda d: [], what="product notes", tries=1)
+    assert asked == ["nvidia/nemotron-3.5-lightning:free"]  # the shared limit is known after one answer
+    assert str(stopped.value).count("daily limit") == 1 and "status 400" not in str(stopped.value)

@@ -39,6 +39,9 @@ def test_spec_documents_every_route_and_the_real_error_body():
         ("post", "/api/scrape"), ("get", "/api/jobs/{job_id}"), ("post", "/api/uploads"), ("get", "/api/assets/{asset_id}"),
         ("post", "/api/generate-ad"), ("get", "/api/ads/{ad_id}"), ("post", "/api/ads/{ad_id}/cancel"),
         ("get", "/api/ads/{ad_id}/video"), ("get", "/api/config"), ("get", "/health"), ("get", "/ready"),
+        ("post", "/api/studio/jobs"), ("get", "/api/studio/jobs/{job_id}"), ("put", "/api/studio/jobs/{job_id}/assumptions"),
+        ("post", "/api/studio/jobs/{job_id}/continue"), ("post", "/api/studio/jobs/{job_id}/cancel"), ("get", "/api/studio/jobs/{job_id}/video"),
+        ("get", "/api/studio/jobs/{job_id}/screenshots/{file}"),
     }
     assert spec["openapi"].startswith("3.1") and spec["security"] == []
     assert "HTTPValidationError" not in spec["components"]["schemas"]

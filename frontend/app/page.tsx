@@ -2,9 +2,9 @@ import Link from "next/link";
 import { Logo } from "@/components/ui/Logo";
 
 const STEPS = [
-  { num: "1", icon: "🔗", title: "Paste your website", sub: "We read it and pull out your business name, offer and best photos.", tint: "from-violet-500/20 to-fuchsia-500/10" },
-  { num: "2", icon: "🎨", title: "Pick a look", sub: "Website photos, AI video or a mix, for a taxi screen, Reel or Short.", tint: "from-pink-500/20 to-orange-400/10" },
-  { num: "3", icon: "🎬", title: "Get your video ad", sub: "Ready in minutes, with your details added as clean, animated text.", tint: "from-amber-400/20 to-cyan-400/10" },
+  { num: "1", icon: "🧭", title: "Choose how", sub: "Upload your own photos (manual), or start from your website (automated): we read it for your name, offer and pictures.", tint: "from-violet-500/20 to-fuchsia-500/10" },
+  { num: "2", icon: "🎨", title: "Pick media and style", sub: "Website pictures, full AI or a mix, then quick Caption + QR, or the designed Studio video with voice and sound effects.", tint: "from-pink-500/20 to-orange-400/10" },
+  { num: "3", icon: "🎬", title: "Get your video ad", sub: "Ready in minutes, for a taxi screen, Reel or Short, with your details added as clean, animated text.", tint: "from-amber-400/20 to-cyan-400/10" },
 ];
 
 const CHIPS = ["🚕 Taxi screens", "📸 Instagram Reels", "▶️ YouTube Shorts", "👍 Facebook feed"];
@@ -34,11 +34,8 @@ export default function Home() {
             </p>
           </div>
           <div className="animate-fadeUp delay-3 flex flex-col items-center justify-center gap-3 pt-2 sm:flex-row">
-            <Link href="/ads/create?mode=auto" className="bg-brand animate-gradient shine shadow-glow w-full rounded-2xl px-8 py-4 text-base font-bold text-white transition-transform hover:-translate-y-0.5 active:scale-[0.98] sm:w-auto">
-              ✨ Create my ad
-            </Link>
-            <Link href="/ads/create?mode=manual" className="w-full rounded-2xl border border-line bg-surface/80 px-8 py-4 text-base font-semibold text-ink transition-all hover:-translate-y-0.5 hover:border-accent sm:w-auto">
-              Use my own photos
+            <Link href="/ads/create" className="bg-brand animate-gradient shine shadow-glow w-full rounded-2xl px-10 py-4 text-base font-bold text-white transition-transform hover:-translate-y-0.5 active:scale-[0.98] sm:w-auto">
+              ✨ Make an ad
             </Link>
           </div>
           <ul className="animate-fadeUp delay-4 flex flex-wrap justify-center gap-2 pt-2">

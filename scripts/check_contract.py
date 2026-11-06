@@ -30,6 +30,7 @@ MODEL_ALIASES = {"ConfigOption": None, "ErrorBody": "ErrorResponse"}
 UNIONS = {
     "ScrapeStatus": "ScrapeStatus", "JobStatus": "JobStatus", "ScrapeStage": "ScrapeStage", "AdStatus": "AdStatus", "AdStage": "AdStage",
     "CreationMode": "CreationMode", "CreativeMode": "CreativeMode", "SegmentKind": "SegmentKind",
+    "StudioStatus": "StudioStatus", "StudioStageStatus": "StudioStageStatus", "StudioVideoType": "StudioVideoType", "StudioPlatform": "StudioPlatform",
 }
 FORBIDDEN = (r"/api/v1", r"/fastapi", r"/backend\b", r"localhost:\d+", r"127\.0\.0\.1", r"https?://(?!www\.w3\.org)")
 
@@ -86,7 +87,7 @@ def frontend_calls() -> tuple[set[tuple[str, str]], set[str]]:
         path = re.sub(r"\$\{[^}]*\}", "{param}", match.group("path"))
         path = path.split("?")[0].rstrip("/")
         context = match.group("before") + match.group("after")
-        method = "POST" if ("postJson" in match.group("before") or 'method: "POST"' in context) else "GET"
+        method = "POST" if ("postJson" in match.group("before") or 'method: "POST"' in context) else "PUT" if 'method: "PUT"' in context else "GET"
         calls.add((method, path))
     forms = set(re.findall(r'\.append\("([^"]+)"', text))
     return calls, forms
@@ -115,7 +116,7 @@ def ts_unions() -> dict[str, set[str]]:
     def expand(name: str, seen: frozenset[str] = frozenset()) -> set[str]:
         """Literals of one alias, following references to other aliases."""
         body = bodies[name]
-        values = set(re.findall(r'"([a-z_0-9]+)"', body))
+        values = set(re.findall(r'"([a-z_0-9:.+-]+)"', body))  # also values such as "16:9"
         for word in re.findall(r"\b([A-Z]\w+)\b", body):
             if word in bodies and word not in seen and word != name:
                 values |= expand(word, seen | {name})

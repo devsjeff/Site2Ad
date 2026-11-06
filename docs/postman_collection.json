@@ -288,6 +288,226 @@
       ]
     },
     {
+      "name": "Studio",
+      "description": "Make a typed video (promo, hook ad, pitch, showcase, explainer, testimonial, launch) from a website in seven stages: capture, product notes, brand notes, assumptions, storyboard, build, check.",
+      "item": [
+        {
+          "name": "Studio Create",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/studio/jobs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "studio",
+                "jobs"
+              ]
+            },
+            "description": "Start a typed video (promo, hook ad, pitch, showcase, explainer, testimonial, launch) from a website. Poll GET /api/studio/jobs/{job_id}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://www.example.com\",\n  \"video_type\": \"promo\",\n  \"length\": 20,\n  \"platform\": \"16:9\",\n  \"claims\": [],\n  \"review\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Studio Get",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/studio/jobs/{{job_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "studio",
+                "jobs",
+                "{{job_id}}"
+              ]
+            },
+            "description": "Progress of a studio job and what each finished stage produced (claims, brand, assumptions, shots, check report)."
+          }
+        },
+        {
+          "name": "Studio Assumptions",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/studio/jobs/{{job_id}}/assumptions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "studio",
+                "jobs",
+                "{{job_id}}",
+                "assumptions"
+              ]
+            },
+            "description": "Correct the AI's creative choices while the job waits for review.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Studio Continue",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/studio/jobs/{{job_id}}/continue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "studio",
+                "jobs",
+                "{{job_id}}",
+                "continue"
+              ]
+            },
+            "description": "After the review: make the storyboard, the video and the check."
+          }
+        },
+        {
+          "name": "Studio Cancel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/studio/jobs/{{job_id}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "studio",
+                "jobs",
+                "{{job_id}}",
+                "cancel"
+              ]
+            },
+            "description": "Stop a studio job after its current step."
+          }
+        },
+        {
+          "name": "Studio Video",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/studio/jobs/{{job_id}}/video",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "studio",
+                "jobs",
+                "{{job_id}}",
+                "video"
+              ],
+              "query": [
+                {
+                  "key": "download",
+                  "value": "false",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "The finished studio video (MP4, supports HTTP Range; ?download=true to save it)."
+          }
+        },
+        {
+          "name": "Studio Screenshot",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/studio/jobs/{{job_id}}/screenshots/{{file}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "studio",
+                "jobs",
+                "{{job_id}}",
+                "screenshots",
+                "{{file}}"
+              ]
+            },
+            "description": "One screenshot captured from the website (shown next to the claims and the shots)."
+          }
+        }
+      ]
+    },
+    {
       "name": "Configuration",
       "description": "Options and limits of this deployment, so clients never hard-code them.",
       "item": [

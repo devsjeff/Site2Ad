@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass
 from pathlib import Path
@@ -11,12 +12,19 @@ from ..ai.facts import MissingBusinessName
 from ..context import AppContext
 from ..schemas import (
     AdResponse, ConfigResponse, CreativeModeInfo, GenerateAdRequest, HealthResponse, JobResponse, ReadyResponse, ScrapeRequest,
-    UploadResponse,
+    StudioAssumptions, StudioRequest, StudioResponse, StudioTypeInfo, UploadResponse,
 )
+from ..scraper.safety import UnsafeUrlError, check_url_is_safe
 from ..scraper.render import browser_installed
 from ..services.ads import AI_UNAVAILABLE_MESSAGE, WEBSITE_IMAGE_SECONDS, DailyLimitReached, InvalidCreative, ScanNotReady, UnknownJob
 from ..services.assets import VideoUploadProblem
+from ..studio.config import StageError, normalize_url
+from ..studio.jobs import StudioError
+from ..studio.pipeline import validate_request
+from ..video import voice as voice_engine
 from ..video.images import ImageProblem
+
+STUDIO_UNAVAILABLE_MESSAGE = "Studio needs the AI writer. Set AI_PROMPT_API_KEY (and AI_PROMPT_BASE_URL / AI_PROMPT_MODEL) in backend/.env, then restart the backend."
 
 UPLOAD_KINDS = {"logo", "photo", "video"}
 
@@ -118,6 +126,63 @@ class Api:
 
     # ------------------------------------------------------------------ ads
 
+    # ------------------------------------------------------------------ studio
+
+    def _studio_call(self, call, *args):
+        """Run a studio operation and turn its problems into API errors."""
+        try:
+            return call(*args)
+        except StudioError as exc:
+            raise ApiError(exc.status, exc.message, exc.code) from None
+
+    async def studio_create(self, body: StudioRequest, client_id: str) -> StudioResponse:
+        """POST /api/studio/jobs: start a typed video from a website."""
+        self._limit(client_id)
+        if not self.ctx.prompts.llm.enabled:
+            raise ApiError(409, STUDIO_UNAVAILABLE_MESSAGE, "studio_unavailable")
+        try:
+            validate_request(body.model_dump())  # the cheap checks first (a video type that is too short for its shots, and so on)
+        except StageError as exc:
+            raise ApiError(422, str(exc), "invalid_request") from None
+        try:
+            await check_url_is_safe(normalize_url(body.url), self.ctx.studio.policy)
+        except UnsafeUrlError as exc:
+            raise ApiError(422, str(exc), "unsafe_url") from None
+        state = await asyncio.to_thread(self._studio_call, self.ctx.studio.create, body.model_dump())
+        return await self.studio_get(state["id"])
+
+    async def studio_get(self, job_id: str) -> StudioResponse:
+        """GET /api/studio/jobs/{job_id}: progress and what each finished stage produced."""
+        return StudioResponse(**await asyncio.to_thread(self._studio_call, self.ctx.studio.view, job_id))
+
+    async def studio_assumptions(self, job_id: str, body: StudioAssumptions) -> StudioResponse:
+        """PUT /api/studio/jobs/{job_id}/assumptions: the person's corrections, while the job waits for review."""
+        edited = {
+            "audience": body.audience, "key_message": body.key_message, "tone": body.tone, "voice": body.voice, "voice_reason": body.voice_reason,
+            "music": body.music, "music_reason": body.music_reason, "cta": {"text": body.cta_text, "target": body.cta_target}, "language": body.language, "sound_effects": body.sound_effects,
+            "must_include": [i.model_dump() for i in body.must_include], "must_avoid": [a.strip() for a in body.must_avoid if a.strip()],
+        }
+        await asyncio.to_thread(self._studio_call, self.ctx.studio.save_assumptions, job_id, edited)
+        return await self.studio_get(job_id)
+
+    async def studio_continue(self, job_id: str) -> StudioResponse:
+        """POST /api/studio/jobs/{job_id}/continue: make the video after the review."""
+        await asyncio.to_thread(self._studio_call, self.ctx.studio.resume, job_id)
+        return await self.studio_get(job_id)
+
+    async def studio_cancel(self, job_id: str) -> StudioResponse:
+        """POST /api/studio/jobs/{job_id}/cancel: stop a job after its current step."""
+        await asyncio.to_thread(self._studio_call, self.ctx.studio.cancel, job_id)
+        return await self.studio_get(job_id)
+
+    async def studio_video(self, job_id: str) -> Path:
+        """GET /api/studio/jobs/{job_id}/video: path of the finished MP4."""
+        return await asyncio.to_thread(self._studio_call, self.ctx.studio.video_path, job_id)
+
+    async def studio_screenshot(self, job_id: str, file: str) -> Path:
+        """GET /api/studio/jobs/{job_id}/screenshots/{file}: one captured screenshot."""
+        return await asyncio.to_thread(self._studio_call, self.ctx.studio.screenshot_path, job_id, file)
+
     async def create_ad(self, body: GenerateAdRequest, client_id: str) -> AdResponse:
         """POST /api/generate-ad: start ONE ad (one prompt, one video)."""
         self._limit(client_id)
@@ -199,7 +264,10 @@ class Api:
             platforms=listed(catalog.PLATFORMS, "label", "aspect_ratio", "audience"),
             goals=listed(catalog.GOALS, "label"),
             ad_types=listed(catalog.AD_TYPES, "label", "hint", "note"),
-            voices=listed(catalog.VOICES, "label", "hint"),
+            voices=[{"id": key, **{k: v[k] for k in ("label", "hint", "engine", "languages", "gender")}} for key, v in catalog.VOICES.items()
+                    if v["engine"] != "eleven" or voice_engine.eleven_ready()],  # ElevenLabs voices are offered only while the key works
+            languages=[{"id": key, "label": v["label"], "native": v["native"]} for key, v in catalog.LANGUAGES.items()],
+            eleven_available=voice_engine.eleven_ready(),
             music=listed(catalog.MUSIC, "label"),
             styles=listed(catalog.STYLES, "label"),
             tones=listed(catalog.TONES, "label"),
@@ -214,6 +282,9 @@ class Api:
             website_image_seconds=WEBSITE_IMAGE_SECONDS,
             max_video_upload_bytes=s.max_video_upload_bytes,
             max_video_upload_seconds=s.max_video_upload_seconds,
+            studio_available=self.ctx.prompts.llm.enabled,
+            studio_message="" if self.ctx.prompts.llm.enabled else STUDIO_UNAVAILABLE_MESSAGE,
+            studio_types=[StudioTypeInfo(**t) for t in self.ctx.studio.types()],
         )
 
     @staticmethod

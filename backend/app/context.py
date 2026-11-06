@@ -14,8 +14,10 @@ from .services.ads import Ads
 from .services.assets import AssetStore
 from .services.maintenance import Maintenance
 from .services.scrape_jobs import ScrapeJobs
+from .studio.jobs import StudioJobs
 from .store.cache import Cache, make_cache
 from .store.db import Database
+from .video import voice
 from .video.service import VideoService
 
 logger = logging.getLogger(__name__)
@@ -36,6 +38,7 @@ class AppContext:
     ads: Ads
     maintenance: Maintenance
     limiter: RateLimiter
+    studio: StudioJobs
 
     @classmethod
     async def create(
@@ -54,7 +57,8 @@ class AppContext:
         assets = AssetStore(settings, db)
         ads = Ads(settings, db, scrape_jobs, scraper, assets, prompts, video)
         maintenance = Maintenance(settings, db, ads, assets)
-        ctx = cls(settings, db, cache, scraper, scrape_jobs, assets, prompts, video, ads, maintenance, RateLimiter(settings.rate_limit_per_minute))
+        voice.configure(settings)
+        ctx = cls(settings, db, cache, scraper, scrape_jobs, assets, prompts, video, ads, maintenance, RateLimiter(settings.rate_limit_per_minute), StudioJobs(settings))
         recovered = await scrape_jobs.recover() + await ads.recover()
         if recovered:
             logger.warning("closed %s unfinished job(s) from the previous run", recovered)
